@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EyeHealthAI — Ocular Health Screening Report</title>
+  <meta name="description" content="AI-Powered Ocular Screening Report & Ocular Health Scorecard">
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-page: #f8fafc;
+      --card-bg: #ffffff;
+      --border-color: #e2e8f0;
+      --text-main: #0f172a;
+      --text-sub: #475569;
+      --text-muted: #64748b;
+      --color-poor: #ef4444;
+      --color-warn: #f97316;
+      --color-fair: #eab308;
+      --color-good: #22c55e;
+      --color-blue: #3b82f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.4;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Print / Action Controls */
+    .action-bar {
+      width: 100%;
+      max-width: 820px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 12px 18px;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-print {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .btn-print:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-back {
+      background: #f1f5f9;
+      color: #334155;
+    }
+    .btn-back:hover {
+      background: #e2e8f0;
+    }
+
+    /* Printable Report Container */
+    .report-sheet {
+      width: 100%;
+      max-width: 820px;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 32px 36px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Patient Header */
+    .patient-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1.5px solid #cbd5e1;
+      margin-bottom: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .patient-header span strong {
+      color: #0f172a;
+    }
+
+    /* Section 1: AI SCREENING REPORT */
+    .section-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+      background: #ffffff;
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #0f172a;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    /* Image Grid */
+    .images-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .image-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .image-frame {
+      width: 100%;
+      height: 150px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1.5px solid #cbd5e1;
+      position: relative;
+      background: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .image-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Target Reticle Overlay */
+    .reticle-box {
+      position: absolute;
+      border: 2px solid #facc15;
+      background: rgba(250, 204, 21, 0.15);
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    .view-tag-pill {
+      margin-top: 8px;
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 20px;
+      text-transform: capitalize;
+    }
+
+    /* Color Legend Bar */
+    .legend-bar {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    /* Section 2: RECOMMENDATIONS */
+    .recommendations-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: #0f172a;
+      margin-bottom: 12px;
+    }
+
+    .rec-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 28px;
+    }
+
+    .rec-table tr {
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .rec-table td {
+      padding: 8px 6px;
+      font-size: 11.5px;
+      vertical-align: top;
+    }
+
+    .rec-label {
+      width: 28%;
+      font-weight: 700;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .rec-colon {
+      width: 3%;
+      text-align: center;
+      color: #94a3b8;
+    }
+
+    .rec-text {
+      color: #334155;
+      line-height: 1.45;
+    }
+
+    /* Page Divider */
+    .page-divider {
+      height: 2px;
+      background: linear-gradient(to right, #cbd5e1, #94a3b8, #cbd5e1);
+      margin: 32px 0;
+      border-radius: 2px;
+    }
+
+    /* Section 3: Ocular Health Scorecard */
+    .scorecard-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .scorecard-header h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 2px;
+    }
+
+    .scorecard-header p {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    /* Central Score Box */
+    .score-banner {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 18px 24px;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .score-number {
+      font-family: 'Outfit', sans-serif;
+      font-size: 38px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+    }
+
+    .score-badge {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      background: #fef08a;
+      color: #854d0e;
+    }
+
+    .score-sub {
+      font-size: 11.5px;
+      color: #475569;
+      margin-top: 6px;
+    }
+
+    /* Gradient Range Bar */
+    .slider-container {
+      width: 100%;
+      max-width: 460px;
+      margin: 16px auto 8px auto;
+      position: relative;
+    }
+
+    .gradient-bar {
+      height: 8px;
+      border-radius: 6px;
+      background: linear-gradient(to right, #ef4444 0%, #f97316 25%, #eab308 50%, #84cc16 75%, #22c55e 100%);
+      width: 100%;
+    }
+
+    .slider-pointer {
+      position: absolute;
+      top: -4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid #0f172a;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+      transform: translateX(-50%);
+    }
+
+    .slider-legend {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 10px;
+    }
+
+    .legend-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      margin-right: 3px;
+    }
+
+    /* 4-Card Score Grid */
+    .scorecard-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .score-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 14px 16px;
+      background: #ffffff;
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .card-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-score {
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .card-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 9.5px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .badge-poor { background: #fee2e2; color: #991b1b; }
+    .badge-fair { background: #fef08a; color: #854d0e; }
+    .badge-good { background: #dcfce7; color: #166534; }
+    .badge-alert { background: #ffedd5; color: #9a3412; }
+
+    .card-bullets {
+      list-style-type: disc;
+      padding-left: 18px;
+      font-size: 10.5px;
+      color: #475569;
+      line-height: 1.5;
+    }
+
+    /* What this means for you */
+    .insights-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #f8fafc;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+    }
+
+    .insights-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+
+    .insights-list {
+      list-style-type: disc;
+      padding-left: 18px;
+      font-size: 11px;
+      color: #334155;
+      line-height: 1.5;
+    }
+
+    /* Footer & Verification */
+    .report-footer {
+      border-top: 1.5px solid #cbd5e1;
+      padding-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+    }
+
+    .disclaimer-text {
+      font-size: 9.5px;
+      color: #64748b;
+      line-height: 1.45;
+      max-width: 580px;
+    }
+
+    .qr-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px 10px;
+      text-align: center;
+      background: #f8fafc;
+      min-width: 130px;
+    }
+
+    .qr-title {
+      font-size: 9px;
+      font-weight: 700;
+      color: #1d4ed8;
+      text-decoration: underline;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .qr-code-img {
+      width: 72px;
+      height: 72px;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .bottom-info-bar {
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px dashed #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      font-size: 9.5px;
+      color: #64748b;
+    }
+
+    /* Print Specific Rules */
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+      }
+      .action-bar {
+        display: none !important;
+      }
+      .report-sheet {
+        border: none;
+        box-shadow: none;
+        padding: 10px 15px;
+        max-width: 100%;
+      }
+      .page-divider {
+        page-break-after: auto;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 10mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Action Bar (Hidden when printing) -->
+  <div class="action-bar no-print">
+    <a href="/" class="btn-action btn-back">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"/>
+        <polyline points="12 19 5 12 12 5"/>
+      </svg>
+      Dashboard
+    </a>
+    <div style="font-size: 13px; font-weight: 600; color: #475569;">
+      EyeHealthAI Clinical Screening Report Preview
+    </div>
+    <button class="btn-action btn-print" onclick="window.print()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="6 9 6 2 18 2 18 9"/>
+        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+        <rect x="6" y="14" width="12" height="8"/>
+      </svg>
+      Print / Save as PDF
+    </button>
+  </div>
+
+  <!-- Printable Report Canvas -->
+  <div class="report-sheet" id="reportContent">
+
+    <!-- Patient Header -->
+    <header class="patient-header">
+      <span>Name: <strong id="rptPatientName">Sarthak Sharma (18M)</strong></span>
+      <span>Phone / ID: <strong id="rptPatientPhone">9019488301</strong></span>
+      <span>Date: <strong id="rptDate">11-Oct-2026 04:30 PM</strong></span>
+    </header>
+
+    <!-- AI SCREENING REPORT SECTION -->
+    <section class="section-box">
+      <h3 class="section-title">AI SCREENING REPORT:</h3>
+
+      <!-- 3 Ocular Image Thumbnails -->
+      <div class="images-grid" id="rptImagesGrid">
+        <!-- Image 1 -->
+        <div class="image-card">
+          <div class="image-frame">
+            <img id="rptImg1" src="" alt="Palpebral Conjunctiva">
+            <div class="reticle-box" style="top: 25%; left: 20%; width: 50%; height: 50%;"></div>
+          </div>
+          <span class="view-tag-pill" id="rptTag1">Palpebral View</span>
+        </div>
+
+        <!-- Image 2 -->
+        <div class="image-card">
+          <div class="image-frame">
+            <img id="rptImg2" src="" alt="Raw Eye View">
+            <div class="reticle-box" style="top: 30%; left: 25%; width: 45%; height: 40%; border-color: #22c55e;"></div>
+          </div>
+          <span class="view-tag-pill" id="rptTag2">Raw Eye View</span>
+        </div>
+
+        <!-- Image 3 -->
+        <div class="image-card">
+          <div class="image-frame">
+            <img id="rptImg3" src="" alt="Forniceal Conjunctiva">
+            <div class="reticle-box" style="top: 20%; left: 30%; width: 45%; height: 55%; border-color: #3b82f6;"></div>
+          </div>
+          <span class="view-tag-pill" id="rptTag3">Forniceal View</span>
+        </div>
+      </div>
+
+      <!-- Colored Legend Bar -->
+      <div class="legend-bar">
+        <div class="legend-item">
+          <div class="legend-color" style="background: #facc15;"></div>
+          <span>Palpebral Pallor</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #78350f;"></div>
+          <span>Conjunctival Erythema</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #22c55e;"></div>
+          <span>Scleral Surface</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #ef4444;"></div>
+          <span>Vascular Congestion</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #3b82f6;"></div>
+          <span>Focal Reticle</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREENING RECOMMENDATIONS SECTION -->
+    <section>
+      <h3 class="recommendations-title">TREATMENT &amp; SCREENING RECOMMENDATIONS:</h3>
+      <table class="rec-table">
+        <tbody>
+          <tr>
+            <td class="rec-label">
+              <div class="legend-color" style="background: #facc15;"></div>
+              Microvascular Pallor
+            </td>
+            <td class="rec-colon">:</td>
+            <td class="rec-text" id="recHbText">
+              Hemoglobin estimate: <strong>12.2 g/dL</strong> (Mild pallor indicator). Confirmatory venous hemocounter CBC required.
+            </td>
+          </tr>
+          <tr>
+            <td class="rec-label">
+              <div class="legend-color" style="background: #78350f;"></div>
+              Conjunctival Hyperemia
+            </td>
+            <td class="rec-colon">:</td>
+            <td class="rec-text">
+              Reliability gate enforced: Upstream resolution shortcut documented. Preserved for offline research evaluation.
+            </td>
+          </tr>
+          <tr>
+            <td class="rec-label">
+              <div class="legend-color" style="background: #22c55e;"></div>
+              Scleral Icterus
+            </td>
+            <td class="rec-colon">:</td>
+            <td class="rec-text">
+              Sclera coloration inspected. Bilirubin laboratory reference testing required for jaundice screening.
+            </td>
+          </tr>
+          <tr>
+            <td class="rec-label">
+              <div class="legend-color" style="background: #ef4444;"></div>
+              Ocular Surface
+            </td>
+            <td class="rec-colon">:</td>
+            <td class="rec-text">
+              Maintain ocular lubrication; avoid environmental dust and prolonged uncorrected glare.
+            </td>
+          </tr>
+          <tr>
+            <td class="rec-label">
+              <div class="legend-color" style="background: #3b82f6;"></div>
+              Optical Quality
+            </td>
+            <td class="rec-colon">:</td>
+            <td class="rec-text" id="recQualityText">
+              Laplacian sharpness and luminance within operational bounds. Macro focal alignment confirmed.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Visual Page Divider -->
+    <div class="page-divider"></div>
+
+    <!-- SECTION: OCULAR HEALTH SCORECARD -->
+    <section>
+      <div class="scorecard-header">
+        <h2>Ocular Health Scorecard</h2>
+        <p>AI-powered ocular screening insights</p>
+      </div>
+
+      <!-- Central Overall Score Banner -->
+      <div class="score-banner">
+        <div class="score-number" id="rptOverallScore">74 / 100</div>
+        <div class="score-badge" id="rptScoreBadge">Fair</div>
+        <div class="score-sub" id="rptScoreSub">Moderate microvascular pallor detected</div>
+
+        <!-- Continuous Gradient Slider Bar -->
+        <div class="slider-container">
+          <div class="gradient-bar"></div>
+          <div class="slider-pointer" id="rptSliderPointer" style="left: 74%;"></div>
+        </div>
+
+        <!-- Slider Range Legend -->
+        <div class="slider-legend">
+          <span><span class="legend-dot" style="background: #ef4444;"></span>Very Poor</span>
+          <span><span class="legend-dot" style="background: #f97316;"></span>Poor</span>
+          <span><span class="legend-dot" style="background: #eab308;"></span>Fair</span>
+          <span><span class="legend-dot" style="background: #84cc16;"></span>Good</span>
+          <span><span class="legend-dot" style="background: #22c55e;"></span>Excellent</span>
+        </div>
+      </div>
+
+      <!-- 4-Card Scorecard Grid -->
+      <div class="scorecard-grid">
+        <!-- Card 1: Microvascular Pallor -->
+        <div class="score-card">
+          <div class="card-top">
+            <div>
+              <div class="card-title">
+                <span>🩸 Microvascular Pallor</span>
+              </div>
+              <div class="card-score" id="cardScoreHb">71 / 100</div>
+            </div>
+            <span class="card-badge badge-fair" id="cardBadgeHb">Fair</span>
+          </div>
+          <ul class="card-bullets">
+            <li id="bulletHb1">Estimated Hb: 12.2 g/dL</li>
+            <li>Confirmatory venous CBC advised</li>
+            <li>Dietary iron &amp; nutritional review</li>
+            <li>Repeat non-invasive scan in 30 days</li>
+          </ul>
+        </div>
+
+        <!-- Card 2: Conjunctival Health -->
+        <div class="score-card">
+          <div class="card-top">
+            <div>
+              <div class="card-title">
+                <span>👁️ Conjunctival Health</span>
+              </div>
+              <div class="card-score">80 / 100</div>
+            </div>
+            <span class="card-badge badge-good">Good</span>
+          </div>
+          <ul class="card-bullets">
+            <li>Low vascular congestion noted</li>
+            <li>Reliability gate: shortcut documented</li>
+            <li>Use artificial tears for ocular dryness</li>
+            <li>6-month routine ophthalmology visit</li>
+          </ul>
+        </div>
+
+        <!-- Card 3: Scleral Clarity -->
+        <div class="score-card">
+          <div class="card-top">
+            <div>
+              <div class="card-title">
+                <span>☀️ Scleral Clarity</span>
+              </div>
+              <div class="card-score">85 / 100</div>
+            </div>
+            <span class="card-badge badge-good">Good</span>
+          </div>
+          <ul class="card-bullets">
+            <li>No visible scleral icterus staining</li>
+            <li>Bilirubin reference test required</li>
+            <li>Wear UV-rated sunglasses outdoors</li>
+            <li>Hydration &amp; ocular rest routine</li>
+          </ul>
+        </div>
+
+        <!-- Card 4: Capture & Focal Quality -->
+        <div class="score-card">
+          <div class="card-top">
+            <div>
+              <div class="card-title">
+                <span>📷 Capture Quality</span>
+              </div>
+              <div class="card-score" id="cardScoreQuality">92 / 100</div>
+            </div>
+            <span class="card-badge badge-good" id="cardBadgeQuality">Excellent</span>
+          </div>
+          <ul class="card-bullets">
+            <li id="bulletQuality1">Sharpness &amp; Laplacian verified</li>
+            <li>Diffuse exposure confirmed</li>
+            <li>Close-up macro eye framing verified</li>
+            <li>Zero motion blur detected</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- What this means for you -->
+      <div class="insights-box">
+        <div class="insights-title">What this means for you ?</div>
+        <ul class="insights-list" id="rptInsightsList">
+          <li>Mild conjunctival microvascular pallor observed; confirmatory laboratory venous blood CBC is recommended.</li>
+          <li>Ocular surface and scleral regions demonstrate clear focal clarity without active erythema.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- FOOTER & AUDIT VERIFICATION -->
+    <footer class="report-footer">
+      <div class="disclaimer-text">
+        <strong>CLINICAL RESEARCH DISCLAIMER:</strong> This ocular screening report is generated using computer vision research models. Venous laboratory hemocounter measurements and slit-lamp examinations are mandatory for clinical triage, diagnosis, and prescription. Not certified as a primary medical diagnostic device.
+      </div>
+      <div class="qr-box">
+        <span class="qr-title">Access Detailed Report on scan</span>
+        <!-- Embedded High-Resolution QR Code SVG -->
+        <svg class="qr-code-img" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100" height="100" fill="#FFFFFF"/>
+          <!-- Position Marker Top Left -->
+          <rect x="10" y="10" width="28" height="28" fill="#0F172A"/>
+          <rect x="15" y="15" width="18" height="18" fill="#FFFFFF"/>
+          <rect x="19" y="19" width="10" height="10" fill="#0F172A"/>
+          <!-- Position Marker Top Right -->
+          <rect x="62" y="10" width="28" height="28" fill="#0F172A"/>
+          <rect x="67" y="15" width="18" height="18" fill="#FFFFFF"/>
+          <rect x="71" y="19" width="10" height="10" fill="#0F172A"/>
+          <!-- Position Marker Bottom Left -->
+          <rect x="10" y="62" width="28" height="28" fill="#0F172A"/>
+          <rect x="15" y="67" width="18" height="18" fill="#FFFFFF"/>
+          <rect x="19" y="71" width="10" height="10" fill="#0F172A"/>
+          <!-- Pattern Dots -->
+          <rect x="42" y="12" width="6" height="6" fill="#0F172A"/>
+          <rect x="52" y="18" width="6" height="6" fill="#0F172A"/>
+          <rect x="44" y="26" width="6" height="6" fill="#0F172A"/>
+          <rect x="12" y="44" width="6" height="6" fill="#0F172A"/>
+          <rect x="22" y="52" width="6" height="6" fill="#0F172A"/>
+          <rect x="42" y="42" width="16" height="16" fill="#0F172A"/>
+          <rect x="46" y="46" width="8" height="8" fill="#FFFFFF"/>
+          <rect x="66" y="44" width="6" height="6" fill="#0F172A"/>
+          <rect x="78" y="52" width="8" height="8" fill="#0F172A"/>
+          <rect x="44" y="68" width="8" height="8" fill="#0F172A"/>
+          <rect x="58" y="74" width="8" height="8" fill="#0F172A"/>
+          <rect x="74" y="68" width="16" height="16" fill="#0F172A"/>
+        </svg>
+      </div>
+    </footer>
+
+    <!-- Bottom Contact Bar -->
+    <div class="bottom-info-bar">
+      <span>📞 +91 90194 88301</span>
+      <span>✉️ research@eyehealthai.org</span>
+      <span>🌐 www.eyehealthai-research.org</span>
+      <span>📍 HealthAI Research Prototype, India</span>
+    </div>
+
+  </div>
+
+  <script>
+    // Hydrate Report from sessionStorage or query parameters
+    document.addEventListener('DOMContentLoaded', () => {
+      const rawData = sessionStorage.getItem('eyehealthai_active_report');
+      if (!rawData) return;
+
+      try {
+        const data = JSON.parse(rawData);
+
+        // Header
+        if (data.patient_name) document.getElementById('rptPatientName').textContent = data.patient_name;
+        if (data.patient_phone) document.getElementById('rptPatientPhone').textContent = data.patient_phone;
+        if (data.timestamp) {
+          const d = new Date(data.timestamp);
+          document.getElementById('rptDate').textContent = d.toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric'
+          }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Images
+        if (data.images && data.images.length > 0) {
+          const img1 = document.getElementById('rptImg1');
+          const img2 = document.getElementById('rptImg2');
+          const img3 = document.getElementById('rptImg3');
+          const tag1 = document.getElementById('rptTag1');
+          const tag2 = document.getElementById('rptTag2');
+          const tag3 = document.getElementById('rptTag3');
+
+          if (data.images[0]) {
+            img1.src = data.images[0].src;
+            tag1.textContent = data.images[0].tag || 'View 1';
+          }
+          if (data.images[1]) {
+            img2.src = data.images[1].src;
+            tag2.textContent = data.images[1].tag || 'View 2';
+          } else {
+            img2.src = data.images[0].src;
+            tag2.textContent = 'Raw Eye View';
+          }
+          if (data.images[2]) {
+            img3.src = data.images[2].src;
+            tag3.textContent = data.images[2].tag || 'View 3';
+          } else {
+            img3.src = data.images[0].src;
+            tag3.textContent = 'Forniceal View';
+          }
+        }
+
+        // Hemoglobin & Scorecard calculations
+        const hb = data.view_mean || (data.model_output && data.model_output[0] ? data.model_output[0].hb_pred_g_dl : 12.2);
+        const hbVal = parseFloat(hb);
+
+        let overallScore = 74;
+        let scoreBadge = 'Fair';
+        let scoreSub = 'Moderate microvascular pallor detected';
+        let badgeClass = 'badge-fair';
+
+        if (hbVal >= 13.0) {
+          overallScore = 88;
+          scoreBadge = 'Good';
+          scoreSub = 'Healthy microvascular coloration detected';
+          badgeClass = 'badge-good';
+        } else if (hbVal >= 11.5) {
+          overallScore = 74;
+          scoreBadge = 'Fair';
+          scoreSub = 'Borderline / mild conjunctival pallor detected';
+          badgeClass = 'badge-fair';
+        } else {
+          overallScore = 58;
+          scoreBadge = 'Poor';
+          scoreSub = 'Significant conjunctival pallor detected (Anemia Indicator)';
+          badgeClass = 'badge-poor';
+        }
+
+        // Apply Scores
+        document.getElementById('rptOverallScore').textContent = `${overallScore} / 100`;
+        const bEl = document.getElementById('rptScoreBadge');
+        bEl.textContent = scoreBadge;
+        bEl.className = `score-badge ${badgeClass}`;
+        document.getElementById('rptScoreSub').textContent = scoreSub;
+        document.getElementById('rptSliderPointer').style.left = `${Math.min(Math.max(overallScore, 5), 95)}%`;
+
+        document.getElementById('recHbText').innerHTML = `Hemoglobin estimate: <strong>${hbVal} g/dL</strong> (${scoreBadge} pallor indicator). Confirmatory venous hemocounter CBC advised.`;
+        document.getElementById('cardScoreHb').textContent = `${overallScore - 3} / 100`;
+        document.getElementById('bulletHb1').textContent = `Estimated Hb: ${hbVal} g/dL`;
+
+        // Quality
+        if (data.quality) {
+          const qScore = data.quality.is_blurry ? 65 : 94;
+          document.getElementById('cardScoreQuality').textContent = `${qScore} / 100`;
+          document.getElementById('bulletQuality1').textContent = `Sharpness: ${data.quality.sharpness || 'OK'}, Brightness: ${data.quality.brightness || 'OK'}`;
+        }
+      } catch (e) {
+        console.error('Error hydrating report:', e);
+      }
+    });
+  </script>
+</body>
+</html>

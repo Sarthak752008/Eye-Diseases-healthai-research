@@ -134,6 +134,16 @@
           Permitted for experimental research use. You may upload one or multiple anatomical views (e.g. palpebral, forniceal, full eye) from the same capture session.
         </div>
 
+        <!-- Patient Record Header Inputs -->
+        <div class="patient-record-bar" style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">Patient / Subject Record</span>
+          <div style="display: grid; grid-template-columns: 2fr 1fr 1.5fr; gap: 8px;">
+            <input type="text" id="inputPatientName" placeholder="Name" value="Sarthak Sharma" style="background: rgba(10, 15, 29, 0.8); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 11.5px;">
+            <input type="text" id="inputPatientAge" placeholder="Age/Sex" value="18M" style="background: rgba(10, 15, 29, 0.8); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 11.5px;">
+            <input type="text" id="inputPatientPhone" placeholder="Phone / ID" value="9019488301" style="background: rgba(10, 15, 29, 0.8); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 11.5px;">
+          </div>
+        </div>
+
         <!-- Source Mode Switcher -->
         <div class="mode-switcher" style="display: flex; gap: 8px; margin-bottom: 16px;">
           <button id="btnModeUpload" class="btn-mode active" type="button">
@@ -303,6 +313,16 @@
               </svg>
               New Session
             </button>
+            <button id="btnViewReport" class="btn-primary" type="button" style="display: none; padding: 6px 12px; font-size: 12px; background: linear-gradient(135deg, #2563eb, #3b82f6); border-radius: 6px; align-items: center; gap: 6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+              Clinical Screening Report
+            </button>
             <button id="btnExport" class="btn-export" style="display: none;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -330,6 +350,26 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- In-Page Clinical Screening Report Modal Preview -->
+  <div id="reportModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
+    <div style="background: #ffffff; width: 100%; max-width: 900px; height: 92vh; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+      <div style="padding: 10px 18px; background: #0f172a; color: #ffffff; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          AI Ocular Health Screening Report &amp; Scorecard
+        </span>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <a href="/report" target="_blank" style="color: #93c5fd; font-size: 11.5px; text-decoration: underline; font-weight: 600;">Open in New Tab</a>
+          <button id="btnCloseReportModal" type="button" style="background: transparent; border: none; color: #ffffff; font-size: 18px; cursor: pointer; padding: 2px 6px;">✕</button>
+        </div>
+      </div>
+      <iframe id="reportFrame" src="/report" style="width: 100%; height: 100%; border: none;"></iframe>
+    </div>
   </div>
 
   <script src="/static/js/dashboard.js"></script>

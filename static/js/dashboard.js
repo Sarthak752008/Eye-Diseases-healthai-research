@@ -53,7 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultsEmpty = document.getElementById('resultsEmpty');
   const resultsContent = document.getElementById('resultsContent');
   const btnResetSession = document.getElementById('btnResetSession');
+  const btnViewReport = document.getElementById('btnViewReport');
   const btnExport = document.getElementById('btnExport');
+  const reportModal = document.getElementById('reportModal');
+  const btnCloseReportModal = document.getElementById('btnCloseReportModal');
+  const reportFrame = document.getElementById('reportFrame');
+  const inputPatientName = document.getElementById('inputPatientName');
+  const inputPatientAge = document.getElementById('inputPatientAge');
+  const inputPatientPhone = document.getElementById('inputPatientPhone');
 
   // View Options for Anemia
   const ANEMIA_VIEWS = [
@@ -71,6 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentSessionRequestId++;
     lastSessionData = null;
     if (btnExport) btnExport.style.display = 'none';
+    if (btnViewReport) btnViewReport.style.display = 'none';
     if (resultsContent) {
       resultsContent.style.display = 'none';
       resultsContent.innerHTML = '';
@@ -654,6 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resultsEmpty.style.display = 'none';
     resultsContent.style.display = 'flex';
     btnExport.style.display = 'flex';
+    if (btnViewReport) btnViewReport.style.display = 'inline-flex';
 
     resultsContent.innerHTML = `
       <div class="result-card-main" style="border-color: rgba(239, 68, 68, 0.4);">
@@ -684,6 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resultsEmpty.style.display = 'none';
     resultsContent.style.display = 'flex';
     btnExport.style.display = 'flex';
+    if (btnViewReport) btnViewReport.style.display = 'inline-flex';
 
     const res = session;
     const viewCount = res.view_count || (res.model_output && res.model_output.length) || 1;
@@ -783,6 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resultsEmpty.style.display = 'none';
     resultsContent.style.display = 'flex';
     btnExport.style.display = 'flex';
+    if (btnViewReport) btnViewReport.style.display = 'inline-flex';
 
     if (mod === 'conjunctivitis') {
       lastSessionData = {
@@ -959,4 +970,54 @@ document.addEventListener('DOMContentLoaded', () => {
       window.URL.revokeObjectURL(url);
     }
   });
+
+  // --------------------------------------------------------------------------
+  // 9. Clinical Screening Report Action (Scorecard & Visual Findings)
+  // --------------------------------------------------------------------------
+  if (btnViewReport) {
+    btnViewReport.addEventListener('click', () => {
+      if (!lastSessionData) return;
+
+      const pName = inputPatientName && inputPatientName.value.trim() ? inputPatientName.value.trim() : 'Sarthak Sharma';
+      const pAge = inputPatientAge && inputPatientAge.value.trim() ? inputPatientAge.value.trim() : '18M';
+      const pPhone = inputPatientPhone && inputPatientPhone.value.trim() ? inputPatientPhone.value.trim() : '9019488301';
+
+      // Assemble captured or uploaded images
+      const rptImages = [];
+      if (activeMode === 'upload' && uploadedFiles.length > 0) {
+        uploadedFiles.forEach(item => {
+          rptImages.push({ src: item.previewUrl, tag: item.viewType });
+        });
+      } else if (activeMode === 'webcam' && capturedWebcamUrl) {
+        rptImages.push({ src: capturedWebcamUrl, tag: (webcamViewSelect ? webcamViewSelect.value : 'webcam_view') });
+      }
+
+      const reportPayload = {
+        ...lastSessionData,
+        patient_name: `${pName} (${pAge})`,
+        patient_phone: pPhone,
+        images: rptImages,
+        quality: capturedQuality ? capturedQuality.quality : (uploadedFiles[0] ? uploadedFiles[0].quality : null)
+      };
+
+      try {
+        sessionStorage.setItem('eyehealthai_active_report', JSON.stringify(reportPayload));
+      } catch (e) {
+        console.warn('sessionStorage set failed:', e);
+      }
+
+      if (reportFrame) reportFrame.src = '/report?t=' + Date.now();
+      if (reportModal) reportModal.style.display = 'flex';
+    });
+  }
+
+  if (btnCloseReportModal && reportModal) {
+    btnCloseReportModal.addEventListener('click', () => {
+      reportModal.style.display = 'none';
+    });
+    reportModal.addEventListener('click', (e) => {
+      if (e.target === reportModal) reportModal.style.display = 'none';
+    });
+  }
 });
+

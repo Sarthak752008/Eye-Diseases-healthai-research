@@ -122,6 +122,15 @@ async def serve_dashboard():
     return FileResponse(index_path)
 
 
+@app.get("/report", response_class=FileResponse)
+async def serve_screening_report():
+    """Serves the pixel-perfect Ocular Health Screening Report page."""
+    report_path = os.path.join(STATIC_DIR, "report.html")
+    if not os.path.exists(report_path):
+        raise HTTPException(status_code=404, detail="Report UI not found")
+    return FileResponse(report_path)
+
+
 @app.get("/health")
 @app.get("/api/health")
 async def health_check():

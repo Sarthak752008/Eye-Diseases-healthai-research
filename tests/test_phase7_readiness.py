@@ -165,3 +165,16 @@ def test_end_to_end_research_workflow(client, sample_ocular_image_bytes):
     assert validate_session_export_schema(exported_report) is True
     assert exported_report["session_id"] == session_payload["session_id"]
     assert exported_report["selected_module"] == "anemia"
+
+
+def test_screening_report_page_served(client):
+    """Verifies that the Ocular Health Screening Report page is served at /report."""
+    res = client.get("/report")
+    assert res.status_code == 200
+    html = res.text
+    assert "Ocular Health Scorecard" in html
+    assert "AI SCREENING REPORT:" in html
+    assert "TREATMENT &amp; SCREENING RECOMMENDATIONS:" in html
+    assert "Microvascular Pallor" in html
+    assert "rptOverallScore" in html
+    assert "Print / Save as PDF" in html
