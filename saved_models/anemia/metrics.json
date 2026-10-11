@@ -1,0 +1,19 @@
+{
+  "model_name": "ResNet50 Anemia Regressor",
+  "target": "Hemoglobin (g/dL)",
+  "checkpoint_path": "C:\\Users\\sarth\\OneDrive\\Pictures\\Innotech\\saved_models\\anemia\\best_model.pth",
+  "validation_metrics": {
+    "mae_g_dl": 1.5933,
+    "rmse_g_dl": 2.1475,
+    "r2": 0.2287,
+    "pearson_r": 0.5547,
+    "sample_count": 132
+  },
+  "test_metrics": {
+    "mae_g_dl": 1.7757,
+    "rmse_g_dl": 2.2915,
+    "r2": 0.1367,
+    "pearson_r": 0.4645,
+    "sample_count": 130
+  }
+}

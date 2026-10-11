@@ -1,0 +1,16 @@
+{
+  "model_name": "MobileNetV3-Small Jaundice Classifier",
+  "classes": {
+    "0": "normal",
+    "1": "jaundiced"
+  },
+  "input_size": [
+    3,
+    224,
+    224
+  ],
+  "color_preservation": "Strict (no hue jitter, scleral yellowing preserved)",
+  "status": "BLOCKED_PENDING_DATA",
+  "blocker_reason": "No raw jaundice dataset or clinical bilirubin laboratory measurements exist in the workspace.",
+  "safety_policy": "No synthetic labels or fabricated bilirubin numbers were created."
+}

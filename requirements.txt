@@ -1,0 +1,21 @@
+# EyeHealthAI — Production Runtime Requirements
+# Python 3.10+ compatible
+
+# Core Web Framework & ASGI Server
+fastapi>=0.100.0,<1.0.0
+uvicorn[standard]>=0.22.0,<1.0.0
+python-multipart>=0.0.6
+pydantic>=2.0.0
+
+# Scientific Computing & Computer Vision
+numpy>=1.24.0,<2.0.0
+pillow>=9.5.0
+scikit-learn>=1.2.0
+
+# Deep Learning Framework
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Optional Testing & Verification (Development)
+pytest>=7.0.0
+requests>=2.28.0

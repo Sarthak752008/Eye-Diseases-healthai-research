@@ -1,0 +1,72 @@
+{
+  "timestamp": "2026-10-11T00:06:38.866836",
+  "workspace": "C:\\Users\\sarth\\OneDrive\\Pictures\\Innotech",
+  "anemia": {
+    "total_files": 862,
+    "unique_images": 860,
+    "duplicate_records": 4,
+    "corrupt_images": 0,
+    "total_subjects": 218,
+    "subjects_with_verified_hb": 217,
+    "subjects_missing_hb": 1,
+    "hb_stats_g_dl": {
+      "min": 7.0,
+      "max": 17.4,
+      "mean": 12.77958041958042,
+      "median": 13.2
+    },
+    "country_breakdown": {
+      "Italy": 480,
+      "India": 382
+    },
+    "view_types": {
+      "raw_eye": 219,
+      "palpebral": 218,
+      "forniceal_palpebral": 213,
+      "forniceal": 212
+    },
+    "split_distribution_images": {
+      "train": 596,
+      "val": 132,
+      "test": 130,
+      "unlabeled": 4
+    },
+    "split_distribution_subjects": {
+      "test": 33,
+      "train": 151,
+      "unlabeled": 1,
+      "val": 33
+    }
+  },
+  "conjunctivitis": {
+    "total_images": 1006,
+    "unique_images": 1006,
+    "duplicate_records": 0,
+    "corrupt_images": 0,
+    "class_distribution": {
+      "normal": 649,
+      "conjunctivitis": 357
+    },
+    "split_distribution": {
+      "test_conjunctivitis": 53,
+      "test_normal": 98,
+      "train_conjunctivitis": 250,
+      "train_normal": 454,
+      "val_conjunctivitis": 54,
+      "val_normal": 97
+    }
+  },
+  "jaundice": {
+    "available": false,
+    "image_count": 0,
+    "bilirubin_measurements_available": false,
+    "blocker_description": "No raw jaundice dataset or bilirubin laboratory measurements exist in the workspace."
+  },
+  "conjunctiva_segmentation": {
+    "total_images": 547,
+    "masks_annotator_1": 547,
+    "masks_annotator_2": 547,
+    "annotator_1_perfectly_paired": true,
+    "annotator_2_perfectly_paired": true
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "model_name": "ResNet50 Anemia Regressor",
+  "checkpoint": "C:\\Users\\sarth\\OneDrive\\Pictures\\Innotech\\saved_models\\anemia\\best_model.pth",
+  "target_distribution": {
+    "train": {
+      "N": 592,
+      "mean": 12.79,
+      "std": 2.31
+    },
+    "val": {
+      "N": 132,
+      "mean": 12.73,
+      "std": 2.45
+    },
+    "test": {
+      "N": 130,
+      "mean": 12.77,
+      "std": 2.48
+    }
+  },
+  "results": {
+    "val_view_level": {
+      "model": {
+        "mae_g_dl": 1.5933,
+        "rmse_g_dl": 2.1475,
+        "r2": 0.2287,
+        "pearson_r": 0.5547,
+        "sample_count": 132
+      },
+      "mean_baseline": {
+        "mae_g_dl": 2.0931,
+        "rmse_g_dl": 2.4453,
+        "r2": 0.0,
+        "pearson_r": 0.0,
+        "sample_count": 132
+      },
+      "median_baseline": {
+        "mae_g_dl": 2.05,
+        "rmse_g_dl": 2.4908,
+        "r2": -0.0376,
+        "pearson_r": 0.0,
+        "sample_count": 132
+      }
+    },
+    "val_patient_level": {
+      "model": {
+        "mae_g_dl": 1.453,
+        "rmse_g_dl": 1.9936,
+        "r2": 0.3353,
+        "pearson_r": 0.6103,
+        "sample_count": 33
+      },
+      "mean_baseline": {
+        "mae_g_dl": 2.0931,
+        "rmse_g_dl": 2.4453,
+        "r2": 0.0,
+        "pearson_r": 0.0,
+        "sample_count": 33
+      },
+      "median_baseline": {
+        "mae_g_dl": 2.05,
+        "rmse_g_dl": 2.4908,
+        "r2": -0.0376,
+        "pearson_r": 0.0,
+        "sample_count": 33
+      },
+      "per_patient_pred_std_mean": 0.8167,
+      "per_patient_pred_std_max": 2.0759
+    },
+    "test_view_level": {
+      "model": {
+        "mae_g_dl": 1.7757,
+        "rmse_g_dl": 2.2915,
+        "r2": 0.1367,
+        "pearson_r": 0.4645,
+        "sample_count": 130
+      },
+      "mean_baseline": {
+        "mae_g_dl": 2.0099,
+        "rmse_g_dl": 2.4662,
+        "r2": 0.0,
+        "pearson_r": 0.0,
+        "sample_count": 130
+      },
+      "median_baseline": {
+        "mae_g_dl": 1.9877,
+        "rmse_g_dl": 2.5223,
+        "r2": -0.0461,
+        "pearson_r": 0.0,
+        "sample_count": 130
+      }
+    },
+    "test_patient_level": {
+      "model": {
+        "mae_g_dl": 1.5013,
+        "rmse_g_dl": 2.0728,
+        "r2": 0.2836,
+        "pearson_r": 0.5529,
+        "sample_count": 33
+      },
+      "mean_baseline": {
+        "mae_g_dl": 1.9895,
+        "rmse_g_dl": 2.4491,
+        "r2": 0.0,
+        "pearson_r": 0.0,
+        "sample_count": 33
+      },
+      "median_baseline": {
+        "mae_g_dl": 1.9606,
+        "rmse_g_dl": 2.5033,
+        "r2": -0.0448,
+        "pearson_r": 0.0,
+        "sample_count": 33
+      },
+      "per_patient_pred_std_mean": 0.9708,
+      "per_patient_pred_std_max": 2.4101
+    }
+  },
+  "clinical_suitability_note": "These metrics represent a research baseline only. Clinical suitability requires prospective validation on external cohorts, comparison with published non-invasive Hb estimation benchmarks, and assessment of clinically meaningful error thresholds (e.g. \u00b11 g/dL for anemia screening). No confidence intervals or clinical decision thresholds are claimed."
+}

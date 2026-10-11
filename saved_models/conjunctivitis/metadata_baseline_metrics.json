@@ -1,0 +1,112 @@
+{
+  "task": "Layer 3.5 Metadata-Only Baseline Evaluation",
+  "dataset_manifest": "C:\\Users\\sarth\\OneDrive\\Pictures\\Innotech\\data\\manifests\\conjunctivitis_manifest_v2_clean.csv",
+  "dataset_audit": {
+    "normal": {
+      "count": 649,
+      "width_min": 41,
+      "width_max": 89,
+      "width_mean": 56.16,
+      "height_min": 41,
+      "height_max": 89,
+      "height_mean": 56.16,
+      "aspect_ratio_min": 1.0,
+      "aspect_ratio_max": 1.0,
+      "aspect_ratio_mean": 1.0,
+      "area_min": 1681,
+      "area_max": 7921,
+      "area_mean": 3208.82
+    },
+    "conjunctivitis": {
+      "count": 316,
+      "width_min": 117,
+      "width_max": 741,
+      "width_mean": 352.47,
+      "height_min": 120,
+      "height_max": 557,
+      "height_mean": 252.55,
+      "aspect_ratio_min": 0.8207,
+      "aspect_ratio_max": 2.3977,
+      "aspect_ratio_mean": 1.4034,
+      "area_min": 14274,
+      "area_max": 359385,
+      "area_mean": 90992.6
+    }
+  },
+  "findings": {
+    "dimension_gap": "Normal images have width in [41, 89], while Conjunctivitis images have width in [117, 741]. The distributions have zero overlap.",
+    "aspect_ratio_gap": "Normal images are 100% square (aspect_ratio = 1.0), while Conjunctivitis images have mean aspect_ratio = 1.4034 (range: [0.8207, 2.3977]).",
+    "shortcut_consequence": "A trivial classifier looking ONLY at image dimensions/aspect ratio achieves 100% accuracy without inspecting a single pixel. Consequently, MobileNetV3-Small's 100% test accuracy cannot be attributed to biological conjunctival erythema recognition."
+  },
+  "metadata_baselines_test_results": {
+    "rule_based_width_threshold_100": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall_sensitivity": 1.0,
+      "specificity": 1.0,
+      "f1_score": 1.0,
+      "roc_auc": 1.0,
+      "confusion_matrix": [
+        [
+          98,
+          0
+        ],
+        [
+          0,
+          48
+        ]
+      ],
+      "true_negatives": 98,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_positives": 48,
+      "sample_count": 146
+    },
+    "logistic_regression_metadata": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall_sensitivity": 1.0,
+      "specificity": 1.0,
+      "f1_score": 1.0,
+      "roc_auc": 1.0,
+      "confusion_matrix": [
+        [
+          98,
+          0
+        ],
+        [
+          0,
+          48
+        ]
+      ],
+      "true_negatives": 98,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_positives": 48,
+      "sample_count": 146
+    },
+    "decision_tree_stump_metadata": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall_sensitivity": 1.0,
+      "specificity": 1.0,
+      "f1_score": 1.0,
+      "roc_auc": 1.0,
+      "confusion_matrix": [
+        [
+          98,
+          0
+        ],
+        [
+          0,
+          48
+        ]
+      ],
+      "true_negatives": 98,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_positives": 48,
+      "sample_count": 146
+    }
+  }
+}
