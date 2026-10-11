@@ -1,0 +1,49 @@
+{
+  "model_name": "MobileNetV3-Small Jaundice Classifier",
+  "target": "Visible Scleral Icterus (Research Only)",
+  "licence": "CC BY-NC 4.0 (Non-Commercial Research Only)",
+  "best_validation_metrics": {
+    "accuracy": 0.84,
+    "precision": 0.9473684210526315,
+    "recall_sensitivity": 0.72,
+    "specificity": 0.96,
+    "f1_score": 0.8181818181818182,
+    "roc_auc": 0.9199999999999999,
+    "confusion_matrix": [
+      [
+        24,
+        1
+      ],
+      [
+        7,
+        18
+      ]
+    ],
+    "true_negatives": 24,
+    "false_positives": 1,
+    "false_negatives": 7,
+    "true_positives": 18
+  },
+  "final_test_metrics": {
+    "accuracy": 0.8,
+    "precision": 0.9047619047619048,
+    "recall_sensitivity": 0.6333333333333333,
+    "specificity": 0.9428571428571428,
+    "f1_score": 0.7450980392156863,
+    "roc_auc": 0.9238095238095239,
+    "confusion_matrix": [
+      [
+        33,
+        2
+      ],
+      [
+        11,
+        19
+      ]
+    ],
+    "true_negatives": 33,
+    "false_positives": 2,
+    "false_negatives": 11,
+    "true_positives": 19
+  }
+}

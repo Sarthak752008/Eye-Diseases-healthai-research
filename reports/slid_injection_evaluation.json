@@ -1,0 +1,53 @@
+{
+  "dataset": "SLID (Slit-Lamp Image Dataset, Zhejiang University)",
+  "target": "Visible Conjunctival Injection / Hyperemia (Research Only)",
+  "licence": "CC BY 4.0",
+  "metadata_baselines": {
+    "logistic_regression_accuracy": 0.573170731707317,
+    "decision_tree_accuracy": 0.573170731707317
+  },
+  "best_validation_metrics": {
+    "accuracy": 0.9512195121951219,
+    "precision": 1.0,
+    "recall_sensitivity": 0.9130434782608695,
+    "specificity": 1.0,
+    "f1_score": 0.9545454545454546,
+    "roc_auc": 0.9885265700483092,
+    "confusion_matrix": [
+      [
+        36,
+        0
+      ],
+      [
+        4,
+        42
+      ]
+    ],
+    "true_negatives": 36,
+    "false_positives": 0,
+    "false_negatives": 4,
+    "true_positives": 42
+  },
+  "held_out_test_metrics": {
+    "accuracy": 0.9878048780487805,
+    "precision": 1.0,
+    "recall_sensitivity": 0.9782608695652174,
+    "specificity": 1.0,
+    "f1_score": 0.989010989010989,
+    "roc_auc": 1.0,
+    "confusion_matrix": [
+      [
+        36,
+        0
+      ],
+      [
+        1,
+        45
+      ]
+    ],
+    "true_negatives": 36,
+    "false_positives": 0,
+    "false_negatives": 1,
+    "true_positives": 45
+  }
+}

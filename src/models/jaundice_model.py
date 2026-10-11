@@ -59,13 +59,19 @@ class JaundiceRegressor(nn.Module):
 def save_jaundice_checkpoint(
     model: nn.Module,
     save_path: str,
+    optimizer: Optional[torch.optim.Optimizer] = None,
+    epoch: Optional[int] = None,
+    metrics: Optional[Dict[str, Any]] = None,
     class_mapping: Optional[Dict[str, str]] = None,
     config: Optional[Dict[str, Any]] = None
 ):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     state = {
+        'epoch': epoch,
         'model_state_dict': model.state_dict(),
-        'class_mapping': class_mapping or {'0': 'normal', '1': 'jaundiced'},
+        'optimizer_state_dict': optimizer.state_dict() if optimizer else None,
+        'metrics': metrics or {},
+        'class_mapping': class_mapping or {'0': 'normal', '1': 'visibly_jaundiced'},
         'config': config or {}
     }
     torch.save(state, save_path)

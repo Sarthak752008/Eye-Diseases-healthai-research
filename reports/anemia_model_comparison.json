@@ -1,0 +1,167 @@
+{
+  "baselines": {
+    "train_mean_value": 12.793422818791944,
+    "train_median_value": 13.0,
+    "mean_baseline": {
+      "view_mae": 2.008198244708312,
+      "view_rmse": 2.46628907958973,
+      "patient_mae": 1.9884767134431567,
+      "patient_rmse": 2.44907858331837
+    },
+    "median_baseline": {
+      "view_mae": 1.9923076923076923,
+      "view_rmse": 2.476815573395683,
+      "patient_mae": 1.9696969696969697,
+      "patient_rmse": 2.458750606599731
+    }
+  },
+  "resnet50": {
+    "validation": {
+      "view_level": {
+        "mae": 1.593285083770752,
+        "rmse": 2.147547960281372
+      },
+      "patient_level": {
+        "mae": 1.4529831409454346,
+        "rmse": 1.9936413764953613,
+        "pearson_r": 0.6102531990530151,
+        "r2": 0.3352847695350647,
+        "count": 33
+      },
+      "view_breakdown": {
+        "forniceal": {
+          "count": 33,
+          "mae": 1.8295729160308838,
+          "rmse": 2.386531352996826
+        },
+        "forniceal_palpebral": {
+          "count": 33,
+          "mae": 1.5832346677780151,
+          "rmse": 2.2988474369049072
+        },
+        "palpebral": {
+          "count": 33,
+          "mae": 1.3845103979110718,
+          "rmse": 1.868754267692566
+        },
+        "raw_eye": {
+          "count": 33,
+          "mae": 1.5758225917816162,
+          "rmse": 1.9938346147537231
+        }
+      }
+    },
+    "test": {
+      "view_level": {
+        "mae": 1.7756719589233398,
+        "rmse": 2.2914631366729736
+      },
+      "patient_level": {
+        "mae": 1.5012890100479126,
+        "rmse": 2.0728249549865723,
+        "pearson_r": 0.5528701295755016,
+        "r2": 0.28364282846450806,
+        "count": 33
+      },
+      "view_breakdown": {
+        "forniceal": {
+          "count": 32,
+          "mae": 1.7449947595596313,
+          "rmse": 2.248673439025879
+        },
+        "forniceal_palpebral": {
+          "count": 32,
+          "mae": 1.705845832824707,
+          "rmse": 2.2197177410125732
+        },
+        "palpebral": {
+          "count": 33,
+          "mae": 1.8318350315093994,
+          "rmse": 2.386690139770508
+        },
+        "raw_eye": {
+          "count": 33,
+          "mae": 1.8169664144515991,
+          "rmse": 2.3038113117218018
+        }
+      }
+    }
+  },
+  "mobilenet_v3": {
+    "validation": {
+      "view_level": {
+        "mae": 2.5928916931152344,
+        "rmse": 3.2003815174102783
+      },
+      "patient_level": {
+        "mae": 2.472057342529297,
+        "rmse": 2.988306760787964,
+        "pearson_r": 0.4937605148151573,
+        "r2": -0.49345409870147705,
+        "count": 33
+      },
+      "view_breakdown": {
+        "forniceal": {
+          "count": 33,
+          "mae": 2.8309824466705322,
+          "rmse": 3.370553493499756
+        },
+        "forniceal_palpebral": {
+          "count": 33,
+          "mae": 2.5953447818756104,
+          "rmse": 3.1489129066467285
+        },
+        "palpebral": {
+          "count": 33,
+          "mae": 3.142401933670044,
+          "rmse": 3.8129489421844482
+        },
+        "raw_eye": {
+          "count": 33,
+          "mae": 1.8028379678726196,
+          "rmse": 2.2704403400421143
+        }
+      }
+    },
+    "test": {
+      "view_level": {
+        "mae": 3.0801405906677246,
+        "rmse": 3.741220474243164
+      },
+      "patient_level": {
+        "mae": 2.9826104640960693,
+        "rmse": 3.482327699661255,
+        "pearson_r": 0.361467986787544,
+        "r2": -1.0218253135681152,
+        "count": 33
+      },
+      "view_breakdown": {
+        "forniceal": {
+          "count": 32,
+          "mae": 3.7676968574523926,
+          "rmse": 4.409844398498535
+        },
+        "forniceal_palpebral": {
+          "count": 32,
+          "mae": 2.9509520530700684,
+          "rmse": 3.532886266708374
+        },
+        "palpebral": {
+          "count": 33,
+          "mae": 3.350325584411621,
+          "rmse": 3.958526134490967
+        },
+        "raw_eye": {
+          "count": 33,
+          "mae": 2.268508195877075,
+          "rmse": 2.9168832302093506
+        }
+      }
+    }
+  },
+  "model_selection": {
+    "selected_model": "ResNet-50 Regressor",
+    "selection_basis": "Validation Patient MAE",
+    "rationale": "ResNet-50 achieved lower validation MAE (1.4530 vs 2.4721 g/dL)."
+  }
+}

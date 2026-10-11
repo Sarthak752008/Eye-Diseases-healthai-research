@@ -1,0 +1,122 @@
+{
+  "checkpoints": {
+    "anemia": {
+      "exists": true,
+      "epoch": 4,
+      "metrics": {
+        "mae_g_dl": 1.5933,
+        "rmse_g_dl": 2.1475,
+        "r2": 0.2287,
+        "pearson_r": 0.5547,
+        "sample_count": 132,
+        "loss": 1.1718
+      },
+      "total_param_tensors": 322,
+      "mean_weight_norm": 43.54596484374847,
+      "contains_trained_weights": true
+    },
+    "conjunctivitis_v1": {
+      "exists": true,
+      "epoch": 5,
+      "metrics": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall_sensitivity": 1.0,
+        "specificity": 1.0,
+        "f1_score": 1.0,
+        "roc_auc": 1.0,
+        "confusion_matrix": [
+          [
+            97,
+            0
+          ],
+          [
+            0,
+            54
+          ]
+        ],
+        "true_negatives": 97,
+        "false_positives": 0,
+        "false_negatives": 0,
+        "true_positives": 54,
+        "sample_count": 151,
+        "loss": 0.0001
+      },
+      "total_param_tensors": 244,
+      "mean_weight_norm": 13.629457897784318,
+      "contains_trained_weights": true
+    },
+    "conjunctivitis_v2_clean": {
+      "exists": true,
+      "epoch": 8,
+      "metrics": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall_sensitivity": 1.0,
+        "specificity": 1.0,
+        "f1_score": 1.0,
+        "roc_auc": 1.0,
+        "confusion_matrix": [
+          [
+            97,
+            0
+          ],
+          [
+            0,
+            47
+          ]
+        ],
+        "true_negatives": 97,
+        "false_positives": 0,
+        "false_negatives": 0,
+        "true_positives": 47,
+        "sample_count": 144,
+        "loss": 0.0003
+      },
+      "total_param_tensors": 244,
+      "mean_weight_norm": 13.657645383190953,
+      "contains_trained_weights": true
+    }
+  },
+  "anemia_model_loaded_successfully": true,
+  "anemia_model_is_eval": true,
+  "conj_model_loaded_successfully": true,
+  "conj_model_is_eval": true,
+  "preprocessing_max_diff": 0.0,
+  "preprocessing_strictly_identical": true,
+  "repeated_inference_predictions": [
+    12.09,
+    12.09,
+    12.09
+  ],
+  "is_deterministic": true,
+  "india_excel_rows": 95,
+  "italy_excel_rows": 123,
+  "india_manifest_records": 382,
+  "italy_manifest_records": 480,
+  "india_manifest_subjects": 95,
+  "italy_manifest_subjects": 123,
+  "baselines": {
+    "train_mean_hb": 12.793422818791944,
+    "train_median_hb": 13.0,
+    "view_level": {
+      "mean_baseline_mae": 2.008198244708312,
+      "median_baseline_mae": 1.9923076923076923,
+      "mean_baseline_rmse": 2.46628907958973,
+      "median_baseline_rmse": 2.476815573395683,
+      "model_mae": 1.8685244677617001,
+      "model_rmse": 2.3230904764611138
+    },
+    "patient_level": {
+      "mean_baseline_mae": 1.9884767134431567,
+      "median_baseline_mae": 1.9696969696969697,
+      "mean_baseline_rmse": 2.44907858331837,
+      "median_baseline_rmse": 2.458750606599731,
+      "model_mae": 1.6285994486375288,
+      "model_rmse": 2.139384759536202,
+      "pearson_correlation": 0.5183486223225662,
+      "r2_score": 0.2369159881170888,
+      "test_patient_count": 33
+    }
+  }
+}
