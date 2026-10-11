@@ -48,3 +48,5 @@ scratch/
 tmp/
 *.tmp
 temp/
+*.db
+*.sqlite3

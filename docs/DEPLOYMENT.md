@@ -84,9 +84,13 @@ ENV=production
 DEBUG=false
 HOST=0.0.0.0
 PORT=8000
+DATABASE_URL=sqlite:///./data/eyehealthai.db
+# Or PostgreSQL in production:
+# DATABASE_URL=postgresql://user:password@dbhost:5432/eyehealthai
 ALLOWED_ORIGINS=http://127.0.0.1:8000,http://localhost:8000
 MAX_UPLOAD_SIZE_MB=10
 DEVICE=cpu
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 ### Step 3: Verify Model Checkpoints
@@ -110,13 +114,22 @@ uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1
 
 ## 4. Verification & Health Probes
 
-The application provides dual health check endpoints:
-- `GET /health` (Standard platform health probe)
-- `GET /api/health` (Detailed API readiness probe)
+The application provides dual health check endpoints and orchestration readiness probes:
+- `GET /health` and `GET /api/health`: Lightweight operational status distinguishing software health from clinical model validation gates.
+- `GET /ready` and `GET /api/ready`: Readiness probe verifying database connectivity, checkpoint availability, and gating configurations.
+- `GET /api/copilot-status`: Status check for the Gemini Research Copilot.
 
-### Verification:
+### Verification Commands:
 ```bash
+# Health check
 curl -i http://127.0.0.1:8000/health
+
+# Readiness probe
+curl -i http://127.0.0.1:8000/ready
+
+# Two-page PDF download verification
+curl -i http://127.0.0.1:8000/api/reports/ses_mock/pdf?lang=en -o report_en.pdf
+curl -i http://127.0.0.1:8000/api/reports/ses_mock/pdf?lang=hi -o report_hi.pdf
 ```
 
 ---
@@ -126,9 +139,14 @@ curl -i http://127.0.0.1:8000/health
 ### A. Camera Permissions in Production
 - **Symptom**: Browser reports `Camera Error: Permission Denied`.
 - **Cause**: Modern web browsers require **HTTPS** (or `localhost`) to access `navigator.mediaDevices.getUserMedia()`.
-- **Resolution**: Vercel provides automatic HTTPS certificates out of the box, ensuring the webcam interface works securely.
+- **Resolution**: Vercel and production reverse-proxies (Nginx, Caddy, Cloudflare) provide automatic HTTPS certificates, ensuring the webcam interface works securely.
 
 ### B. Missing Checkpoint Error (`FileNotFoundError`)
 - **Symptom**: Server starts, but Anemia analysis returns checkpoint not found.
-- **Cause**: The application is resilient and starts even if optional weights are absent, but inference requires the actual weights.
+- **Cause**: The application starts in resilient mode even if optional weights are absent, but inference requires the actual weights.
 - **Resolution**: Verify that `saved_models/anemia/best_model.pth` exists or configure `ANEMIA_CHECKPOINT_PATH`.
+
+### C. Database Persistence
+- **SQLite (default)**: Stored locally in `data/eyehealthai.db`. Ensure `data/` directory is writable by the application user.
+- **PostgreSQL**: Configure `DATABASE_URL=postgresql://user:pass@host:5432/dbname`. Schema tables (`user_profiles`, `consent_records`, `screening_sessions`, `model_results`, `report_metadata`) are created automatically on startup.
+

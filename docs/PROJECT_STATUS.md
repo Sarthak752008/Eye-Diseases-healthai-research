@@ -1,4 +1,4 @@
-# Project Status — EyeHealthAI (Layers 1–6 Complete)
+# Project Status — EyeHealthAI (Layers 1–8 Complete)
 
 **Last Updated**: 2026-10-11  
 **Workspace**: `c:\Users\sarth\OneDrive\Pictures\Innotech`
@@ -7,13 +7,45 @@
 
 ## 1. Executive Summary & Verification Matrix
 
-| Target | Layer 1: Audit & Manifest | Layer 2: Preprocessing & Leakage Prevention | Layer 3: Model Architecture & Training | Layer 3.5: Reliability & Domain Validation | Layer 4: Unified Inference & Reliability Gate | Layer 5: Research Dashboard & Session Export | Layer 6: Live Webcam Capture & Guidance | Checkpoint Path & Verification | Key Metrics (Evidence-Backed) |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Model A: Anemia (Hb Regression)** | **COMPLETE** (`anemia_manifest.csv`: 862 records, 218 subjects) | **COMPLETE** (Standardized 224x224, subject-level split, 0% leakage) | **VALIDATED** (ResNet-50 CNN Regressor vs Mean/Median Baselines) | **AUDITED & GATED** (Clinical limitations documented; research baseline only) | **INTEGRATED (RESEARCH ONLY)**: Multi-view session aggregation, reproducibility std | **INTEGRATED (UI & API)**: Multi-view upload, tagging, quality pre-check, JSON audit export | **CAMERA-DOMAIN GATED**: Webcam blocked by default (`blocked_domain_validation`); researcher override available | `saved_models/anemia/best_model.pth` (288.8 MB; verified loaded) | **Patient-Level Test**: MAE **1.5013** g/dL, RMSE **2.0728** g/dL, R² **0.2836**<br>**View-Level Test**: MAE **1.7757** g/dL, RMSE **2.2915** g/dL, R² **0.1367**<br>*(Baseline Test MAE: Mean=2.0099, Median=1.9877)* |
-| **Model B: Conjunctivitis (Classification)** | **REMEDIATED** (`conjunctivitis_manifest_v2_clean.csv`: 965 records) | **REMEDIATED** (Deduplicated, zero cross-split dHash collisions, 224x224 crop pipeline) | **RETRAINED & REMEDIATED** (MobileNetV3-Small Binary Classifier) | **SHORTCUT QUANTIFIED & GATED** (Metadata-only baseline achieves 100% accuracy without pixels) | **RELIABILITY GATED (`blocked_validation`)**: Prediction output withheld | **GATED IN DASHBOARD**: Card marked BLOCKED; predictions withheld; safety rationale displayed | **GATED IN WEBCAM**: Withheld under both upload and webcam captures | • Original: `saved_models/conjunctivitis/best_model.pth`<br>• Clean v2: `saved_models/conjunctivitis/best_model_v2_clean.pth` (12.5 MB) | **Clean Test Accuracy**: 1.0000, **Sensitivity**: 1.0000, **Specificity**: 1.0000, **ROC-AUC**: 1.0000<br>*(Metadata Baseline Test Acc: 1.0000; proves task solved by resolution shortcut)* |
-| **Model C: Jaundice (Scleral Icterus)** | **COMPLETE** (`jaundice_manifest.csv`: 0 records, blocker logged) | **COMPLETE** (Directories prepared under `data/processed/jaundice/`) | **SCAFFOLDED / BLOCKED** (MobileNetV3-Small architecture verified) | **AUDITED / BLOCKED** (Zero laboratory bilirubin ground truth exists) | **MISSING-DATA GATED (`unavailable_missing_data`)**: No placeholder or synthetic inference | **LOCKED IN DASHBOARD**: Card marked UNAVAILABLE; inference disabled; anti-fabrication notice | **LOCKED IN WEBCAM**: Inference disabled without placeholder values | Pipeline config at `saved_models/jaundice/jaundice_config.json` | **N/A (Blocker)**: No raw images or laboratory bilirubin values in workspace |
+| Target | Layer 1: Audit & Manifest | Layer 2: Preprocessing & Leakage Prevention | Layer 3: Model Architecture & Training | Layer 3.5: Reliability & Domain Validation | Layer 4: Unified Inference & Reliability Gate | Layer 5: Two-Page PDF Report & Export | Layer 6: Live Webcam Capture & Guidance | Layer 7: Gemini Research Copilot | Layer 8: Multi-Step Journey & DB Persistence | Key Metrics (Evidence-Backed) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Model A: Anemia (Hb Regression)** | **COMPLETE** (`anemia_manifest.csv`: 862 records, 218 subjects) | **COMPLETE** (Standardized 224x224, subject-level split, 0% leakage) | **VALIDATED** (ResNet-50 CNN Regressor vs Mean/Median Baselines) | **AUDITED & GATED** (Clinical limitations documented; research baseline only) | **INTEGRATED (RESEARCH ONLY)**: Multi-view session aggregation | **INTEGRATED**: Two-page PDF in EN & HI | **CAMERA-DOMAIN GATED**: Webcam blocked by default; override available | **INTEGRATED**: Input sanitization & offline fallback | **PERSISTED**: SQLite / PostgreSQL session results & user history | **Patient-Level Test**: MAE **1.5013** g/dL, RMSE **2.0728** g/dL, R² **0.2836**<br>*(Baseline Test MAE: Mean=2.0099, Median=1.9877)* |
+| **Model B: Conjunctivitis (Classification)** | **REMEDIATED** (`conjunctivitis_manifest_v2_clean.csv`: 965 records) | **REMEDIATED** (Deduplicated, zero cross-split dHash collisions, 224x224 crop) | **RETRAINED & REMEDIATED** (MobileNetV3-Small Binary Classifier) | **SHORTCUT QUANTIFIED & GATED** (Metadata-only baseline achieves 100% accuracy without pixels) | **RELIABILITY GATED (`blocked_validation`)**: Prediction output withheld | **GATED IN REPORTS**: Clear shortcut reason displayed | **GATED IN WEBCAM**: Withheld under both upload and webcam captures | **INTEGRATED**: Topic firewall blocks diagnostic advice | **PERSISTED**: Gated status logged in DB session history | **Clean Test Accuracy**: 1.0000, **Sensitivity**: 1.0000, **Specificity**: 1.0000<br>*(Metadata Baseline Test Acc: 1.0000; proves task solved by resolution shortcut)* |
+| **Model C: Jaundice (Scleral Icterus)** | **COMPLETE** (`jaundice_manifest.csv`: 0 records, blocker logged) | **COMPLETE** (Directories prepared under `data/processed/jaundice/`) | **SCAFFOLDED / BLOCKED** (MobileNetV3-Small architecture verified) | **AUDITED / BLOCKED** (Zero laboratory bilirubin ground truth exists) | **MISSING-DATA GATED (`unavailable_missing_data`)**: No placeholder or synthetic inference | **LOCKED IN REPORTS**: Zero simulated bilirubin values | **LOCKED IN WEBCAM**: Inference disabled without placeholder values | **INTEGRATED**: Queries routed to local documentation | **PERSISTED**: Missing-data status logged in DB session history | **N/A (Blocker)**: No raw images or laboratory bilirubin values in workspace |
 
 ---
+
+## 4. Layer 8 — Multi-Step Participant Journey, Database Persistence & PDF Reporting
+
+Implemented in `src/database/*.py`, `src/inference/pdf_report.py`, `app.py`, `static/index.html`, `static/js/dashboard.js`:
+- **7-Step Screening Journey**: Language Selection -> Registration & Informed Consent -> Guided Preparation -> Camera/Upload Capture -> AI Analysis -> Screening Results -> Session History.
+- **Bilingual Internationalization**: Dynamic switching between English (`en`) and Hindi (`hi`) across all UI text, step guidance, model findings cards, and downloaded PDF reports.
+- **Informed Consent Logging**: Mandatory explicit opt-in for research screening and privacy-aware data storage before capture can proceed.
+- **SQLAlchemy Persistence**: SQLite in local development (`data/eyehealthai.db`) and configurable PostgreSQL support. Tables: `user_profiles`, `consent_records`, `screening_sessions`, `model_results`, `report_metadata`.
+- **Right to Be Forgotten**: GDPR-compliant cascading deletion via `DELETE /api/user/{user_id}` and `DELETE /api/session/{session_id}`.
+- **Clean Two-Page PDF Reports**: Generated via ReportLab matching the clinical scorecard structural reference, strictly 2 pages without overflow.
+
+---
+
+## 5. How to Launch the Application
+
+Run the server from the repository root:
+
+```bash
+python app.py
+```
+
+- **Dashboard UI**: `http://127.0.0.1:8000`
+- **Interactive OpenAPI Documentation**: `http://127.0.0.1:8000/docs`
+- **Readiness Probe**: `http://127.0.0.1:8000/ready`
+- **Operational Health Check**: `http://127.0.0.1:8000/health`
+
+---
+
+## 6. Automated Test Suite Verification
+
+Run command: `python -m pytest tests/ -v`  
+Result: **92 passed in 11.58s (100% pass rate across Layers 1–8)**
 
 ## 2. Layer 6 — Live Laptop Webcam Capture & Image Quality Guidance
 
@@ -58,7 +90,49 @@ Every captured still or uploaded image triggers `/api/quality-check` returning:
 
 ---
 
-## 3. How to Launch the Application
+## 3. Layer 7 — Gemini Research Copilot (Optional AI Assistant)
+
+Implemented in `src/inference/copilot.py`, `app.py`, `static/index.html`, `static/css/style.css`, `static/js/dashboard.js`.
+
+### 3.1 Architecture & Integration
+- **Backend Service**: `src/inference/copilot.py` — Separate service layer interfacing with the `google-genai` SDK.
+- **API Endpoints**: `POST /api/chat` (research Q&A), `GET /api/copilot-status` (availability check).
+- **Frontend UI**: Floating glassmorphic chat panel accessible via a pulsing FAB (Floating Action Button) in the bottom-right corner.
+- **Model**: Uses `gemini-2.0-flash` for fast, cost-efficient responses.
+- **Graceful Degradation**: If `GEMINI_API_KEY` is not set or the API returns errors, falls back to keyword-matched offline responses covering architecture, metrics, and dataset knowledge.
+
+### 3.2 Safety Guardrails (Mandatory)
+- **PII Sanitization**: All user inputs are filtered through regex-based sanitizers that redact:
+  - File system paths (Windows/Unix)
+  - Hemoglobin values (e.g., `12.5 g/dL` → `[REDACTED_HB_VALUE]`)
+  - Bilirubin values (e.g., `3.2 mg/dL` → `[REDACTED_BILIRUBIN_VALUE]`)
+  - Phone numbers, email addresses, patient IDs
+  - Base64-encoded image data
+- **Medical Advice Blocking**: Queries requesting diagnoses, prescriptions, or treatment plans are rejected with a clear referral to healthcare professionals.
+- **No Image/Binary Forwarding**: The copilot endpoint accepts text only. No patient images, clinical results, or binary data are ever sent to the Gemini API.
+- **Server-Side Key Storage**: `GEMINI_API_KEY` is stored exclusively in `.env` and loaded server-side. The frontend never has access to the key.
+
+### 3.3 Features
+- **Research Paper Q&A**: Ask about methodologies, model comparisons, and clinical CV research.
+- **Dataset Insights**: Query dataset structure, manifest integrity, and splitting strategies.
+- **Model Metrics**: Get explanations of MAE, RMSE, R², accuracy, and reliability gates.
+- **Code Debugging**: Get help with PyTorch, FastAPI, and preprocessing pipeline errors.
+- **Markdown Rendering**: Responses support bold, code blocks, tables, lists, and headers.
+- **Suggestion Chips**: Pre-loaded research questions for quick access.
+- **Conversation History**: Last 6 messages are sent as context for multi-turn conversations.
+- **Typing Indicator**: Animated dots show when the copilot is generating a response.
+
+### 3.4 Configuration
+```env
+# .env
+GEMINI_API_KEY=your_api_key_here
+```
+
+Set the key in `.env` to enable live Gemini responses. Without it, the copilot operates in offline mode with pre-loaded knowledge.
+
+---
+
+## 4. How to Launch the Application
 
 Run the server from the repository root:
 
@@ -71,10 +145,10 @@ python app.py
 
 ---
 
-## 4. Automated Test Suite Verification
+## 5. Automated Test Suite Verification
 
 Run command: `python -m pytest tests/ -v`  
-Result: **39 passed in 12.64s (100% pass rate across Layers 1–6)**
+Result: **81 passed in 8.28s (100% pass rate across Layers 1–7)**
 
 ```
 tests/test_layer4_inference.py::test_response_schema_keys PASSED         [  2%]
@@ -126,23 +200,26 @@ tests/test_phase7_readiness.py::test_html_dashboard_reset_button_exists PASSED [
 tests/test_phase7_readiness.py::test_configuration_integrity PASSED      [ 97%]
 tests/test_phase7_readiness.py::test_end_to_end_research_workflow PASSED [100%]
 
-============================= 48 passed in 7.73s =============================
+============================= 81 passed in 8.28s =============================
 ```
 
 ---
 
-## 5. Checkpoint & Artifact Registry
+## 6. Checkpoint & Artifact Registry
 
-- **Webcam Interface & Dashboard**:
-  - `app.py` (FastAPI backend with quality guidance & domain gate routing)
-  - `static/index.html` (Research dashboard UI with live camera viewport & alignment reticle)
-  - `static/css/style.css` (Webcam container, pulsing guide, guidance list styles)
-  - `static/js/dashboard.js` (Webcam stream lifecycle, still capture, and quality feedback handlers)
+- **Dashboard & Webcam Interface**:
+  - `app.py` (FastAPI backend with quality guidance, domain gate routing, & copilot endpoints)
+  - `static/index.html` (Research dashboard UI with camera viewport & copilot chat panel)
+  - `static/css/style.css` (Dark glassmorphism design system with copilot chat styles)
+  - `static/js/dashboard.js` (Webcam lifecycle, quality feedback, & copilot chat handlers)
+  - `static/report.html` (Ocular Health Screening Report with print support)
+- **Research Copilot (Layer 7)**:
+  - `src/inference/copilot.py` (Gemini API service with PII sanitization & offline fallback)
 - **Documentation & Protocols**:
   - `docs/WEBCAM_VALIDATION.md` (Prospective webcam clinical validation protocol)
   - `docs/RELIABILITY_AND_DOMAIN_VALIDATION.md` (Layer 3.5 report & data collection spec)
   - `docs/DATASET_AUDIT.md` (Layer 1 audit)
-  - `docs/PROJECT_STATUS.md` (overall project tracking)
+  - `docs/PROJECT_STATUS.md` (Overall project tracking)
 - **Inference & Export Services**:
   - `src/inference/__init__.py`
   - `src/inference/unified_service.py` (Unified inference engine & camera domain gates)
@@ -152,8 +229,10 @@ tests/test_phase7_readiness.py::test_end_to_end_research_workflow PASSED [100%]
   - `saved_models/conjunctivitis/best_model.pth` (38.8 MB, original MobileNetV3-Small)
   - `saved_models/conjunctivitis/best_model_v2_clean.pth` (12.5 MB, clean deduplicated MobileNetV3-Small)
   - `saved_models/jaundice/jaundice_config.json` (architecture config)
-- **Test Suites**:
+- **Test Suites** (81 tests total):
   - `tests/test_layers.py` (Layers 1–3.5 unit and regression tests)
   - `tests/test_layer4_inference.py` (Layer 4 inference service tests)
   - `tests/test_layer5_dashboard.py` (Layer 5 dashboard and API tests)
   - `tests/test_layer6_webcam.py` (Layer 6 webcam capture, guidance, and domain gate tests)
+  - `tests/test_phase7_readiness.py` (Phase 7 deployment readiness tests)
+  - `tests/test_copilot.py` (Layer 7 Research Copilot — sanitization, blocking, API contract tests)

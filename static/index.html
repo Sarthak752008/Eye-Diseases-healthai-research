@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EyeHealthAI — Clinical Computer Vision Research Dashboard</title>
-  <meta name="description" content="Research-grade ocular computer vision screening pipeline for Anemia, Conjunctivitis, and Jaundice with reliability gating.">
+  <title>EyeHealthAI — Multi-Modal Ocular Screening Research Framework</title>
+  <meta name="description" content="Research-grade ocular computer vision screening pipeline for Anemia, Conjunctivitis, and Jaundice with reliability gating and multi-view aggregation.">
   
   <!-- Modern Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
@@ -25,331 +25,686 @@
           </svg>
         </div>
         <div class="title-area">
-          <h1>EyeHealthAI</h1>
-          <p>Multi-Modal Non-Invasive Ocular Screening Framework &bull; Layers 1–5</p>
+          <h1 id="appTitle">EyeHealthAI</h1>
+          <p id="appSubtitle">Multi-Modal Ocular Screening &bull; Continuous Hb Regression &bull; Clinical Safety Gates</p>
         </div>
       </div>
-      <div class="research-disclaimer-badge">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        <span>RESEARCH USE ONLY &bull; NON-DIAGNOSTIC</span>
+      
+      <!-- Header Actions: Language Switcher, User Badge, History, Disclaimer -->
+      <div class="header-actions">
+        <!-- Language Switcher -->
+        <div class="lang-toggle" role="group" aria-label="Language Selector">
+          <button id="langBtnEn" class="lang-btn active" type="button" title="Switch to English">English</button>
+          <button id="langBtnHi" class="lang-btn" type="button" title="हिंदी में बदलें">हिंदी</button>
+        </div>
+
+        <!-- Registered User Badge -->
+        <div id="userBadge" class="btn-secondary" style="display: none; padding: 5px 10px; font-size: 11.5px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span id="userNameBadge">Participant</span>
+        </div>
+
+        <!-- History Button -->
+        <button id="btnNavHistory" class="btn-secondary" type="button" title="View screening history">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 8v4l3 3"/>
+            <circle cx="12" cy="12" r="9"/>
+          </svg>
+          <span id="btnNavHistoryText">History</span>
+        </button>
+
+        <!-- New Session Button -->
+        <button id="btnResetSession" class="btn-secondary" type="button" title="Clear inputs and start a fresh session">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+          <span id="btnNewSessionText">New Session</span>
+        </button>
+
+        <!-- Research Badge -->
+        <div class="research-disclaimer-badge">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>RESEARCH USE ONLY</span>
+        </div>
       </div>
     </header>
 
-    <!-- Project Context Banner -->
-    <aside class="banner-notice" aria-label="System Notice">
-      <div>
-        <strong>System Integrity &amp; Clinical Safety Gate Active:</strong>
-        This interface enforces strict reliability and missing-data gates. Module predictions are withheld whenever statistical shortcut learning or dataset deficiencies are detected.
-      </div>
-    </aside>
+    <!-- Multi-Step Stepper Navigation -->
+    <nav class="stepper-nav" id="stepperNav" aria-label="Screening Workflow Progress">
+      <button class="step-item active" id="stepBtn1" data-step="1">
+        <span class="step-circle">1</span>
+        <span class="step-label" data-i18n="step1">Language</span>
+      </button>
+      <div class="step-divider" id="stepDiv1"></div>
+      <button class="step-item" id="stepBtn2" data-step="2">
+        <span class="step-circle">2</span>
+        <span class="step-label" data-i18n="step2">Consent</span>
+      </button>
+      <div class="step-divider" id="stepDiv2"></div>
+      <button class="step-item" id="stepBtn3" data-step="3">
+        <span class="step-circle">3</span>
+        <span class="step-label" data-i18n="step3">Preparation</span>
+      </button>
+      <div class="step-divider" id="stepDiv3"></div>
+      <button class="step-item" id="stepBtn4" data-step="4">
+        <span class="step-circle">4</span>
+        <span class="step-label" data-i18n="step4">Capture</span>
+      </button>
+      <div class="step-divider" id="stepDiv4"></div>
+      <button class="step-item" id="stepBtn5" data-step="5">
+        <span class="step-circle">5</span>
+        <span class="step-label" data-i18n="step5">Analysis</span>
+      </button>
+      <div class="step-divider" id="stepDiv5"></div>
+      <button class="step-item" id="stepBtn6" data-step="6">
+        <span class="step-circle">6</span>
+        <span class="step-label" data-i18n="step6">Results</span>
+      </button>
+      <div class="step-divider" id="stepDiv6"></div>
+      <button class="step-item" id="stepBtn7" data-step="7">
+        <span class="step-circle">7</span>
+        <span class="step-label" data-i18n="step7">History</span>
+      </button>
+    </nav>
 
-    <!-- Module Selection Grid -->
-    <section aria-labelledby="modules-title">
-      <h2 id="modules-title" class="section-title">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="7" height="7"/>
-          <rect x="14" y="3" width="7" height="7"/>
-          <rect x="14" y="14" width="7" height="7"/>
-          <rect x="3" y="14" width="7" height="7"/>
-        </svg>
-        Clinical Target Modules
-      </h2>
-      <div class="modules-grid" id="modulesGrid">
-        <!-- Module A: Anemia -->
-        <article class="module-card selected" id="moduleCardAnemia" data-module="anemia" tabindex="0" role="button" aria-pressed="true">
-          <div class="card-top">
-            <div>
-              <h3 class="module-name">Anemia / Hemoglobin</h3>
-              <span class="module-sub">Continuous Hb Regression</span>
-            </div>
-            <span class="status-badge available">RESEARCH ONLY</span>
-          </div>
-          <p class="module-desc">
-            Predicts laboratory hemoglobin (g/dL) from conjunctival pallor using a pretrained ResNet-50. Supports multi-view session averaging across palpebral and forniceal crops.
-          </p>
-          <div class="module-meta">
-            <span>Arch: ResNet-50</span>
-            <span>Test MAE: ~1.50 g/dL</span>
-          </div>
-        </article>
+    <!-- ================================================================
+         PAGE 1: LANGUAGE SELECTION
+         ================================================================ -->
+    <section id="page1Language" class="page-view active">
+      <div class="lang-hero-card">
+        <div class="lang-hero-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+        </div>
+        <h2 class="lang-hero-title" data-i18n="langTitle">Select Your Preferred Language</h2>
+        <p class="lang-hero-sub" data-i18n="langSub">
+          Choose your language for guided preparation, ocular screening, and downloaded clinical reports. Both languages are fully supported across all steps.
+        </p>
 
-        <!-- Module B: Conjunctivitis -->
-        <article class="module-card" id="moduleCardConj" data-module="conjunctivitis" tabindex="0" role="button" aria-pressed="false">
-          <div class="card-top">
-            <div>
-              <h3 class="module-name">Conjunctivitis</h3>
-              <span class="module-sub">Ocular Erythema Classifier</span>
+        <div class="lang-options-grid">
+          <!-- English Choice -->
+          <div class="lang-choice-card selected" id="cardLangEn">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="lang-choice-title">English</span>
+              <span class="badge-tag available">Active</span>
             </div>
-            <span class="status-badge blocked">BLOCKED (GATE)</span>
+            <span class="lang-choice-sub">Standard English interface &amp; 2-page report</span>
           </div>
-          <p class="module-desc">
-            Reliability gate active. Layer 3.5 audit revealed normal vs disease classes have non-overlapping dimensions (56px square vs 352px macro). Predictions are blocked to prevent shortcut reliance.
-          </p>
-          <div class="module-meta">
-            <span>Arch: MobileNetV3-S</span>
-            <span>Gate: Resolution Confound</span>
-          </div>
-        </article>
 
-        <!-- Module C: Jaundice -->
-        <article class="module-card disabled" id="moduleCardJaund" data-module="jaundice" tabindex="0" role="button" aria-pressed="false" aria-disabled="true">
-          <div class="card-top">
-            <div>
-              <h3 class="module-name">Jaundice / Icterus</h3>
-              <span class="module-sub">Scleral Bilirubin Screening</span>
+          <!-- Hindi Choice -->
+          <div class="lang-choice-card" id="cardLangHi">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="lang-choice-title">हिंदी</span>
+              <span class="badge-tag available">सक्रिय</span>
             </div>
-            <span class="status-badge unavailable">UNAVAILABLE</span>
+            <span class="lang-choice-sub">हिंदी इंटरफ़ेस और 2-पेज विस्तृत रिपोर्ट</span>
           </div>
-          <p class="module-desc">
-            No clinical dataset or laboratory total serum bilirubin measurements exist in workspace. Synthetic predictions and placeholder models are prohibited.
-          </p>
-          <div class="module-meta">
-            <span>Arch: MobileNetV3-S</span>
-            <span>Status: Dataset Missing</span>
-          </div>
-        </article>
+        </div>
+
+        <button id="btnContinueLang" class="btn-primary" type="button" style="width: 100%; max-width: 280px; margin: 0 auto;">
+          <span data-i18n="btnContinue">Continue &rarr;</span>
+        </button>
       </div>
     </section>
 
-    <!-- Main Workflow Layout -->
-    <main class="workflow-grid">
-      <!-- Input Panel -->
-      <section class="panel" aria-labelledby="input-title">
-        <h2 id="input-title" class="section-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          Input Session &amp; Image Upload
-        </h2>
-
-        <!-- Module Status Explanation Banner -->
-        <div id="moduleBanner" class="alert-box alert-info" style="margin-bottom: 16px;">
-          <strong>Active Module: Anemia Hemoglobin Regressor</strong><br>
-          Permitted for experimental research use. You may upload one or multiple anatomical views (e.g. palpebral, forniceal, full eye) from the same capture session.
+    <!-- ================================================================
+         PAGE 2: REGISTRATION & INFORMED CONSENT
+         ================================================================ -->
+    <section id="page2Registration" class="page-view">
+      <div class="reg-container">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <div class="step-circle" style="background: var(--color-brand); color: #fff;">2</div>
+          <h2 class="section-title" style="margin: 0;" data-i18n="regTitle">Participant Profile &amp; Informed Consent</h2>
         </div>
+        <p style="color: var(--text-secondary); font-size: 13.5px; margin-bottom: 24px;" data-i18n="regSub">
+          Please enter your details and review the research consent terms before proceeding. Your data is stored privacy-compliantly.
+        </p>
 
-        <!-- Patient Record Header Inputs -->
-        <div class="patient-record-bar" style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;">
-          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">Patient / Subject Record</span>
-          <div style="display: grid; grid-template-columns: 2fr 1fr 1.5fr; gap: 8px;">
-            <input type="text" id="inputPatientName" placeholder="Name" value="Sarthak Sharma" style="background: rgba(10, 15, 29, 0.8); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 11.5px;">
-            <input type="text" id="inputPatientAge" placeholder="Age/Sex" value="18M" style="background: rgba(10, 15, 29, 0.8); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 11.5px;">
-            <input type="text" id="inputPatientPhone" placeholder="Phone / ID" value="9019488301" style="background: rgba(10, 15, 29, 0.8); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 11.5px;">
+        <form id="formRegistration">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="inputRegName" data-i18n="labelFullName">Full Name *</label>
+              <input type="text" id="inputRegName" class="form-input" placeholder="e.g. Sarthak Sharma" required value="Sarthak Sharma">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputRegPhone" data-i18n="labelPhone">Phone Number *</label>
+              <input type="tel" id="inputRegPhone" class="form-input" placeholder="e.g. 9019488301" required value="9019488301">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputRegEmail" data-i18n="labelEmail">Email Address *</label>
+              <input type="email" id="inputRegEmail" class="form-input" placeholder="e.g. sarthak@example.com" required value="sarthak@research.org">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputRegDob" data-i18n="labelDob">Date of Birth (YYYY-MM-DD) *</label>
+              <input type="text" id="inputRegDob" class="form-input" placeholder="YYYY-MM-DD" required value="2008-01-15">
+            </div>
+          </div>
+
+          <!-- Informed Consent Accordion Box -->
+          <div class="consent-panel">
+            <h4 data-i18n="consentHeader">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              Informed Consent &amp; Privacy Notice
+            </h4>
+            <ul>
+              <li data-i18n="consentP1"><strong>Experimental Research Only:</strong> EyeHealthAI is an investigational software prototype. It does NOT provide a certified medical diagnosis.</li>
+              <li data-i18n="consentP2"><strong>No Raw Image Retention:</strong> Captured eye photographs and webcam frames are processed strictly in RAM and are NEVER permanently stored on disk by default.</li>
+              <li data-i18n="consentP3"><strong>Laboratory Reference Required:</strong> Continuous hemoglobin estimations require confirmatory laboratory Complete Blood Count (CBC) venous blood tests.</li>
+              <li data-i18n="consentP4"><strong>Right to Be Forgotten:</strong> You can permanently delete your participant profile, session history, and report metadata at any time.</li>
+            </ul>
+
+            <div class="consent-checkbox-wrap">
+              <input type="checkbox" id="chkConsentResearch" checked required>
+              <label for="chkConsentResearch" class="consent-checkbox-label" data-i18n="chkConsentResearchText">
+                I understand this is an experimental research prototype and agree to participate in non-invasive ocular screening.
+              </label>
+            </div>
+            <div class="consent-checkbox-wrap" style="margin-top: 8px;">
+              <input type="checkbox" id="chkConsentStorage" checked required>
+              <label for="chkConsentStorage" class="consent-checkbox-label" data-i18n="chkConsentStorageText">
+                I consent to privacy-aware session and report metadata storage with the ability to purge my records at any time.
+              </label>
+            </div>
+          </div>
+
+          <div id="regErrorAlert" class="alert-box alert-danger" style="display: none; margin-bottom: 16px;"></div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <button id="btnBackToLang" class="btn-secondary" type="button" data-i18n="btnBack">&larr; Back</button>
+            <button id="btnSubmitRegistration" class="btn-primary" type="submit" style="min-width: 180px;">
+              <span data-i18n="btnAgreeContinue">Agree &amp; Continue &rarr;</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PAGE 3: GUIDED PREPARATION
+         ================================================================ -->
+    <section id="page3Guide" class="page-view">
+      <div class="guide-container">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <div class="step-circle" style="background: var(--color-brand); color: #fff;">3</div>
+          <h2 class="section-title" style="margin: 0;" data-i18n="guideTitle">Guided Preparation &amp; Protocol</h2>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 13.5px;" data-i18n="guideSub">
+          Follow these 6 simple steps for optimal optical clarity, non-invasive imaging, and reliable screening results.
+        </p>
+
+        <div class="guide-step-grid">
+          <div class="guide-step-card">
+            <span class="guide-step-badge">1</span>
+            <h3 class="guide-step-title" data-i18n="guideStep1Title">Diffuse Illumination</h3>
+            <p class="guide-step-text" data-i18n="guideStep1Desc">Face an indirect, soft light source. Avoid direct flash, harsh sunlight reflections, or heavy shadows on the ocular surface.</p>
+          </div>
+          <div class="guide-step-card">
+            <span class="guide-step-badge">2</span>
+            <h3 class="guide-step-title" data-i18n="guideStep2Title">Enable Camera</h3>
+            <p class="guide-step-text" data-i18n="guideStep2Desc">Allow browser camera permissions when prompted. Alternatively, use research photograph file upload.</p>
+          </div>
+          <div class="guide-step-card">
+            <span class="guide-step-badge">3</span>
+            <h3 class="guide-step-title" data-i18n="guideStep3Title">Eye Positioning (10–15 cm)</h3>
+            <p class="guide-step-text" data-i18n="guideStep3Desc">Position the target eye within 10–15 cm of the lens. Macro anterior view required, NOT a distant full-face selfie.</p>
+          </div>
+          <div class="guide-step-card">
+            <span class="guide-step-badge">4</span>
+            <h3 class="guide-step-title" data-i18n="guideStep4Title">Non-Invasive View Selection</h3>
+            <p class="guide-step-text" data-i18n="guideStep4Desc">Gently expose the lower palpebral conjunctiva by resting a clean fingertip on the lower cheekbone. Never force or pull.</p>
+          </div>
+          <div class="guide-step-card">
+            <span class="guide-step-badge">5</span>
+            <h3 class="guide-step-title" data-i18n="guideStep5Title">Automated Quality Check</h3>
+            <p class="guide-step-text" data-i18n="guideStep5Desc">The system checks sharpness and luminance in real-time. If blur or glare is detected, instant feedback is provided.</p>
+          </div>
+          <div class="guide-step-card">
+            <span class="guide-step-badge">6</span>
+            <h3 class="guide-step-title" data-i18n="guideStep6Title">Downloadable 2-Page Report</h3>
+            <p class="guide-step-text" data-i18n="guideStep6Desc">Receive an official, two-page clinical research report in English or Hindi with complete diagnostic safety boundaries.</p>
           </div>
         </div>
 
-        <!-- Source Mode Switcher -->
-        <div class="mode-switcher" style="display: flex; gap: 8px; margin-bottom: 16px;">
-          <button id="btnModeUpload" class="btn-mode active" type="button">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <button id="btnBackToReg" class="btn-secondary" type="button" data-i18n="btnBack">&larr; Back</button>
+          <button id="btnProceedToCapture" class="btn-primary" type="button" style="min-width: 200px;">
+            <span data-i18n="btnReadyCapture">Ready to Capture &rarr;</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PAGE 4: CAMERA & IMAGE CAPTURE (MODULE SELECTION & CAPTURE)
+         ================================================================ -->
+    <section id="page4Capture" class="page-view">
+      <!-- Project Context Banner -->
+      <aside class="banner-notice" aria-label="System Notice">
+        <div>
+          <strong>System Integrity &amp; Clinical Safety Gate Active:</strong>
+          This interface enforces strict reliability and missing-data gates. Module predictions are withheld whenever statistical shortcut learning or dataset deficiencies are detected.
+        </div>
+      </aside>
+
+      <!-- Clinical Target Modules Selection -->
+      <section aria-labelledby="modules-title">
+        <h2 id="modules-title" class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          Clinical Target Modules
+        </h2>
+        <div class="modules-grid" id="modulesGrid">
+          <!-- Module A: Anemia -->
+          <article class="module-card selected" id="moduleCardAnemia" data-module="anemia" tabindex="0" role="button" aria-pressed="true">
+            <div class="card-top">
+              <div>
+                <h3 class="module-name">Anemia / Hemoglobin</h3>
+                <span class="module-sub">Continuous Hb Regression</span>
+              </div>
+              <span class="status-badge available">RESEARCH ONLY</span>
+            </div>
+            <p class="module-desc">
+              Predicts laboratory hemoglobin (g/dL) from conjunctival pallor using a pretrained ResNet-50. Supports multi-view session averaging across palpebral and forniceal crops.
+            </p>
+            <div class="module-meta">
+              <span>Arch: ResNet-50</span>
+              <span>Test MAE: ~1.50 g/dL</span>
+            </div>
+          </article>
+
+          <!-- Module B: Conjunctivitis -->
+          <article class="module-card" id="moduleCardConj" data-module="conjunctivitis" tabindex="0" role="button" aria-pressed="false">
+            <div class="card-top">
+              <div>
+                <h3 class="module-name">Conjunctivitis</h3>
+                <span class="module-sub">Ocular Erythema Classifier</span>
+              </div>
+              <span class="status-badge blocked">BLOCKED (GATE)</span>
+            </div>
+            <p class="module-desc">
+              Reliability gate active. Layer 3.5 audit revealed normal vs disease classes have non-overlapping dimensions (56px square vs 352px macro). Predictions are blocked to prevent shortcut reliance.
+            </p>
+            <div class="module-meta">
+              <span>Arch: MobileNetV3-S</span>
+              <span>Gate: Resolution Confound</span>
+            </div>
+          </article>
+
+          <!-- Module C: Jaundice -->
+          <article class="module-card disabled" id="moduleCardJaund" data-module="jaundice" tabindex="0" role="button" aria-pressed="false" aria-disabled="true">
+            <div class="card-top">
+              <div>
+                <h3 class="module-name">Jaundice / Icterus</h3>
+                <span class="module-sub">Scleral Bilirubin Screening</span>
+              </div>
+              <span class="status-badge unavailable">UNAVAILABLE</span>
+            </div>
+            <p class="module-desc">
+              No clinical dataset or laboratory total serum bilirubin measurements exist in workspace. Synthetic predictions and placeholder models are prohibited.
+            </p>
+            <div class="module-meta">
+              <span>Arch: MobileNetV3-S</span>
+              <span>Status: Dataset Missing</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Main Workflow Layout -->
+      <main class="workflow-grid">
+        <!-- Input Panel -->
+        <section class="panel" aria-labelledby="input-title">
+          <h2 id="input-title" class="section-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="17 8 12 3 7 8"/>
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            File Upload Mode
-          </button>
-          <button id="btnModeWebcam" class="btn-mode" type="button">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M23 7l-7 5 7 5V7z"/>
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-            </svg>
-            Live Laptop Camera
-          </button>
-        </div>
-
-        <!-- File Upload Section -->
-        <div id="uploadSection">
-          <!-- Dropzone -->
-          <div class="dropzone" id="dropzone" role="region" aria-label="Image dropzone">
-            <input type="file" id="fileInput" multiple accept=".jpg,.jpeg,.png,.bmp,.webp,.tiff" style="display: none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
-            </svg>
-            <div class="dropzone-title">Click to upload or drag &amp; drop images</div>
-            <div class="dropzone-hint">Supports JPG, PNG, WEBP (Ocular anterior crops or full eye)</div>
-          </div>
-
-          <!-- Uploaded Images Previews & View Selection -->
-          <div class="previews-container" id="previewsContainer" style="display: none;">
-            <!-- Dynamically populated -->
-          </div>
-        </div>
-
-        <!-- Live Laptop Camera Section (Layer 6) -->
-        <div id="webcamSection" style="display: none;">
-          <!-- Camera Viewport Container -->
-          <div class="webcam-container">
-            <video id="webcamVideo" autoplay playsinline muted></video>
-            <div class="webcam-overlay" id="webcamOverlay">
-              <div class="eye-guide-reticle">
-                <div class="eye-guide-oval"></div>
-              </div>
-              <div class="guide-label-box">
-                <span class="guide-title">Manual Macro Framing Target (10–15 cm)</span>
-                <span class="guide-sub">Position one eye to fill this area. Positioning aid only; not automated eye detection.</span>
-              </div>
-            </div>
-            <canvas id="webcamCanvas" style="display: none;"></canvas>
-          </div>
-
-          <!-- Anatomical Framing Warning (Prevent Full-Face Captures) -->
-          <div class="alert-box alert-warning" style="margin-top: 10px; font-size: 11px; line-height: 1.45;">
-            <strong>⚠️ MACRO EYE FRAMING REQUIRED — NOT A FULL FACE:</strong><br>
-            The model requires a close-up image of the ocular conjunctiva. A full-face selfie contains mostly facial skin and background, which cannot be analyzed for microvascular conjunctival pallor. Move within 10–15 cm of the laptop camera and expose the target eye view (e.g. gently evert the lower eyelid for palpebral conjunctiva).
-          </div>
-
-          <!-- Camera Controls -->
-          <div class="camera-controls">
-            <button id="btnStartCamera" class="btn-cam" type="button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polygon points="10 8 16 12 10 16 10 8"/>
-              </svg>
-              Start Camera
-            </button>
-            <button id="btnCaptureStill" class="btn-cam btn-cam-capture" type="button" disabled>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19 21H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2z"/>
-              </svg>
-              Capture Still
-            </button>
-            <button id="btnStopCamera" class="btn-cam" type="button" style="display: none;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="6" y="6" width="12" height="12"/>
-              </svg>
-              Stop
-            </button>
-          </div>
-
-          <!-- Camera Status & Error Alert -->
-          <div id="webcamStatusAlert" class="alert-box alert-warning" style="display: none; margin-top: 12px;"></div>
-
-
-          <!-- Captured Still Preview & Guidance Card -->
-          <div id="capturedStillCard" class="captured-card" style="display: none; margin-top: 16px;">
-            <div style="display: flex; gap: 14px; align-items: flex-start;">
-              <img id="capturedStillThumb" class="preview-thumb" alt="Captured still frame" style="width: 80px; height: 80px;">
-              <div style="flex-grow: 1;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <strong style="font-size: 13px;">Captured Webcam Still</strong>
-                  <button id="btnRecapture" class="btn-remove" title="Discard and recapture" type="button" style="width: auto; padding: 2px 8px; font-size: 11px;">Recapture</button>
-                </div>
-                <div id="webcamQualityMetrics" style="font-size: 11px; margin-top: 4px;"></div>
-                <div style="margin-top: 8px;">
-                  <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 2px;">Anatomical View Tag:</label>
-                  <select id="webcamViewSelect" style="width: 100%; background: rgba(10, 15, 29, 0.8); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 12px;">
-                    <option value="raw_eye">Raw Full Eye View</option>
-                    <option value="palpebral">Palpebral Conjunctiva</option>
-                    <option value="forniceal">Forniceal Conjunctiva</option>
-                    <option value="forniceal_palpebral">Forniceal + Palpebral</option>
-                    <option value="unspecified">Unspecified Ocular Crop</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <!-- Actionable Guidance Box -->
-            <div id="webcamGuidanceBox" class="guidance-box" style="margin-top: 10px; font-size: 11px;"></div>
-          </div>
-
-          <!-- Webcam Domain Validation Gate Warning & Researcher Override -->
-          <div id="webcamDomainNotice" class="alert-box alert-danger" style="margin-top: 16px;">
-            <h4 style="display: flex; align-items: center; gap: 6px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-              Camera-Domain Validation Gate Active
-            </h4>
-            <p style="margin-bottom: 8px;">
-              The anemia ResNet-50 model was trained strictly on clinical research photography and has <strong>not been validated for ordinary laptop webcams</strong>. By default, webcam inference is blocked per Layer 6 standards.
-            </p>
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; color: var(--text-primary);">
-              <input type="checkbox" id="chkWebcamOverride">
-              <span>Enable Researcher Experimental Override (Unvalidated Webcam Test)</span>
-            </label>
-          </div>
-        </div>
-
-
-        <!-- Quality Pre-Check Feedback -->
-        <div id="qualityWarningBox" class="alert-box alert-warning" style="display: none; margin-bottom: 16px;">
-          <!-- Dynamically populated with blur/exposure flags -->
-        </div>
-
-        <!-- Action Button -->
-        <button id="btnAnalyze" class="btn-primary" disabled>
-          <span id="btnAnalyzeText">Run Research Inference</span>
-          <div id="btnSpinner" class="spinner" style="display: none;"></div>
-        </button>
-      </section>
-
-      <!-- Results & Export Panel -->
-      <section class="panel" aria-labelledby="results-title">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
-          <h2 id="results-title" class="section-title" style="margin-bottom: 0;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <polyline points="10 9 9 9 8 9"/>
-            </svg>
-            Session Analysis
+            Input Session &amp; Image Capture
           </h2>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button id="btnResetSession" class="btn-mode" type="button" title="Clear inputs and start a fresh session" style="padding: 6px 12px; font-size: 12px;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                <path d="M3 3v5h5"/>
+
+          <!-- Module Status Explanation Banner -->
+          <div id="moduleBanner" class="alert-box alert-info" style="margin-bottom: 16px;">
+            <strong>Active Module: Anemia Hemoglobin Regressor</strong><br>
+            Permitted for experimental research use. You may upload one or multiple anatomical views (e.g. palpebral, forniceal, full eye) from the same capture session.
+          </div>
+
+          <!-- Source Mode Switcher -->
+          <div class="mode-switcher" style="display: flex; gap: 8px; margin-bottom: 16px;">
+            <button id="btnModeUpload" class="btn-mode active" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
-              New Session
+              File Upload Mode
             </button>
-            <button id="btnViewReport" class="btn-primary" type="button" style="display: none; padding: 6px 12px; font-size: 12px; background: linear-gradient(135deg, #2563eb, #3b82f6); border-radius: 6px; align-items: center; gap: 6px;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button id="btnModeWebcam" class="btn-mode" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 7l-7 5 7 5V7z"/>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+              Live Laptop Camera
+            </button>
+          </div>
+
+          <!-- File Upload Section -->
+          <div id="uploadSection">
+            <!-- Dropzone -->
+            <div class="dropzone" id="dropzone" role="region" aria-label="Image dropzone">
+              <input type="file" id="fileInput" multiple accept=".jpg,.jpeg,.png,.bmp,.webp,.tiff" style="display: none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              <div class="dropzone-title">Click to upload or drag &amp; drop images</div>
+              <div class="dropzone-hint">Supports JPG, PNG, WEBP (Ocular anterior crops or full eye)</div>
+            </div>
+
+            <!-- Uploaded Images Previews & View Selection -->
+            <div class="previews-container" id="previewsContainer" style="display: none;">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Live Laptop Camera Section (Layer 6) -->
+          <div id="webcamSection" style="display: none;">
+            <!-- Camera Viewport Container -->
+            <div class="webcam-container">
+              <video id="webcamVideo" autoplay playsinline muted></video>
+              <div class="webcam-overlay" id="webcamOverlay">
+                <div class="eye-guide-reticle">
+                  <div class="eye-guide-oval"></div>
+                </div>
+                <div class="guide-label-box">
+                  <span class="guide-title">Manual Macro Framing Target (10–15 cm)</span>
+                  <span class="guide-sub">Position one eye to fill this area. Positioning aid only; not automated eye detection.</span>
+                </div>
+              </div>
+              <canvas id="webcamCanvas" style="display: none;"></canvas>
+            </div>
+
+            <!-- Anatomical Framing Warning (Prevent Full-Face Captures) -->
+            <div class="alert-box alert-warning" style="margin-top: 10px; font-size: 11px; line-height: 1.45;">
+              <strong>⚠️ MACRO EYE FRAMING REQUIRED — NOT A FULL FACE:</strong><br>
+              The model requires a close-up image of the ocular conjunctiva. A full-face selfie contains mostly facial skin and background, which cannot be analyzed for microvascular conjunctival pallor. Move within 10–15 cm of the laptop camera and expose the target eye view.
+            </div>
+
+            <!-- Camera Controls -->
+            <div class="camera-controls">
+              <button id="btnStartCamera" class="btn-cam" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polygon points="10 8 16 12 10 16 10 8"/>
+                </svg>
+                Start Camera
+              </button>
+              <button id="btnCaptureStill" class="btn-cam btn-cam-capture" type="button" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19 21H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2z"/>
+                </svg>
+                Capture Still
+              </button>
+              <button id="btnStopCamera" class="btn-cam" type="button" style="display: none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="6" y="6" width="12" height="12"/>
+                </svg>
+                Stop
+              </button>
+            </div>
+
+            <!-- Camera Status & Error Alert -->
+            <div id="webcamStatusAlert" class="alert-box alert-warning" style="display: none; margin-top: 12px;"></div>
+
+            <!-- Captured Still Preview & Guidance Card -->
+            <div id="capturedStillCard" class="captured-card" style="display: none; margin-top: 16px;">
+              <div style="display: flex; gap: 14px; align-items: flex-start;">
+                <img id="capturedStillThumb" class="preview-thumb" alt="Captured still frame" style="width: 80px; height: 80px;">
+                <div style="flex-grow: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="font-size: 13px;">Captured Webcam Still</strong>
+                    <button id="btnRecapture" class="btn-remove" title="Discard and recapture" type="button" style="width: auto; padding: 2px 8px; font-size: 11px;">Recapture</button>
+                  </div>
+                  <div id="webcamQualityMetrics" style="font-size: 11px; margin-top: 4px;"></div>
+                  <div style="margin-top: 8px;">
+                    <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 2px;">Anatomical View Tag:</label>
+                    <select id="webcamViewSelect" style="width: 100%; background: rgba(10, 15, 29, 0.8); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 12px;">
+                      <option value="raw_eye">Raw Full Eye View</option>
+                      <option value="palpebral">Palpebral Conjunctiva</option>
+                      <option value="forniceal">Forniceal Conjunctiva</option>
+                      <option value="forniceal_palpebral">Forniceal + Palpebral</option>
+                      <option value="unspecified">Unspecified Ocular Crop</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <!-- Actionable Guidance Box -->
+              <div id="webcamGuidanceBox" class="guidance-box" style="margin-top: 10px; font-size: 11px;"></div>
+            </div>
+
+            <!-- Webcam Domain Validation Gate Warning & Researcher Override -->
+            <div id="webcamDomainNotice" class="alert-box alert-danger" style="margin-top: 16px;">
+              <h4 style="display: flex; align-items: center; gap: 6px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Camera-Domain Validation Gate Active
+              </h4>
+              <p style="margin-bottom: 8px;">
+                The anemia ResNet-50 model was trained strictly on clinical research photography and has <strong>not been validated for ordinary laptop webcams</strong>. By default, webcam inference is blocked per Layer 6 standards.
+              </p>
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; color: var(--text-primary);">
+                <input type="checkbox" id="chkWebcamOverride">
+                <span>Enable Researcher Experimental Override (Unvalidated Webcam Test)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Quality Pre-Check Feedback -->
+          <div id="qualityWarningBox" class="alert-box alert-warning" style="display: none; margin-bottom: 16px;">
+            <!-- Dynamically populated with blur/exposure flags -->
+          </div>
+
+          <!-- Action Button -->
+          <button id="btnAnalyze" class="btn-primary" disabled>
+            <span id="btnAnalyzeText">Run Research Inference</span>
+            <div id="btnSpinner" class="spinner" style="display: none;"></div>
+          </button>
+        </section>
+
+        <!-- Results & Export Quick Preview Panel -->
+        <section class="panel" aria-labelledby="results-title">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+            <h2 id="results-title" class="section-title" style="margin-bottom: 0;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
                 <line x1="16" y1="13" x2="8" y2="13"/>
                 <line x1="16" y1="17" x2="8" y2="17"/>
                 <polyline points="10 9 9 9 8 9"/>
               </svg>
-              Clinical Screening Report
-            </button>
-            <button id="btnExport" class="btn-export" style="display: none;">
+              Session Analysis Preview
+            </h2>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button id="btnViewReport" class="btn-primary" type="button" style="display: none; padding: 6px 12px; font-size: 12px; background: linear-gradient(135deg, #2563eb, #3b82f6); border-radius: 6px; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                Clinical Report
+              </button>
+              <button id="btnExport" class="btn-export" style="display: none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export JSON
+              </button>
+            </div>
+          </div>
+
+          <!-- Initial Placeholder State -->
+          <div id="resultsEmpty" class="results-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4"/>
+              <path d="M12 8h.01"/>
+            </svg>
+            <p>Select images and click <strong>Run Research Inference</strong> to generate an experimental session estimate.</p>
+          </div>
+
+          <!-- Active Results Display -->
+          <div id="resultsContent" class="results-content" style="display: none;">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+      </main>
+    </section>
+
+    <!-- ================================================================
+         PAGE 5: ANALYSIS IN PROGRESS
+         ================================================================ -->
+    <section id="page5Analysis" class="page-view">
+      <div class="analysis-hero">
+        <div class="radar-spinner"></div>
+        <h3 class="analysis-status-msg" data-i18n="analysisLoadingTitle">Processing Ocular Computer Vision Pipeline</h3>
+        <p class="analysis-sub-msg" data-i18n="analysisLoadingSub">
+          Inspecting pixel luminance, verifying anatomical crop, and computing multi-view ResNet-50 continuous hemoglobin regression...
+        </p>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PAGE 6: SCREENING RESULTS & OFFICIAL REPORTS
+         ================================================================ -->
+    <section id="page6Results" class="page-view">
+      <div style="max-width: 1080px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h2 class="section-title" style="margin: 0;" data-i18n="resultsTitle">Ocular Screening Results &amp; Clinical Insights</h2>
+            <p style="color: var(--text-secondary); font-size: 13px;" data-i18n="resultsSub">
+              Experimental non-invasive screening findings with active reliability and domain validation boundaries.
+            </p>
+          </div>
+
+          <!-- Download Official PDF & Scorecard Actions -->
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button id="btnDownloadPdfReport" class="btn-primary" type="button" style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 0 16px rgba(16, 185, 129, 0.3);">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
-              Export JSON Report
+              <span data-i18n="btnDownloadPdf">Download 2-Page PDF (EN)</span>
+            </button>
+
+            <button id="btnDownloadPdfHi" class="btn-secondary" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>रिपोर्ट डाउनलोड (हिंदी)</span>
+            </button>
+
+            <button id="btnOpenPrintScorecard" class="btn-secondary" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <span data-i18n="btnViewPrintable">View Printable Scorecard</span>
             </button>
           </div>
         </div>
 
-        <!-- Initial Placeholder State -->
-        <div id="resultsEmpty" class="results-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M12 16v-4"/>
-            <path d="M12 8h.01"/>
-          </svg>
-          <p>Select images and click <strong>Run Research Inference</strong> to generate an experimental session estimate.</p>
+        <!-- Render Target for Results Cards -->
+        <div id="fullResultsContainer">
+          <!-- Dynamically populated from dashboard.js -->
         </div>
 
-        <!-- Active Results Display -->
-        <div id="resultsContent" class="results-content" style="display: none;">
-          <!-- Dynamically populated -->
+        <div class="step-actions-bar">
+          <button id="btnBackToCapture" class="btn-secondary" type="button" data-i18n="btnBackCapture">&larr; Back to Capture</button>
+          <div style="display: flex; gap: 10px;">
+            <button id="btnNewScreeningFromResults" class="btn-secondary" type="button" data-i18n="btnNewScreening">Start New Screening</button>
+            <button id="btnViewHistoryFromResults" class="btn-primary" type="button" data-i18n="btnViewHistory">View Session History &rarr;</button>
+          </div>
         </div>
-      </section>
-    </main>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         PAGE 7: SESSION HISTORY (REGISTERED PARTICIPANT)
+         ================================================================ -->
+    <section id="page7History" class="page-view">
+      <div class="history-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h2 class="section-title" style="margin: 0;" data-i18n="historyTitle">Screening Session History</h2>
+            <p style="color: var(--text-secondary); font-size: 13px;" data-i18n="historySub">
+              Review prior screening sessions, access verified reports, or exercise privacy deletion rights.
+            </p>
+          </div>
+          <button id="btnPurgeUserData" class="btn-secondary" type="button" style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            <span data-i18n="btnPurgeAll">Purge All My Records (GDPR)</span>
+          </button>
+        </div>
+
+        <div id="historyTableWrapper" style="overflow-x: auto;">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th data-i18n="thDate">Date / Time</th>
+                <th data-i18n="thSessionId">Session ID</th>
+                <th data-i18n="thModule">Target Module</th>
+                <th data-i18n="thSource">Source</th>
+                <th data-i18n="thStatus">Status / Result</th>
+                <th data-i18n="thActions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+
+        <div id="historyEmptyState" class="results-empty" style="display: none; padding: 40px 20px;">
+          <p data-i18n="historyEmpty">No prior screening sessions found for this participant profile.</p>
+        </div>
+
+        <div style="margin-top: 24px; text-align: left;">
+          <button id="btnBackToScreening" class="btn-primary" type="button" data-i18n="btnBackScreening">
+            &larr; Back to Screening Dashboard
+          </button>
+        </div>
+      </div>
+    </section>
+
   </div>
 
   <!-- In-Page Clinical Screening Report Modal Preview -->
@@ -364,11 +719,86 @@
           AI Ocular Health Screening Report &amp; Scorecard
         </span>
         <div style="display: flex; gap: 10px; align-items: center;">
-          <a href="/report" target="_blank" style="color: #93c5fd; font-size: 11.5px; text-decoration: underline; font-weight: 600;">Open in New Tab</a>
+          <a id="linkOpenReportTab" href="/report" target="_blank" style="color: #93c5fd; font-size: 11.5px; text-decoration: underline; font-weight: 600;">Open in New Tab</a>
           <button id="btnCloseReportModal" type="button" style="background: transparent; border: none; color: #ffffff; font-size: 18px; cursor: pointer; padding: 2px 6px;">✕</button>
         </div>
       </div>
       <iframe id="reportFrame" src="/report" style="width: 100%; height: 100%; border: none;"></iframe>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       Research Copilot Chat Panel (Gemini-powered)
+       ================================================================ -->
+
+  <!-- Floating Action Button (FAB) -->
+  <button id="copilotFab" class="copilot-fab" type="button" aria-label="Toggle Research Copilot" title="Research Copilot">
+    <svg class="fab-chat-icon" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <path d="M8 10h.01M12 10h.01M16 10h.01" stroke-width="3"/>
+    </svg>
+    <svg class="fab-close-icon" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </button>
+
+  <!-- Chat Panel -->
+  <div id="copilotPanel" class="copilot-panel" role="complementary" aria-label="Research Copilot">
+    <!-- Header -->
+    <div class="copilot-header">
+      <div class="copilot-header-icon">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="copilot-header-info">
+        <div class="copilot-header-title">Research Copilot</div>
+        <div class="copilot-header-subtitle" id="copilotSubtitle">Gemini-powered • Checking status…</div>
+      </div>
+      <div id="copilotStatusDot" class="copilot-status-dot offline" title="Checking availability…"></div>
+    </div>
+
+    <!-- Messages -->
+    <div id="copilotMessages" class="copilot-messages">
+      <!-- Welcome Screen (shown initially) -->
+      <div id="copilotWelcome" class="copilot-welcome">
+        <div class="copilot-welcome-icon">
+          <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <h3>EyeHealthAI Research Copilot</h3>
+        <p>
+          Ask about model architectures, dataset structure, evaluation metrics, preprocessing pipelines, or debugging help.
+        </p>
+        <div class="copilot-suggestions">
+          <button class="copilot-suggestion-btn" data-query="What model architectures are used in EyeHealthAI?">🏗️ What architectures are used?</button>
+          <button class="copilot-suggestion-btn" data-query="Explain the conjunctivitis reliability gate and why predictions are blocked">🔒 Why is conjunctivitis blocked?</button>
+          <button class="copilot-suggestion-btn" data-query="What are the anemia model evaluation metrics and test MAE?">📊 Anemia model performance</button>
+          <button class="copilot-suggestion-btn" data-query="How does patient-level data splitting prevent leakage?">🔬 Data leakage prevention</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Safety Notice -->
+    <div class="copilot-safety-notice">
+      🔒 Research assistant only • No patient images or clinical results are sent to AI
+    </div>
+
+    <!-- Input Area -->
+    <div class="copilot-input-area">
+      <textarea id="copilotInput" placeholder="Ask about models, datasets, metrics…" rows="1"></textarea>
+      <button id="copilotSendBtn" class="copilot-send-btn" type="button" disabled aria-label="Send message">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
     </div>
   </div>
 
