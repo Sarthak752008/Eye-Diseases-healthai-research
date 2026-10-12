@@ -46,7 +46,17 @@ python app.py
 ## 6. Automated Test Suite Verification
 
 Run command: `python -m pytest tests/ -v`  
-Result: **110 passed in 12.84s (100% pass rate across Layers 1–8, Remediation, and Model Integration Suites)**
+Result: **124 passed, 3 warnings in 15.14s (100% pass rate across Layers 1–8, Remediation, Model Integration, and Unified AI Dr. Astra Suites)**
+
+### Recent Fixes & Upgrades (October 2026):
+1. **Anemia Prediction N/A Root Cause Resolved:**
+   - Fixed SQLite database persistence in `_persist_db_session` where `prediction_value` attempted to serialize raw `model_output` list into a SQL `Float` column, causing silent exception drops.
+   - Synchronized `sessionStorage.setItem('eyehealthai_active_report', ...)` on analysis completion so `/report` correctly renders patient metadata, continuous Hb estimates, and quality badges instead of uninitialized fallbacks.
+   - Hardened `renderFullResults` in `dashboard.js` to clearly display formatted continuous Hb with decimal precision or explicit domain gate rationale rather than silent unhandled `N/A`.
+2. **Unified Assistant into Left-Side AI Dr. Astra:**
+   - Consolidated the separate right-side copilot FAB/drawer and left-side mascot into a single, cohesive clinical guide: **AI Dr. Astra**.
+   - Added full conversation history stream, interactive suggestion chips, Enter-key submission without shift, auto-expanding textarea, TTS audio controls (voice replay, mute/unmute), and server-side sanitized Gemini enrichment with deterministic fallback.
+   - Backed by automated end-to-end regression tests in `tests/test_doctor_buddy.py`.
 
 ## 2. Layer 6 — Live Laptop Webcam Capture & Image Quality Guidance
 

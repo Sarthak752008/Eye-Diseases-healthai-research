@@ -797,95 +797,24 @@
        Research Copilot Chat Panel (Gemini-powered)
        ================================================================ -->
 
-  <!-- Floating Action Button (FAB) -->
-  <button id="copilotFab" class="copilot-fab" type="button" aria-label="Toggle Research Copilot" title="Research Copilot">
-    <svg class="fab-chat-icon" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-      <path d="M8 10h.01M12 10h.01M16 10h.01" stroke-width="3"/>
-    </svg>
-    <svg class="fab-close-icon" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18"/>
-      <line x1="6" y1="6" x2="18" y2="18"/>
-    </svg>
-  </button>
-
-  <!-- Chat Panel -->
-  <div id="copilotPanel" class="copilot-panel" role="complementary" aria-label="Research Copilot">
-    <!-- Header -->
-    <div class="copilot-header">
-      <div class="copilot-header-icon">
-        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-          <path d="M2 17l10 5 10-5"/>
-          <path d="M2 12l10 5 10-5"/>
-        </svg>
-      </div>
-      <div class="copilot-header-info">
-        <div class="copilot-header-title">Research Copilot</div>
-        <div class="copilot-header-subtitle" id="copilotSubtitle">Gemini-powered • Checking status…</div>
-      </div>
-      <div id="copilotStatusDot" class="copilot-status-dot offline" title="Checking availability…"></div>
-    </div>
-
-    <!-- Messages -->
-    <div id="copilotMessages" class="copilot-messages">
-      <!-- Welcome Screen (shown initially) -->
-      <div id="copilotWelcome" class="copilot-welcome">
-        <div class="copilot-welcome-icon">
-          <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-            <path d="M2 17l10 5 10-5"/>
-            <path d="M2 12l10 5 10-5"/>
-          </svg>
-        </div>
-        <h3>EyeHealthAI Research Copilot</h3>
-        <p>
-          Ask about model architectures, dataset structure, evaluation metrics, preprocessing pipelines, or debugging help.
-        </p>
-        <div class="copilot-suggestions">
-          <button class="copilot-suggestion-btn" data-query="What model architectures are used in EyeHealthAI?">🏗️ What architectures are used?</button>
-          <button class="copilot-suggestion-btn" data-query="Explain the conjunctivitis reliability gate and why predictions are blocked">🔒 Why is conjunctivitis blocked?</button>
-          <button class="copilot-suggestion-btn" data-query="What are the anemia model evaluation metrics and test MAE?">📊 Anemia model performance</button>
-          <button class="copilot-suggestion-btn" data-query="How does patient-level data splitting prevent leakage?">🔬 Data leakage prevention</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Safety Notice -->
-    <div class="copilot-safety-notice">
-      🔒 Research assistant only • No patient images or clinical results are sent to AI
-    </div>
-
-    <!-- Input Area -->
-    <div class="copilot-input-area">
-      <textarea id="copilotInput" placeholder="Ask about models, datasets, metrics…" rows="1"></textarea>
-      <button id="copilotSendBtn" class="copilot-send-btn" type="button" disabled aria-label="Send message">
-        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"/>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-        </svg>
-      </button>
-    </div>
-  </div>
-
   <!-- ================================================================
-       AI Doctor Buddy Floating Mascot & Voice Assistant (Dr. Netra)
+       AI Doctor Buddy Mascot & Unified Assistant (AI Dr. Astra)
        ================================================================ -->
-  <aside class="doctor-buddy-container" id="doctorBuddyContainer" aria-label="AI Doctor Buddy Guide">
+  <aside class="doctor-buddy-container" id="doctorBuddyContainer" aria-label="AI Dr. Astra Guide & Assistant">
     <!-- Doctor Avatar Floating Button -->
-    <button class="doctor-buddy-avatar-btn idle" id="doctorAvatarBtn" type="button" title="Dr. Netra — AI Eye Health Guide" aria-label="Toggle Dr. Netra Voice Guide">
-      <img id="doctorAvatarImg" class="doctor-avatar-img" src="/static/images/doctor_avatar_default.png" alt="Dr. Netra Mascot">
+    <button class="doctor-buddy-avatar-btn idle" id="doctorAvatarBtn" type="button" title="AI Dr. Astra — AI Eye Health Guide" aria-label="Toggle AI Dr. Astra Assistant">
+      <img id="doctorAvatarImg" class="doctor-avatar-img" src="/static/images/doctor_avatar_default.png" alt="AI Dr. Astra Mascot">
       <span class="doctor-status-badge" id="doctorStatusBadge" title="Ready to guide"></span>
     </button>
 
-    <!-- Context-Aware Speech Bubble -->
-    <div class="doctor-speech-bubble" id="doctorSpeechBubble" role="status" aria-live="polite">
+    <!-- Context-Aware Speech & Conversation Panel -->
+    <div class="doctor-speech-bubble" id="doctorSpeechBubble" role="region" aria-label="AI Dr. Astra Consultation">
       <div class="doctor-bubble-header">
         <span class="doctor-name-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
           </svg>
-          Dr. Netra &bull; <span style="font-size: 10px; font-weight: normal; color: #94a3b8;">AI Eye Guide</span>
+          AI Dr. Astra &bull; <span style="font-size: 10px; font-weight: normal; color: #94a3b8;">Clinical AI Guide</span>
         </span>
         <div class="doctor-voice-controls">
           <button id="btnDocReplay" class="btn-doc-ctrl" type="button" title="Replay Voice (आवाज़ दोहराएं)">
@@ -900,22 +829,43 @@
         </div>
       </div>
 
-      <!-- Main Guidance Text -->
-      <p class="doctor-message-text" id="doctorMessageText">
-        Hello! I'm Dr. Netra, your AI Eye Health Guide. Let's begin by selecting your preferred language.
-      </p>
-
-      <!-- Suggested Next Action -->
-      <div class="doctor-next-step-pill" id="doctorNextStepPill">
-        <span>👉</span>
-        <span id="doctorNextStepText">Select English or Hindi to continue.</span>
+      <!-- Live Clinical Guidance Banner -->
+      <div class="doctor-guidance-box" id="doctorGuidanceBox">
+        <p class="doctor-message-text" id="doctorMessageText">
+          Hello! I'm AI Dr. Astra, your AI Eye Health Guide. Let's begin by selecting your preferred language.
+        </p>
+        <div class="doctor-next-step-pill" id="doctorNextStepPill">
+          <span>👉</span>
+          <span id="doctorNextStepText">Select English or Hindi to continue.</span>
+        </div>
       </div>
 
-      <!-- Quick Ask Input for Doctor Buddy -->
-      <form class="doctor-quick-ask" id="doctorQuickAskForm">
-        <input type="text" id="doctorAskInput" class="doctor-ask-input" placeholder="Ask Dr. Netra (e.g., lighting, positioning)…" maxlength="200">
-        <button type="submit" class="doctor-ask-btn" id="doctorAskBtn">Ask</button>
+      <!-- Expandable Chat Conversation History -->
+      <div class="doctor-chat-history" id="doctorChatHistory">
+        <!-- Rendered chat dialogue messages appear here -->
+      </div>
+
+      <!-- Quick Suggestion Chips -->
+      <div class="doctor-suggestions-row" id="doctorSuggestionsRow">
+        <button type="button" class="doc-suggestion-chip" data-query="Explain the conjunctivitis reliability gate and why predictions are blocked">🔒 Why is conjunctivitis blocked?</button>
+        <button type="button" class="doc-suggestion-chip" data-query="What are the anemia model evaluation metrics and test MAE?">📊 Anemia performance</button>
+        <button type="button" class="doc-suggestion-chip" data-query="How does patient-level data splitting prevent leakage?">🔬 Leakage prevention</button>
+      </div>
+
+      <!-- Input Area with Textarea and Send Button -->
+      <form class="doctor-input-area" id="doctorQuickAskForm">
+        <textarea id="doctorAskInput" class="doctor-ask-input" placeholder="Ask AI Dr. Astra (e.g. lighting, models, metrics)…" rows="1" maxlength="500"></textarea>
+        <button type="submit" class="doctor-ask-btn" id="doctorAskBtn" title="Send message" aria-label="Send message">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
       </form>
+
+      <div class="doctor-safety-disclaimer">
+        🔒 Research assistant only &bull; No patient photos or PII forwarded
+      </div>
     </div>
   </aside>
 

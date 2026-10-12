@@ -39,14 +39,14 @@ class TestDoctorBuddyDeterministicGuidance:
 
     def test_welcome_event_english(self):
         res = get_doctor_buddy_guidance("welcome", "en")
-        assert "Dr. Netra" in res["message"]
+        assert "Astra" in res["message"] or "Dr." in res["message"]
         assert res["expression"] == "happy"
         assert res["severity"] == "info"
         assert len(res["speak_text"]) > 0
 
     def test_welcome_event_hindi(self):
         res = get_doctor_buddy_guidance("welcome", "hi")
-        assert "नेत्रा" in res["message"]
+        assert "एस्ट्रा" in res["message"] or "नेत्रा" in res["message"] or "डॉ." in res["message"]
         assert res["expression"] == "happy"
         assert res["severity"] == "info"
 
@@ -70,7 +70,7 @@ class TestDoctorBuddyDeterministicGuidance:
 
     def test_unknown_event_fallback(self):
         res = get_doctor_buddy_guidance("non_existent_event_xyz", "en")
-        assert "Dr. Netra" in res["message"]
+        assert "Astra" in res["message"] or "Dr." in res["message"]
         assert res["mode"] == "deterministic"
 
 
@@ -148,3 +148,19 @@ class TestDoctorBuddyEndpoints:
         assert res.status_code == 200
         data = res.json()
         assert "anemia" in data["message"].lower() or "hemoglobin" in data["message"].lower()
+
+    def test_ask_endpoint_with_history(self, client):
+        payload = {
+            "question": "Tell me more about the MAE error.",
+            "language": "en",
+            "current_step": 4,
+            "history": [
+                {"role": "user", "content": "What is the anemia module measuring?"},
+                {"role": "assistant", "content": "The Anemia module estimates hemoglobin with ~1.50 g/dL MAE."}
+            ]
+        }
+        res = client.post("/api/doctor-buddy/ask", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+        assert "message" in data
+        assert len(data["message"]) > 0

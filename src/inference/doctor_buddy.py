@@ -30,15 +30,15 @@ logger = logging.getLogger(__name__)
 DETERMINISTIC_EVENTS = {
     "welcome": {
         "en": {
-            "message": "Hello! I'm Dr. Netra, your AI Eye Health Guide. Let's begin by selecting your preferred language and reviewing the screening steps.",
-            "speak_text": "Hello! I am Doctor Netra, your AI Eye Health Guide. Let's begin by selecting your language.",
+            "message": "Hello! I'm AI Dr. Astra, your AI Eye Health Guide. Let's begin by selecting your preferred language and reviewing the screening steps.",
+            "speak_text": "Hello! I am Doctor Astra, your AI Eye Health Guide. Let's begin by selecting your language.",
             "expression": "happy",
             "severity": "info",
             "suggested_next_step": "Select English or Hindi to continue."
         },
         "hi": {
-            "message": "नमस्ते! मैं डॉ. नेत्रा हूँ, आपका एआई नेत्र स्वास्थ्य गाइड। अपनी पसंदीदा भाषा चुनकर आगे बढ़ें।",
-            "speak_text": "नमस्ते! मैं डॉक्टर नेत्रा हूँ, आपका एआई नेत्र स्वास्थ्य गाइड। अपनी पसंदीदा भाषा चुनकर आगे बढ़ें।",
+            "message": "नमस्ते! मैं एआई डॉ. एस्ट्रा हूँ, आपका एआई नेत्र स्वास्थ्य गाइड। अपनी पसंदीदा भाषा चुनकर आगे बढ़ें।",
+            "speak_text": "नमस्ते! मैं डॉक्टर एस्ट्रा हूँ, आपका एआई नेत्र स्वास्थ्य गाइड। अपनी पसंदीदा भाषा चुनकर आगे बढ़ें।",
             "expression": "happy",
             "severity": "info",
             "suggested_next_step": "जारी रखने के लिए हिंदी या अंग्रेज़ी चुनें।"
@@ -366,7 +366,8 @@ def get_doctor_buddy_guidance(
 async def ask_doctor_buddy_question(
     question: str,
     language: str = "en",
-    current_step: int = 1
+    current_step: int = 1,
+    history: Optional[List[dict]] = None
 ) -> Dict[str, Any]:
     """
     Processes a user-asked question through Gemini LLM if available,
@@ -409,14 +410,24 @@ async def ask_doctor_buddy_question(
         try:
             system_prompt = (
                 f"{_SYSTEM_INSTRUCTION}\n\n"
-                f"You are Dr. Netra, a friendly, concise ocular health guide. "
+                f"You are AI Dr. Astra, a friendly, concise ocular health guide and research companion. "
                 f"The user is at Step {current_step} of the screening workflow. "
                 f"Respond in {'Hindi (Devanagari script)' if clean_lang == 'hi' else 'English'}. "
                 f"Keep answers brief (under 3 sentences), warm, encouraging, and strictly within safety boundaries."
             )
+            # Format sanitized history if provided
+            contents = []
+            if history and isinstance(history, list):
+                for h in history[-4:]:
+                    role = "user" if h.get("role") == "user" else "model"
+                    h_text = sanitize_input(str(h.get("content", "")))
+                    if h_text:
+                        contents.append({"role": role, "parts": [{"text": h_text}]})
+            contents.append({"role": "user", "parts": [{"text": sanitized_q}]})
+
             response = client.models.generate_content(
                 model=target_model,
-                contents=[{"role": "user", "parts": [{"text": sanitized_q}]}],
+                contents=contents,
                 config={
                     "system_instruction": system_prompt,
                     "temperature": 0.3,

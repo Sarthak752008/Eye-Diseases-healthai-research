@@ -1106,6 +1106,29 @@ document.addEventListener('DOMContentLoaded', () => {
       const result = await res.json();
       lastSessionData = result;
 
+      // Sync active session report to sessionStorage for report.html
+      try {
+        const reportPayload = {
+          session_id: result.session_id,
+          timestamp: result.timestamp,
+          patient_name: currentUserProfile ? currentUserProfile.full_name : null,
+          patient_phone: currentUserProfile ? currentUserProfile.phone : null,
+          selected_module: result.selected_module,
+          operational_status: result.operational_status,
+          view_mean: result.view_mean,
+          view_std: result.view_std,
+          model_output: result.model_output,
+          quality: result.quality_summary || { is_blurry: false, sharpness: 'Good', brightness: 'Good' },
+          images: uploadedFiles.map((f, idx) => ({
+            src: f.previewUrl || '/static/images/hero_eye.jpg',
+            tag: f.viewType || `View ${idx + 1}`
+          }))
+        };
+        sessionStorage.setItem('eyehealthai_active_report', JSON.stringify(reportPayload));
+      } catch (storageErr) {
+        console.warn('Failed to cache session report:', storageErr);
+      }
+
       // Render into both Preview Box and Full Results Page 6
       if (result.operational_status === 'blocked_domain_validation') {
         renderWebcamBlockedDomainResults(result);
@@ -1516,31 +1539,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const isAnemia = (res.selected_module === 'anemia');
-    const hbVal = isAnemia
-      ? (res.view_mean !== null && res.view_mean !== undefined
-          ? res.view_mean
-          : (res.model_output && res.model_output[0] ? res.model_output[0].hb_pred_g_dl : 'N/A'))
-      : (isHi ? 'लागू नहीं (सत्र में नहीं चुना गया)' : 'Not Evaluated This Session');
+    let hbVal = 'N/A';
+    if (isAnemia) {
+      if (res.view_mean !== null && res.view_mean !== undefined) {
+        hbVal = typeof res.view_mean === 'number' ? res.view_mean.toFixed(1) : res.view_mean;
+      } else if (res.model_output && Array.isArray(res.model_output) && res.model_output.length > 0 && res.model_output[0].hb_pred_g_dl !== undefined) {
+        const val = res.model_output[0].hb_pred_g_dl;
+        hbVal = typeof val === 'number' ? val.toFixed(1) : val;
+      } else if (res.operational_status === 'blocked_domain_validation') {
+        hbVal = isHi ? 'अवरुद्ध (डोमेन सत्यापन)' : 'Blocked (Webcam Domain)';
+      } else {
+        hbVal = isHi ? 'अनुमान उपलब्ध नहीं' : 'No Valid Prediction';
+      }
+    } else {
+      hbVal = isHi ? 'लागू नहीं (सत्र में नहीं चुना गया)' : 'Not Evaluated This Session';
+    }
+
     const stdVal = isAnemia
       ? ((res.view_std !== null && res.view_std !== undefined && (res.view_count > 1))
-          ? `&plusmn;${res.view_std} g/dL`
+          ? `&plusmn;${typeof res.view_std === 'number' ? res.view_std.toFixed(2) : res.view_std} g/dL`
           : (isHi ? 'एकल-व्यू (एसडी अनुपलब्ध)' : 'Not available — one view'))
       : 'N/A';
 
     const anemiaBadge = isAnemia
-      ? `<span class="status-badge available">${isHi ? 'अनुसंधान उपलब्ध' : 'AVAILABLE (RESEARCH ONLY)'}</span>`
+      ? (res.operational_status === 'available_research_only'
+          ? `<span class="status-badge available">${isHi ? 'अनुसंधान उपलब्ध' : 'AVAILABLE (RESEARCH ONLY)'}</span>`
+          : `<span class="status-badge blocked">${isHi ? 'अवरुद्ध' : 'GATED / BLOCKED'}</span>`)
       : `<span class="status-badge unavailable">${isHi ? 'सत्र में नहीं' : 'NOT EVALUATED'}</span>`;
 
+    const parsedHb = parseFloat(hbVal);
     const clinicalDec = (isAnemia && res.clinical_decision) ? res.clinical_decision : {};
-    const whoStage = clinicalDec.stage_label_en || (typeof hbVal === 'number' ? (hbVal < 11 ? 'Moderate Anemia' : (hbVal < 12 ? 'Mild Anemia' : 'Normal / Non-Anemic')) : '');
+    const whoStage = clinicalDec.stage_label_en || (!isNaN(parsedHb) ? (parsedHb < 11.0 ? 'Moderate Anemia' : (parsedHb < 12.0 ? 'Mild Anemia' : 'Normal / Non-Anemic')) : (isHi ? 'वर्गीकरण लंबित' : 'Awaiting Inference'));
     const whoStageHi = clinicalDec.stage_label_hi || whoStage;
     const ciDisplay = clinicalDec.confidence_interval_95 ? clinicalDec.confidence_interval_95.display : '±1.50 g/dL';
-    const riskColor = clinicalDec.risk_color || '#60a5fa';
+    const riskColor = clinicalDec.risk_color || (!isNaN(parsedHb) && parsedHb < 11.0 ? '#ef4444' : (!isNaN(parsedHb) && parsedHb < 12.0 ? '#eab308' : '#10b981'));
 
     const anemiaMetricHtml = isAnemia
       ? `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 6px;">
           <span style="font-size: 36px; font-weight: 800; font-family: Outfit, sans-serif; color: #60a5fa;">${hbVal}</span>
-          <span style="font-size: 16px; font-weight: 600; color: var(--text-muted);">g/dL</span>
+          ${!isNaN(parsedHb) ? '<span style="font-size: 16px; font-weight: 600; color: var(--text-muted);">g/dL</span>' : ''}
           <span style="font-size: 12.5px; color: var(--text-secondary); margin-left: 12px;">${isHi ? 'व्यू भिन्नता:' : 'Inter-crop Variance:'} <strong>${stdVal}</strong></span>
         </div>
         <div style="font-size: 13px; font-weight: 700; color: ${riskColor}; margin-bottom: 8px;">
@@ -1900,216 +1937,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------------------------------
-  // Gemini Research Copilot Chat Drawer
-  // --------------------------------------------------------------------------
-  const copilotFab = document.getElementById('copilotFab');
-  const copilotPanel = document.getElementById('copilotPanel');
-  const copilotInput = document.getElementById('copilotInput');
-  const copilotSendBtn = document.getElementById('copilotSendBtn');
-  const copilotMessages = document.getElementById('copilotMessages');
-  const copilotWelcome = document.getElementById('copilotWelcome');
-  const copilotSubtitle = document.getElementById('copilotSubtitle');
-  const copilotStatusDot = document.getElementById('copilotStatusDot');
-
-  let copilotHistory = [];
-  let copilotAvailable = false;
-  let copilotSending = false;
-
-  // Check Copilot Availability
-  async function checkCopilotStatus() {
-    try {
-      const res = await fetch('/api/copilot-status');
-      if (!res.ok) throw new Error('Status check failed');
-      const data = await res.json();
-      copilotAvailable = data.available;
-
-      if (copilotStatusDot) {
-        copilotStatusDot.className = `copilot-status-dot ${copilotAvailable ? 'online' : 'offline'}`;
-        copilotStatusDot.title = copilotAvailable
-          ? `Online • Model: ${data.model}`
-          : 'Offline • Set GEMINI_API_KEY';
-      }
-      if (copilotSubtitle) {
-        copilotSubtitle.textContent = copilotAvailable
-          ? `Gemini-powered • ${data.model}`
-          : 'Offline • Fallback responses active';
-      }
-    } catch {
-      if (copilotStatusDot) {
-        copilotStatusDot.className = 'copilot-status-dot offline';
-        copilotStatusDot.title = 'Offline';
-      }
-      if (copilotSubtitle) {
-        copilotSubtitle.textContent = 'Offline • Fallback responses active';
-      }
-    }
-  }
-  checkCopilotStatus();
-
-  // FAB Toggle
-  if (copilotFab && copilotPanel) {
-    copilotFab.addEventListener('click', () => {
-      const isOpen = copilotPanel.classList.toggle('open');
-      copilotFab.classList.toggle('open', isOpen);
-      if (isOpen && copilotInput) {
-        setTimeout(() => copilotInput.focus(), 300);
-      }
-    });
-  }
-
-  // Auto-resize textarea
-  if (copilotInput) {
-    copilotInput.addEventListener('input', () => {
-      copilotInput.style.height = 'auto';
-      copilotInput.style.height = Math.min(copilotInput.scrollHeight, 100) + 'px';
-      if (copilotSendBtn) {
-        copilotSendBtn.disabled = !copilotInput.value.trim() || copilotSending;
-      }
-    });
-
-    copilotInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendCopilotMessage();
-      }
-    });
-  }
-
-  if (copilotSendBtn) {
-    copilotSendBtn.addEventListener('click', sendCopilotMessage);
-  }
-
-  // Suggestion Chips
-  document.querySelectorAll('.copilot-suggestion-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const query = btn.getAttribute('data-query');
-      if (query && copilotInput) {
-        copilotInput.value = query;
-        copilotInput.dispatchEvent(new Event('input'));
-        sendCopilotMessage();
-      }
-    });
-  });
-
-  async function sendCopilotMessage() {
-    if (!copilotInput || copilotSending) return;
-    const text = copilotInput.value.trim();
-    if (!text) return;
-
-    copilotSending = true;
-    copilotInput.value = '';
-    copilotInput.style.height = 'auto';
-    if (copilotSendBtn) copilotSendBtn.disabled = true;
-
-    if (copilotWelcome) copilotWelcome.style.display = 'none';
-    appendCopilotMessage('user', text);
-
-    const typingEl = showTypingIndicator();
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          history: copilotHistory.slice(-10)
-        })
-      });
-
-      if (typingEl && typingEl.parentNode) typingEl.parentNode.removeChild(typingEl);
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        appendCopilotMessage('system', `Error: ${errData.detail || 'Failed to get response'}`);
-        return;
-      }
-
-      const data = await res.json();
-      appendCopilotMessage('assistant', data.response, data.mode);
-
-      copilotHistory.push({ role: 'user', content: text });
-      copilotHistory.push({ role: 'assistant', content: data.response });
-    } catch (err) {
-      if (typingEl && typingEl.parentNode) typingEl.parentNode.removeChild(typingEl);
-      appendCopilotMessage('system', `Network error: ${err.message}`);
-    } finally {
-      copilotSending = false;
-      if (copilotInput) copilotInput.focus();
-    }
-  }
-
-  function appendCopilotMessage(role, content) {
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `copilot-msg ${role}`;
-
-    if (role === 'assistant') {
-      msgDiv.innerHTML = renderMarkdown(content);
-    } else {
-      msgDiv.textContent = content;
-    }
-
-    copilotMessages.appendChild(msgDiv);
-    copilotMessages.scrollTop = copilotMessages.scrollHeight;
-  }
-
-  function showTypingIndicator() {
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'copilot-typing';
-    typingDiv.innerHTML = '<span></span><span></span><span></span>';
-    copilotMessages.appendChild(typingDiv);
-    copilotMessages.scrollTop = copilotMessages.scrollHeight;
-    return typingDiv;
-  }
-
-  function renderMarkdown(text) {
-    if (!text) return '';
-    let html = escapeHtml(text);
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
-      return `<pre><code>${code.trim()}</code></pre>`;
-    });
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    html = html.replace(/^### (.+)$/gm, '<h4 style="margin: 8px 0 4px; font-size: 12px;">$1</h4>');
-    html = html.replace(/^## (.+)$/gm, '<h3 style="margin: 8px 0 4px; font-size: 13px;">$1</h3>');
-    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>[\s\S]*?<\/li>)/g, (match) => {
-      if (!match.startsWith('<ul>')) return `<ul>${match}</ul>`;
-      return match;
-    });
-    html = html.replace(/^---$/gm, '<hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0;">');
-    html = html.replace(/\n/g, '<br>');
-    html = html.replace(/(<\/(?:pre|table|ul|ol|h[1-6]|hr)>)<br>/g, '$1');
-    html = html.replace(/<br>(<(?:pre|table|ul|ol|h[1-6]|hr))/g, '$1');
-    return html;
-  }
-
-  // Keyboard Shortcuts: Escape closes panel
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && copilotPanel && copilotPanel.classList.contains('open')) {
-      copilotPanel.classList.remove('open');
-      if (copilotFab) copilotFab.classList.remove('open');
-    }
-  });
-
   // ==========================================================================
-  // AI Doctor Buddy Mascot & Voice Assistant Controller (Dr. Netra)
+  // Unified AI Doctor Assistant Controller (AI Dr. Astra)
   // ==========================================================================
   const doctorAvatarBtn = document.getElementById('doctorAvatarBtn');
   const doctorAvatarImg = document.getElementById('doctorAvatarImg');
   const doctorSpeechBubble = document.getElementById('doctorSpeechBubble');
   const doctorMessageText = document.getElementById('doctorMessageText');
   const doctorNextStepText = document.getElementById('doctorNextStepText');
+  const doctorChatHistory = document.getElementById('doctorChatHistory');
+  const doctorQuickAskForm = document.getElementById('doctorQuickAskForm');
+  const doctorAskInput = document.getElementById('doctorAskInput');
+  const doctorAskBtn = document.getElementById('doctorAskBtn');
   const btnDocReplay = document.getElementById('btnDocReplay');
   const btnDocMute = document.getElementById('btnDocMute');
   const btnDocCloseBubble = document.getElementById('btnDocCloseBubble');
-  const doctorQuickAskForm = document.getElementById('doctorQuickAskForm');
-  const doctorAskInput = document.getElementById('doctorAskInput');
 
   let isDocVoiceMuted = false;
   let lastSpokenText = "";
   let doctorExpression = "default"; // 'default', 'speaking', 'alert', 'happy'
   let currentUtterance = null;
+  let doctorHistory = [];
+  let isDocThinking = false;
 
   const AVATAR_EXPRESSION_MAP = {
     default: '/static/images/doctor_avatar_default.png',
@@ -2203,6 +2052,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function appendDoctorChatMessage(role, content) {
+    if (!doctorChatHistory) return;
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `doc-chat-bubble ${role}`;
+
+    if (role === 'assistant') {
+      msgDiv.innerHTML = renderMarkdown(content);
+    } else {
+      msgDiv.textContent = content;
+    }
+
+    doctorChatHistory.appendChild(msgDiv);
+    doctorChatHistory.scrollTop = doctorChatHistory.scrollHeight;
+  }
+
+  function renderMarkdown(text) {
+    if (!text) return '';
+    let html = escapeHtml(text);
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+      return `<pre><code>${code.trim()}</code></pre>`;
+    });
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    html = html.replace(/^### (.+)$/gm, '<h4 style="margin: 6px 0 2px; font-size: 11px;">$1</h4>');
+    html = html.replace(/^## (.+)$/gm, '<h3 style="margin: 6px 0 2px; font-size: 12px;">$1</h3>');
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>)/g, (match) => {
+      if (!match.startsWith('<ul>')) return `<ul style="margin: 4px 0; padding-left: 16px;">${match}</ul>`;
+      return match;
+    });
+    html = html.replace(/\n/g, '<br>');
+    return html;
+  }
+
   // Voice Controls
   if (btnDocReplay) {
     btnDocReplay.addEventListener('click', () => {
@@ -2235,47 +2119,94 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!doctorSpeechBubble) return;
       const isVisible = doctorSpeechBubble.style.display !== 'none';
       doctorSpeechBubble.style.display = isVisible ? 'none' : 'flex';
-      if (!isVisible && lastSpokenText) {
-        speakDoctorVoice(lastSpokenText);
+      if (!isVisible) {
+        if (doctorAskInput) setTimeout(() => doctorAskInput.focus(), 200);
+        if (lastSpokenText) speakDoctorVoice(lastSpokenText);
       }
     });
   }
 
-  // Quick Question Form
-  if (doctorQuickAskForm && doctorAskInput) {
-    doctorQuickAskForm.addEventListener('submit', async (e) => {
+  // Unified Dr. Astra Message Sender
+  async function submitDoctorAstraQuestion() {
+    if (!doctorAskInput || isDocThinking) return;
+    const q = doctorAskInput.value.trim();
+    if (!q) return;
+
+    isDocThinking = true;
+    doctorAskInput.value = '';
+    doctorAskInput.style.height = 'auto';
+    if (doctorAskBtn) doctorAskBtn.disabled = true;
+
+    appendDoctorChatMessage('user', q);
+    setDoctorExpression('speaking');
+
+    try {
+      const res = await fetch('/api/doctor-buddy/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: q,
+          language: currentLanguage,
+          current_step: currentStep,
+          history: doctorHistory.slice(-8)
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Consultation request failed");
+      }
+
+      const data = await res.json();
+      appendDoctorChatMessage('assistant', data.message);
+
+      doctorHistory.push({ role: 'user', content: q });
+      doctorHistory.push({ role: 'assistant', content: data.message });
+
+      lastSpokenText = data.speak_text || data.message;
+      setDoctorExpression(data.expression || 'default');
+      speakDoctorVoice(lastSpokenText);
+    } catch (err) {
+      appendDoctorChatMessage('system', `AI Dr. Astra: ${err.message || 'Unable to complete consultation. Please continue with your screening.'}`);
+      setDoctorExpression('default');
+    } finally {
+      isDocThinking = false;
+      if (doctorAskBtn) doctorAskBtn.disabled = false;
+      if (doctorAskInput) doctorAskInput.focus();
+    }
+  }
+
+  // Handle Form Submission and Enter-key (without shift)
+  if (doctorQuickAskForm) {
+    doctorQuickAskForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const q = doctorAskInput.value.trim();
-      if (!q) return;
-
-      doctorAskInput.value = '';
-      if (doctorMessageText) doctorMessageText.innerHTML = '<em>Consulting Dr. Netra…</em>';
-      setDoctorExpression('speaking');
-
-      try {
-        const res = await fetch('/api/doctor-buddy/ask', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            question: q,
-            language: currentLanguage,
-            current_step: currentStep
-          })
-        });
-        if (!res.ok) throw new Error("Consultation request failed");
-        const data = await res.json();
-
-        if (doctorMessageText) doctorMessageText.textContent = data.message;
-        if (doctorNextStepText) doctorNextStepText.textContent = data.suggested_next_step;
-        lastSpokenText = data.speak_text || data.message;
-        setDoctorExpression(data.expression || 'default');
-        speakDoctorVoice(lastSpokenText);
-      } catch (err) {
-        if (doctorMessageText) doctorMessageText.textContent = "I couldn't process your question. Please proceed with the screening steps.";
-        setDoctorExpression('default');
-      }
+      submitDoctorAstraQuestion();
     });
   }
+
+  if (doctorAskInput) {
+    doctorAskInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitDoctorAstraQuestion();
+      }
+    });
+    doctorAskInput.addEventListener('input', () => {
+      doctorAskInput.style.height = 'auto';
+      doctorAskInput.style.height = Math.min(doctorAskInput.scrollHeight, 80) + 'px';
+    });
+  }
+
+  // Suggestion Chips Click Handlers
+  document.querySelectorAll('.doc-suggestion-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const query = chip.getAttribute('data-query');
+      if (query && doctorAskInput) {
+        doctorAskInput.value = query;
+        submitDoctorAstraQuestion();
+      }
+    });
+  });
 
   // Wire doctor buddy into stepper and workflow
   const originalGoToStep = goToStep;

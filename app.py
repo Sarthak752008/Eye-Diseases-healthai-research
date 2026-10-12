@@ -661,12 +661,21 @@ def _persist_db_session(export_payload: dict, module: str, capture_source: str, 
                 quality_summary={"status": "processed"},
                 session_id=export_payload["session_id"]
             )
+            # Safe extraction of float prediction_value for SQLite schema
+            pred_val = export_payload.get("view_mean")
+            if pred_val is None:
+                raw_out = export_payload.get("model_output")
+                if isinstance(raw_out, list) and len(raw_out) > 0 and isinstance(raw_out[0], dict):
+                    pred_val = raw_out[0].get("hb_pred_g_dl")
+                elif isinstance(raw_out, (int, float)):
+                    pred_val = float(raw_out)
+
             save_model_result(
                 db=db,
                 session_id=db_sess.id,
                 module=module,
                 operational_status=export_payload.get("operational_status", "unknown"),
-                prediction_value=export_payload.get("model_output"),
+                prediction_value=pred_val,
                 unit=export_payload.get("unit"),
                 view_count=export_payload.get("view_count"),
                 view_mean=export_payload.get("view_mean"),
@@ -675,9 +684,9 @@ def _persist_db_session(export_payload: dict, module: str, capture_source: str, 
                 documented_limitations=export_payload.get("documented_limitations", []),
                 gate_reason=gate_reason
             )
-    except Exception:
+    except Exception as exc:
         # Non-fatal persistence logging: failure in DB write does not disrupt immediate inference return
-        pass
+        logger.warning(f"Session persistence to database failed: {exc}")
 
 
 @app.post("/api/export")
@@ -934,6 +943,7 @@ class DoctorBuddyAskPayload(BaseModel):
     question: str = Field(..., min_length=1, max_length=500, description="User question")
     language: str = Field("en", max_length=5, description="'en' or 'hi'")
     current_step: int = Field(1, ge=1, le=7, description="Current wizard step index")
+    history: Optional[List[dict]] = Field(default=None, description="Optional chat history")
 
 
 @app.post("/api/doctor-buddy/event")
@@ -961,7 +971,8 @@ async def doctor_buddy_ask_endpoint(payload: DoctorBuddyAskPayload):
     response = await ask_doctor_buddy_question(
         question=payload.question,
         language=payload.language,
-        current_step=payload.current_step
+        current_step=payload.current_step,
+        history=payload.history
     )
     return response
 
