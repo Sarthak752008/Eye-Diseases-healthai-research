@@ -1,0 +1,35 @@
+{
+  "model_name": "resnet50 Anemia Regressor",
+  "target": "Hemoglobin (g/dL)",
+  "training_time_seconds": 260.51,
+  "best_val_metrics": {
+    "loss": 1.7614,
+    "view_mae_g_dl": 2.2157,
+    "view_rmse_g_dl": 2.8758,
+    "patient_mae_g_dl": 1.9451,
+    "patient_rmse_g_dl": 2.5583,
+    "pearson_r": 0.504,
+    "r2": -0.0946,
+    "sample_count": 132,
+    "patient_count": 33
+  },
+  "final_test_metrics": {
+    "loss": 1.9392,
+    "view_mae_g_dl": 2.411,
+    "view_rmse_g_dl": 2.8658,
+    "patient_mae_g_dl": 2.1312,
+    "patient_rmse_g_dl": 2.4927,
+    "pearson_r": 0.5313,
+    "r2": -0.036,
+    "sample_count": 130,
+    "patient_count": 33
+  },
+  "config": {
+    "model_type": "resnet50",
+    "epochs": 2,
+    "batch_size": 16,
+    "lr": 0.0001,
+    "patience": 12,
+    "resume": false
+  }
+}

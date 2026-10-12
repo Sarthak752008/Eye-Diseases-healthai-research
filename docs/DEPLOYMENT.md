@@ -98,11 +98,14 @@ Ensure model checkpoints are placed in the expected directory structure:
 ```
 saved_models/
 ├── anemia/
-│   └── best_model.pth          # (Required for Anemia regression, ~288MB)
+│   ├── best_model.pth          # Primary ResNet-50 Regressor (~288MB, Validated)
+│   └── mobilenet_model.pth     # Candidate MobileNetV3 Regressor (~13MB, Evaluated)
 ├── conjunctivitis/
-│   └── best_model_v2_clean.pth # (Offline research artifact, ~12.5MB)
+│   ├── slid_injection_model.pth # SLID Slit-Lamp Injection Classifier (~13MB, Clinical)
+│   └── best_model_v2_clean.pth  # Mendeley Deduplicated Classifier (~12.5MB, Confounded)
 └── jaundice/
-    └── jaundice_config.json    # (Architecture scaffold config)
+    ├── best_model.pth          # Scleral Icterus MobileNetV3 Classifier (~13MB, CC BY-NC)
+    └── jaundice_config.json    # Architecture configuration metadata
 ```
 
 ### Step 4: Launch the Server

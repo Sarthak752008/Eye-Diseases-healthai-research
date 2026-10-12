@@ -43,8 +43,33 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, futu
 
 
 def init_db() -> None:
-    """Creates database tables if they do not already exist."""
+    """Creates database tables if they do not already exist and migrates missing columns."""
     Base.metadata.create_all(bind=engine)
+
+    # Perform lightweight migration for SQLite tables if created under prior schema
+    if DATABASE_URL.startswith("sqlite"):
+        try:
+            with engine.connect() as conn:
+                for tbl, col, col_def in [
+                    ("user_profiles", "gender", "VARCHAR(32) DEFAULT 'prefer_not_to_say'"),
+                    ("user_profiles", "demographic_consent", "BOOLEAN DEFAULT 0"),
+                    ("consent_records", "demographic_consent", "BOOLEAN DEFAULT 0"),
+                ]:
+                    try:
+                        res = conn.execute(Base.metadata.tables[tbl].select().limit(0))
+                    except Exception:
+                        pass
+                    # Use PRAGMA table_info
+                    try:
+                        columns_info = conn.exec_driver_sql(f"PRAGMA table_info({tbl})").fetchall()
+                        existing_cols = {row[1] for row in columns_info}
+                        if existing_cols and col not in existing_cols:
+                            conn.exec_driver_sql(f"ALTER TABLE {tbl} ADD COLUMN {col} {col_def}")
+                            conn.commit()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
 
 def get_db():
@@ -80,13 +105,25 @@ def register_user(
     phone: str,
     email: str,
     date_of_birth: str,
+    gender: Optional[str] = "prefer_not_to_say",
     research_consent: bool = True,
     data_storage_consent: bool = True,
+    demographic_consent: bool = False,
     consent_version: str = "1.0"
 ) -> UserProfile:
     """
     Registers a new user profile and records an explicit, timestamped consent record.
+    
+    CLINICAL SAFETY GUARANTEE:
+    Demographic information (such as gender) is collected exclusively for cohort
+    characterization with explicit user consent. It is NEVER used as an automated
+    predictive input to any computer-vision model.
     """
+    clean_gender = (gender or "prefer_not_to_say").strip().lower()
+    allowed_genders = {"female", "male", "non-binary", "self-describe", "prefer_not_to_say", "prefer not to say"}
+    if clean_gender not in allowed_genders:
+        clean_gender = "self-describe"
+
     # Check if existing user by email
     existing_user = db.query(UserProfile).filter(UserProfile.email == email.strip().lower()).first()
     if existing_user:
@@ -94,6 +131,8 @@ def register_user(
         existing_user.full_name = full_name.strip()
         existing_user.phone = phone.strip()
         existing_user.date_of_birth = date_of_birth.strip()
+        existing_user.gender = clean_gender
+        existing_user.demographic_consent = demographic_consent
         user = existing_user
     else:
         user = UserProfile(
@@ -101,7 +140,9 @@ def register_user(
             full_name=full_name.strip(),
             phone=phone.strip(),
             email=email.strip().lower(),
-            date_of_birth=date_of_birth.strip()
+            date_of_birth=date_of_birth.strip(),
+            gender=clean_gender,
+            demographic_consent=demographic_consent
         )
         db.add(user)
         db.flush()
@@ -113,6 +154,7 @@ def register_user(
         consent_given=True,
         research_screening_consent=research_consent,
         data_storage_consent=data_storage_consent,
+        demographic_consent=demographic_consent,
         consent_version=consent_version
     )
     db.add(consent)

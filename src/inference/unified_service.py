@@ -24,6 +24,8 @@ if WORKSPACE_ROOT not in sys.path:
     sys.path.insert(0, WORKSPACE_ROOT)
 
 from src.models.anemia_model import load_anemia_checkpoint, AnemiaRegressor
+from src.models.conjunctivitis_model import load_conjunctivitis_checkpoint, ConjunctivitisClassifier
+from src.models.jaundice_model import load_jaundice_checkpoint, JaundiceClassifier
 from src.preprocessing.image_quality import (
     safe_load_image,
     calculate_image_quality,
@@ -88,13 +90,23 @@ class EyeHealthInferenceService:
     def __init__(
         self,
         anemia_checkpoint_path: Optional[str] = None,
+        slid_checkpoint_path: Optional[str] = None,
+        jaundice_checkpoint_path: Optional[str] = None,
         device: str = 'cpu'
     ):
         self.device = device
         self.anemia_checkpoint_path = anemia_checkpoint_path or os.path.join(
             WORKSPACE_ROOT, 'saved_models', 'anemia', 'best_model.pth'
         )
+        self.slid_checkpoint_path = slid_checkpoint_path or os.path.join(
+            WORKSPACE_ROOT, 'saved_models', 'slid', 'best_model.pth'
+        )
+        self.jaundice_checkpoint_path = jaundice_checkpoint_path or os.path.join(
+            WORKSPACE_ROOT, 'saved_models', 'jaundice', 'best_model.pth'
+        )
         self._anemia_model: Optional[AnemiaRegressor] = None
+        self._slid_model: Optional[ConjunctivitisClassifier] = None
+        self._jaundice_model: Optional[JaundiceClassifier] = None
         self._transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -112,6 +124,29 @@ class EyeHealthInferenceService:
             )
             self._anemia_model.eval()
         return self._anemia_model
+
+    def _get_slid_model(self) -> ConjunctivitisClassifier:
+        """Lazy single-instance loading of the SLID Conjunctival Injection model."""
+        if self._slid_model is None:
+            path = self.slid_checkpoint_path
+            if not os.path.exists(path):
+                alt = os.path.join(WORKSPACE_ROOT, 'saved_models', 'conjunctivitis', 'slid_injection_model.pth')
+                if os.path.exists(alt):
+                    path = alt
+                else:
+                    raise FileNotFoundError(f"SLID checkpoint not found at: {self.slid_checkpoint_path}")
+            self._slid_model = load_conjunctivitis_checkpoint(path, device=self.device)
+            self._slid_model.eval()
+        return self._slid_model
+
+    def _get_jaundice_model(self) -> JaundiceClassifier:
+        """Lazy single-instance loading of the Jaundice Scleral Icterus model."""
+        if self._jaundice_model is None:
+            if not os.path.exists(self.jaundice_checkpoint_path):
+                raise FileNotFoundError(f"Jaundice checkpoint not found at: {self.jaundice_checkpoint_path}")
+            self._jaundice_model = load_jaundice_checkpoint(self.jaundice_checkpoint_path, device=self.device)
+            self._jaundice_model.eval()
+        return self._jaundice_model
 
     def _prepare_image_input(
         self,
@@ -433,6 +468,273 @@ class EyeHealthInferenceService:
             error=None
         )
 
+    def predict_conjunctival_injection(
+        self,
+        images: Union[str, Image.Image, List[Union[str, Image.Image]]],
+        capture_source: str = "upload",
+        experimental_override: bool = False
+    ) -> InferenceResult:
+        """
+        Visible Conjunctival Injection / Hyperemia Screening (SLID MobileNetV3-Small).
+        Separate from the confounded Mendeley dataset.
+        Differentiates Normal ocular surface (Class 0: control_normal) vs. Visible Injection (Class 1: conjunctival_injection).
+        """
+        module_name = "slid"
+        warnings_list = [
+            "RESEARCH USE ONLY: Investigational visible conjunctival injection screening.",
+            "Screening indicates visible conjunctival hyperemia on slit-lamp anterior ocular photography; it does NOT diagnose infectious etiology (viral, bacterial, or allergic conjunctivitis).",
+            "Clinical diagnosis requires biomicroscopic slit-lamp examination by an ophthalmologist."
+        ]
+        limitations_list = [
+            "Validated on SLID slit-lamp dataset (Zhejiang University, Frontiers in Digital Health 2025).",
+            "Not certified as an independent medical device.",
+            "Webcam captures are subject to camera-domain shifts."
+        ]
+        preprocessing_meta = {
+            "target_size": [224, 224],
+            "aspect_ratio_preserved": True,
+            "padding": "center_pad",
+            "color_normalization": "ImageNet (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])"
+        }
+
+        image_list = images if isinstance(images, list) else [images]
+        if len(image_list) == 0:
+            return InferenceResult(
+                module=module_name,
+                status="error",
+                warnings=warnings_list,
+                limitations=limitations_list,
+                error="No images provided for conjunctival injection inference."
+            )
+
+        clean_source = capture_source.strip().lower()
+        if clean_source == 'webcam' and not experimental_override:
+            quality_audits = []
+            for item in image_list:
+                prep = self._prepare_image_input(item)
+                if prep['quality']:
+                    quality_audits.append(prep['quality'])
+
+            return InferenceResult(
+                module=module_name,
+                status="blocked_domain_validation",
+                input_quality=quality_audits,
+                prediction=None,
+                unit=None,
+                preprocessing=preprocessing_meta,
+                warnings=[
+                    "BLOCKED (CAMERA-DOMAIN VALIDATION GATE): The conjunctival injection model requires focused slit-lamp or calibrated macro photography.",
+                    "Webcam sensors, auto-exposure, and compression introduce severe optical domain shift.",
+                    "Webcam inference is blocked by default to prevent presenting unvalidated webcam outputs."
+                ],
+                limitations=limitations_list,
+                error=None
+            )
+
+        if clean_source == 'webcam' and experimental_override:
+            warnings_list.insert(0, "RESEARCHER EXPERIMENTAL OVERRIDE ACTIVE: Inference executed on uncalibrated laptop-webcam capture.")
+
+        try:
+            model = self._get_slid_model()
+        except FileNotFoundError as e:
+            return InferenceResult(
+                module=module_name,
+                status="error",
+                warnings=warnings_list,
+                limitations=limitations_list,
+                error=str(e)
+            )
+
+        quality_records = []
+        view_predictions = []
+        class_names = ["control_normal", "conjunctival_injection"]
+
+        for idx, img_item in enumerate(image_list):
+            prep = self._prepare_image_input(img_item)
+            if prep['error'] is not None:
+                return InferenceResult(
+                    module=module_name,
+                    status="error",
+                    warnings=warnings_list,
+                    limitations=limitations_list,
+                    error=f"Image index {idx} failed validation: {prep['error']}"
+                )
+
+            raw_img = prep['image']
+            q_info = prep['quality']
+            quality_records.append(q_info)
+
+            resized_img = resize_and_pad(raw_img, (224, 224))
+            tensor = self._transform(resized_img).unsqueeze(0).to(self.device)
+
+            with torch.no_grad():
+                logits = model(tensor)
+                probs = torch.softmax(logits, dim=1).squeeze(0).tolist()
+
+            p_norm = round(float(probs[0]), 4)
+            p_inj = round(float(probs[1]), 4)
+            pred_class = class_names[1] if p_inj >= 0.5 else class_names[0]
+            conf = max(p_norm, p_inj)
+
+            view_predictions.append({
+                'view_index': idx,
+                'predicted_class': pred_class,
+                'confidence': conf,
+                'probabilities': {
+                    'control_normal': p_norm,
+                    'conjunctival_injection': p_inj
+                },
+                'quality': q_info
+            })
+
+        mean_inj_prob = round(float(np.mean([p['probabilities']['conjunctival_injection'] for p in view_predictions])), 4)
+
+        return InferenceResult(
+            module=module_name,
+            status="available_research_only",
+            input_quality=quality_records,
+            prediction=view_predictions,
+            unit="categorical",
+            view_count=len(view_predictions),
+            view_mean=mean_inj_prob,
+            view_std=round(float(np.std([p['probabilities']['conjunctival_injection'] for p in view_predictions])), 4) if len(view_predictions) > 1 else 0.0,
+            preprocessing=preprocessing_meta,
+            warnings=warnings_list,
+            limitations=limitations_list,
+            error=None
+        )
+
+    def predict_scleral_icterus(
+        self,
+        images: Union[str, Image.Image, List[Union[str, Image.Image]]],
+        capture_source: str = "upload",
+        experimental_override: bool = False
+    ) -> InferenceResult:
+        """
+        Visible Scleral Icterus / Jaundice Screening (MobileNetV3-Small).
+        Categorical screening: Normal (Class 0: normal) vs. Visibly Jaundiced (Class 1: visibly_jaundiced).
+        NOTE: Total serum bilirubin estimation is strictly UNAVAILABLE due to missing clinical laboratory ground truth.
+        """
+        module_name = "jaundice"
+        warnings_list = [
+            "CATEGORICAL SCLERAL ICTERUS SCREENING ONLY: Permitted for research use under CC BY-NC 4.0 license.",
+            "NUMERICAL BILIRUBIN UNAVAILABLE: No paired laboratory total serum bilirubin reference values exist in the workspace.",
+            "Under AGENTS.md clinical safety standards, numerical bilirubin values are strictly withheld to avoid generating fabricated biochemical numbers.",
+            "Categorical scleral yellowing indicates visible icterus; clinical diagnosis requires laboratory serum bilirubin testing."
+        ]
+        limitations_list = [
+            "Evaluated on Diverse Jaundice Eye Dataset (Daniel Ekong, CC BY-NC 4.0).",
+            "Categorical classification only (Normal vs. Visibly Jaundiced). Not quantitative laboratory bilirubin.",
+            "Subject to ambient lighting and camera-sensor chromaticity shifts."
+        ]
+        preprocessing_meta = {
+            "target_size": [224, 224],
+            "aspect_ratio_preserved": True,
+            "padding": "center_pad",
+            "color_normalization": "ImageNet (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])"
+        }
+
+        image_list = images if isinstance(images, list) else [images]
+        if len(image_list) == 0:
+            return self.predict_jaundice()
+
+        clean_source = capture_source.strip().lower()
+        if clean_source == 'webcam' and not experimental_override:
+            quality_audits = []
+            for item in image_list:
+                prep = self._prepare_image_input(item)
+                if prep['quality']:
+                    quality_audits.append(prep['quality'])
+
+            return InferenceResult(
+                module=module_name,
+                status="blocked_domain_validation",
+                input_quality=quality_audits,
+                prediction=None,
+                unit=None,
+                preprocessing=preprocessing_meta,
+                warnings=[
+                    "BLOCKED (CAMERA-DOMAIN VALIDATION GATE): Scleral icterus screening requires calibrated macro ocular photography.",
+                    "Webcam auto-white-balance artificially shifts yellow-blue chromaticity, distorting scleral icterus detection.",
+                    "Webcam-to-model inference is blocked by default."
+                ],
+                limitations=limitations_list,
+                error=None
+            )
+
+        if clean_source == 'webcam' and experimental_override:
+            warnings_list.insert(0, "RESEARCHER EXPERIMENTAL OVERRIDE ACTIVE: Inference executed on uncalibrated laptop-webcam capture.")
+
+        try:
+            model = self._get_jaundice_model()
+        except FileNotFoundError as e:
+            return InferenceResult(
+                module=module_name,
+                status="error",
+                warnings=warnings_list,
+                limitations=limitations_list,
+                error=str(e)
+            )
+
+        quality_records = []
+        view_predictions = []
+        class_names = ["normal", "visibly_jaundiced"]
+
+        for idx, img_item in enumerate(image_list):
+            prep = self._prepare_image_input(img_item)
+            if prep['error'] is not None:
+                return InferenceResult(
+                    module=module_name,
+                    status="error",
+                    warnings=warnings_list,
+                    limitations=limitations_list,
+                    error=f"Image index {idx} failed validation: {prep['error']}"
+                )
+
+            raw_img = prep['image']
+            q_info = prep['quality']
+            quality_records.append(q_info)
+
+            resized_img = resize_and_pad(raw_img, (224, 224))
+            tensor = self._transform(resized_img).unsqueeze(0).to(self.device)
+
+            with torch.no_grad():
+                logits = model(tensor)
+                probs = torch.softmax(logits, dim=1).squeeze(0).tolist()
+
+            p_norm = round(float(probs[0]), 4)
+            p_jaund = round(float(probs[1]), 4)
+            pred_class = class_names[1] if p_jaund >= 0.5 else class_names[0]
+            conf = max(p_norm, p_jaund)
+
+            view_predictions.append({
+                'view_index': idx,
+                'predicted_class': pred_class,
+                'confidence': conf,
+                'probabilities': {
+                    'normal': p_norm,
+                    'visibly_jaundiced': p_jaund
+                },
+                'quality': q_info
+            })
+
+        mean_jaund_prob = round(float(np.mean([p['probabilities']['visibly_jaundiced'] for p in view_predictions])), 4)
+
+        return InferenceResult(
+            module=module_name,
+            status="available_research_only",
+            input_quality=quality_records,
+            prediction=view_predictions,
+            unit="categorical",
+            view_count=len(view_predictions),
+            view_mean=mean_jaund_prob,
+            view_std=round(float(np.std([p['probabilities']['visibly_jaundiced'] for p in view_predictions])), 4) if len(view_predictions) > 1 else 0.0,
+            preprocessing=preprocessing_meta,
+            warnings=warnings_list,
+            limitations=limitations_list,
+            error=None
+        )
+
     def predict(
         self,
         module: str,
@@ -458,15 +760,33 @@ class EyeHealthInferenceService:
                 capture_source=capture_source,
                 experimental_override=experimental_override
             )
-        elif mod in ('conjunctivitis', 'red_eye'):
+        elif mod in ('slid', 'conjunctival_injection', 'injection'):
+            if images is None:
+                return InferenceResult(
+                    module='slid',
+                    status='error',
+                    error="Images must be provided for conjunctival injection prediction."
+                )
+            return self.predict_conjunctival_injection(
+                images,
+                capture_source=capture_source,
+                experimental_override=experimental_override
+            )
+        elif mod in ('conjunctivitis', 'mendeley', 'red_eye'):
             return self.predict_conjunctivitis(images)
-        elif mod in ('jaundice', 'icterus'):
-            return self.predict_jaundice(images)
+        elif mod in ('jaundice', 'icterus', 'scleral_icterus'):
+            if images is None or (isinstance(images, list) and len(images) == 0):
+                return self.predict_jaundice(images)
+            return self.predict_scleral_icterus(
+                images,
+                capture_source=capture_source,
+                experimental_override=experimental_override
+            )
         else:
             return InferenceResult(
                 module=module,
                 status="error",
-                error=f"Unknown module '{module}'. Supported modules: ['anemia', 'conjunctivitis', 'jaundice']."
+                error=f"Unknown module '{module}'. Supported modules: ['anemia', 'slid', 'conjunctivitis', 'jaundice']."
             )
 
 

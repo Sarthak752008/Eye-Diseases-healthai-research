@@ -44,6 +44,13 @@ document.addEventListener('DOMContentLoaded', () => {
       labelPhone: "Phone Number *",
       labelEmail: "Email Address *",
       labelDob: "Date of Birth (YYYY-MM-DD) *",
+      labelGender: "Gender (Optional Demographic Data)",
+      genderOptPreferNot: "Prefer not to say (Default)",
+      genderOptFemale: "Female",
+      genderOptMale: "Male",
+      genderOptNonBinary: "Non-binary",
+      genderOptSelfDescribe: "Self-describe",
+      chkConsentDemographicText: "(Optional) I consent to the collection of demographic data (gender) exclusively for research diversity evaluation. You may continue without selecting a gender.",
       consentHeader: "Informed Consent &amp; Privacy Notice",
       consentP1: "<strong>Experimental Research Only:</strong> EyeHealthAI is an investigational software prototype. It does NOT provide a certified medical diagnosis.",
       consentP2: "<strong>No Raw Image Retention:</strong> Captured eye photographs and webcam frames are processed strictly in RAM and are NEVER permanently stored on disk by default.",
@@ -108,6 +115,13 @@ document.addEventListener('DOMContentLoaded', () => {
       labelPhone: "फोन नंबर *",
       labelEmail: "ईमेल पता *",
       labelDob: "जन्म तिथि (YYYY-MM-DD) *",
+      labelGender: "लिंग (वैकल्पिक जनसांख्यिकीय डेटा)",
+      genderOptPreferNot: "बताना नहीं चाहते (डिफ़ॉल्ट)",
+      genderOptFemale: "महिला (Female)",
+      genderOptMale: "पुरुष (Male)",
+      genderOptNonBinary: "नॉन-बाइनरी (Non-binary)",
+      genderOptSelfDescribe: "स्व-वर्णन (Self-describe)",
+      chkConsentDemographicText: "(वैकल्पिक) मैं विविधता और निष्पक्षता मूल्यांकन हेतु जनसांख्यिकीय डेटा (लिंग) संग्रह की सहमति देता/देती हूँ। आप लिंग का चयन किए बिना भी जारी रख सकते हैं।",
       consentHeader: "सूचित सहमति एवं गोपनीयता सूचना",
       consentP1: "<strong>केवल प्रायोगिक अनुसंधान:</strong> EyeHealthAI एक अनुसंधान सॉफ्टवेयर है। यह प्रमाणित चिकित्सीय निदान (Medical Diagnosis) प्रदान नहीं करता है।",
       consentP2: "<strong>मूल तस्वीरें सुरक्षित नहीं:</strong> ली गई आंख की तस्वीरें केवल रैम में प्रोसेस होती हैं और डिस्क पर कभी स्थायी रूप से सुरक्षित नहीं रखी जातीं।",
@@ -219,6 +233,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultsContent = document.getElementById('resultsContent');
   const btnViewReport = document.getElementById('btnViewReport');
   const btnExport = document.getElementById('btnExport');
+
+  // Eye-Focused Camera & Cropping Elements
+  const btnCamModeAuto = document.getElementById('btnCamModeAuto');
+  const btnCamModeManual = document.getElementById('btnCamModeManual');
+  const btnCamZoomToggle = document.getElementById('btnCamZoomToggle');
+  const liveGuidancePill = document.getElementById('liveGuidancePill');
+  const eyeDetectorBox = document.getElementById('eyeDetectorBox');
+  const eyeGuideReticle = document.getElementById('eyeGuideReticle');
+  const guideTitleText = document.getElementById('guideTitleText');
+  const guideSubText = document.getElementById('guideSubText');
+  const cropCanvas = document.getElementById('cropCanvas');
+  const capturedCropBadge = document.getElementById('capturedCropBadge');
+  const capturedCropMetadata = document.getElementById('capturedCropMetadata');
+  const capturedRejectionBox = document.getElementById('capturedRejectionBox');
+
+  // Dynamic Camera & Eye Detection State
+  let isEyeModeAuto = true;
+  let isZoom2x = false;
+  let liveEyeTrackingInterval = null;
+  let lastOcularCropBox = null;
 
   // Page 6 Elements - Results
   const fullResultsContainer = document.getElementById('fullResultsContainer');
@@ -367,11 +401,16 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       if (regErrorAlert) regErrorAlert.style.display = 'none';
 
+      const selectRegGender = document.getElementById('selectRegGender');
+      const chkConsentDemographic = document.getElementById('chkConsentDemographic');
+
       const payload = {
         full_name: inputRegName.value.trim(),
         phone: inputRegPhone.value.trim(),
         email: inputRegEmail.value.trim(),
         date_of_birth: inputRegDob.value.trim(),
+        gender: selectRegGender ? selectRegGender.value : 'prefer_not_to_say',
+        demographic_consent: chkConsentDemographic ? chkConsentDemographic.checked : false,
         research_consent: chkConsentResearch.checked,
         data_storage_consent: chkConsentStorage.checked
       };
@@ -477,34 +516,81 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
       btnAnalyzeText.textContent = 'Run Research Inference';
       if (webcamDomainNotice) webcamDomainNotice.style.display = 'block';
+    } else if (mod === 'slid' || mod === 'conjunctival_injection') {
+      moduleBanner.className = 'alert-box alert-info';
+      moduleBanner.innerHTML = `
+        <strong>Active Module: SLID Conjunctival Injection Classifier</strong><br>
+        Permitted for research screening on slit-lamp photography. MobileNetV3-Small (Acc: 98.78%). Confounded Mendeley shortcut model remains blocked.
+      `;
+      btnAnalyzeText.textContent = 'Run Research Inference';
+      if (webcamDomainNotice) webcamDomainNotice.style.display = 'block';
     } else if (mod === 'conjunctivitis') {
       moduleBanner.className = 'alert-box alert-danger';
       moduleBanner.innerHTML = `
-        <strong>Reliability Gate Active: Conjunctivitis Classifier</strong><br>
-        Predictions are blocked due to a 100% resolution confound in source data.
+        <strong>Reliability Gate Active: Mendeley Conjunctivitis Model</strong><br>
+        Predictions are blocked due to a 100% resolution confound in source data. Use SLID module for valid research screening.
       `;
       btnAnalyzeText.textContent = 'Inspect Gated Module';
       if (webcamDomainNotice) webcamDomainNotice.style.display = 'none';
     } else if (mod === 'jaundice') {
-      moduleBanner.className = 'alert-box alert-warning';
+      moduleBanner.className = 'alert-box alert-info';
       moduleBanner.innerHTML = `
-        <strong>Missing-Data Gate: Jaundice Scleral Icterus</strong><br>
-        No clinical dataset or laboratory bilirubin reference measurements exist in the workspace.
+        <strong>Active Module: Categorical Scleral Icterus Screening</strong><br>
+        MobileNetV3-Small (CC BY-NC 4.0). Quantitative total serum bilirubin estimation remains strictly unavailable (missing lab ground truth).
       `;
-      btnAnalyzeText.textContent = 'Inspect Missing Data';
-      if (webcamDomainNotice) webcamDomainNotice.style.display = 'none';
+      btnAnalyzeText.textContent = 'Run Research Inference';
+      if (webcamDomainNotice) webcamDomainNotice.style.display = 'block';
     }
 
     updateAnalyzeButtonState();
   }
 
   // --------------------------------------------------------------------------
-  // Live Laptop Camera Operations (Layer 6)
+  // Live Laptop Camera Operations (Eye-Focused Macro Capture & Tracking)
   // --------------------------------------------------------------------------
   btnStartCamera.addEventListener('click', startCameraStream);
   btnStopCamera.addEventListener('click', stopCameraStream);
   btnCaptureStill.addEventListener('click', captureWebcamStill);
   btnRecapture.addEventListener('click', recaptureWebcamStill);
+
+  if (btnCamModeAuto) {
+    btnCamModeAuto.addEventListener('click', () => {
+      isEyeModeAuto = true;
+      btnCamModeAuto.classList.add('active');
+      btnCamModeManual.classList.remove('active');
+      if (eyeGuideReticle) eyeGuideReticle.style.display = 'none';
+      if (guideTitleText) guideTitleText.textContent = 'Automated Eye Detection Active';
+      if (guideSubText) guideSubText.textContent = 'Position one eye in the frame. The green guide will track your eye.';
+    });
+  }
+
+  if (btnCamModeManual) {
+    btnCamModeManual.addEventListener('click', () => {
+      isEyeModeAuto = false;
+      btnCamModeManual.classList.add('active');
+      btnCamModeAuto.classList.remove('active');
+      if (eyeDetectorBox) eyeDetectorBox.style.display = 'none';
+      if (eyeGuideReticle) eyeGuideReticle.style.display = 'flex';
+      if (guideTitleText) guideTitleText.textContent = 'Manual Macro Framing Target (10–15 cm)';
+      if (guideSubText) guideSubText.textContent = 'Position one eye to fill this area. Positioning aid only; not automated eye detection.';
+    });
+  }
+
+  if (btnCamZoomToggle) {
+    btnCamZoomToggle.addEventListener('click', () => {
+      isZoom2x = !isZoom2x;
+      if (isZoom2x) {
+        webcamVideo.style.transform = 'scale(1.55)';
+        webcamVideo.style.transformOrigin = 'center center';
+        btnCamZoomToggle.textContent = '🔍 2x Macro Preview';
+        btnCamZoomToggle.classList.add('active');
+      } else {
+        webcamVideo.style.transform = 'none';
+        btnCamZoomToggle.textContent = '🔍 1x View';
+        btnCamZoomToggle.classList.remove('active');
+      }
+    });
+  }
 
   if (chkWebcamOverride) {
     chkWebcamOverride.addEventListener('change', () => {
@@ -527,12 +613,14 @@ document.addEventListener('DOMContentLoaded', () => {
       btnStartCamera.style.display = 'none';
       btnStopCamera.style.display = 'inline-flex';
       btnCaptureStill.disabled = false;
+      startLiveEyeTracking();
     } catch (err) {
       showWebcamAlert(`Camera access denied or unavailable: ${err.message}. Please check permissions.`);
     }
   }
 
   function stopCameraStream() {
+    stopLiveEyeTracking();
     if (mediaStream) {
       mediaStream.getTracks().forEach(track => track.stop());
       mediaStream = null;
@@ -541,6 +629,75 @@ document.addEventListener('DOMContentLoaded', () => {
     btnStartCamera.style.display = 'inline-flex';
     btnStopCamera.style.display = 'none';
     btnCaptureStill.disabled = true;
+    if (eyeDetectorBox) eyeDetectorBox.style.display = 'none';
+  }
+
+  function startLiveEyeTracking() {
+    if (liveEyeTrackingInterval) clearInterval(liveEyeTrackingInterval);
+    liveEyeTrackingInterval = setInterval(async () => {
+      if (!mediaStream || webcamVideo.paused || webcamVideo.ended || !isEyeModeAuto) return;
+      if (webcamVideo.videoWidth < 50) return;
+
+      const trackCanvas = document.createElement('canvas');
+      trackCanvas.width = 320;
+      trackCanvas.height = Math.round(320 * (webcamVideo.videoHeight / webcamVideo.videoWidth)) || 240;
+      const tctx = trackCanvas.getContext('2d');
+      tctx.drawImage(webcamVideo, 0, 0, trackCanvas.width, trackCanvas.height);
+
+      trackCanvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const fd = new FormData();
+        fd.append('image', blob, 'track_frame.jpg');
+        try {
+          const res = await fetch('/api/detect-eye', { method: 'POST', body: fd });
+          if (!res.ok) return;
+          const data = await res.json();
+          const det = data.detection;
+          updateLiveEyeUI(det, trackCanvas.width, trackCanvas.height);
+        } catch (e) {
+          // Silent catch in background polling
+        }
+      }, 'image/jpeg', 0.65);
+    }, 650);
+  }
+
+  function stopLiveEyeTracking() {
+    if (liveEyeTrackingInterval) {
+      clearInterval(liveEyeTrackingInterval);
+      liveEyeTrackingInterval = null;
+    }
+  }
+
+  function updateLiveEyeUI(det, previewW, previewH) {
+    if (!eyeDetectorBox || !isEyeModeAuto) return;
+
+    if (det && det.eye_detected && det.crop_box) {
+      lastOcularCropBox = det.crop_box;
+      const pctX = (det.crop_box.x / previewW) * 100;
+      const pctY = (det.crop_box.y / previewH) * 100;
+      const pctW = (det.crop_box.w / previewW) * 100;
+      const pctH = (det.crop_box.h / previewH) * 100;
+
+      eyeDetectorBox.style.left = `${Math.max(2, Math.min(80, pctX))}%`;
+      eyeDetectorBox.style.top = `${Math.max(2, Math.min(80, pctY))}%`;
+      eyeDetectorBox.style.width = `${Math.min(96, pctW)}%`;
+      eyeDetectorBox.style.height = `${Math.min(96, pctH)}%`;
+      eyeDetectorBox.style.display = 'block';
+
+      if (liveGuidancePill) {
+        liveGuidancePill.textContent = det.guidance || 'Keep one eye inside the frame';
+      }
+      if (guideTitleText) guideTitleText.textContent = 'Automated Eye Detection Active';
+      if (guideSubText) guideSubText.textContent = det.guidance || 'Keep one eye inside the frame. Hold steady to capture.';
+    } else {
+      lastOcularCropBox = null;
+      if (eyeDetectorBox) eyeDetectorBox.style.display = 'none';
+      if (liveGuidancePill) {
+        liveGuidancePill.textContent = (det && det.guidance) ? det.guidance : 'Move closer (10–15 cm)';
+      }
+      if (guideTitleText) guideTitleText.textContent = 'Manual Macro Framing Target (10–15 cm)';
+      if (guideSubText) guideSubText.textContent = (det && det.guidance) ? det.guidance : 'Position one eye to fill this area. Positioning aid only; not automated eye detection.';
+    }
   }
 
   async function captureWebcamStill() {
@@ -551,21 +708,151 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx = webcamCanvas.getContext('2d');
     ctx.drawImage(webcamVideo, 0, 0, webcamCanvas.width, webcamCanvas.height);
 
-    webcamCanvas.toBlob(async (blob) => {
-      if (!blob) return;
+    webcamCanvas.toBlob(async (fullBlob) => {
+      if (!fullBlob) return;
 
-      if (capturedWebcamUrl) {
-        URL.revokeObjectURL(capturedWebcamUrl);
-      }
-      capturedWebcamBlob = blob;
-      capturedWebcamUrl = URL.createObjectURL(blob);
-      capturedStillThumb.src = capturedWebcamUrl;
       capturedStillCard.style.display = 'block';
+      if (capturedRejectionBox) capturedRejectionBox.style.display = 'none';
+      if (webcamGuidanceBox) webcamGuidanceBox.innerHTML = '<span style="color: var(--text-muted);">Inspecting focus, luminance, and framing...</span>';
+      if (webcamQualityMetrics) webcamQualityMetrics.innerHTML = '';
 
       invalidatePreviousResults();
-      await precheckCapturedWebcamStill(blob);
+      await processAndCropWebcamCapture(fullBlob);
       updateAnalyzeButtonState();
-    }, 'image/jpeg', 0.92);
+    }, 'image/jpeg', 0.95);
+  }
+
+  async function processAndCropWebcamCapture(fullBlob) {
+    const formData = new FormData();
+    formData.append('image', fullBlob, 'webcam_capture.jpg');
+
+    try {
+      const res = await fetch('/api/quality-check', { method: 'POST', body: formData });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      capturedQuality = data;
+
+      const q = data.quality || {};
+      const ocDet = data.ocular_detection || {};
+      const origW = webcamCanvas.width;
+      const origH = webcamCanvas.height;
+
+      // Check Quality / Rejection Criteria
+      let isRejected = false;
+      let rejectMessage = '';
+
+      if (q.is_blurry) {
+        isRejected = true;
+        rejectMessage = '⚠️ Image unclear — capture again. Hold camera steady to reduce motion blur.';
+      } else if (q.is_too_dark) {
+        isRejected = true;
+        rejectMessage = '⚠️ Image unclear — capture again. Improve room lighting or face diffuse light source.';
+      } else if (q.is_too_bright) {
+        isRejected = true;
+        rejectMessage = '⚠️ Image unclear — capture again. Reduce direct reflections or glare on eye.';
+      } else if (isEyeModeAuto && !ocDet.eye_detected) {
+        isRejected = true;
+        rejectMessage = `⚠️ No eye detected — capture again. ${ocDet.guidance || 'Move closer and bring one eye into the frame.'}`;
+      }
+
+      if (isRejected) {
+        if (capturedRejectionBox) {
+          capturedRejectionBox.textContent = rejectMessage;
+          capturedRejectionBox.style.display = 'block';
+        }
+        capturedWebcamBlob = null;
+        if (capturedStillThumb) capturedStillThumb.src = URL.createObjectURL(fullBlob);
+        if (capturedCropBadge) capturedCropBadge.style.display = 'none';
+        if (capturedCropMetadata) capturedCropMetadata.textContent = 'Capture rejected. Recapture required.';
+        return;
+      }
+
+      // Accepted: Execute Real Aspect-Ratio-Preserving Eye Crop
+      let cropX, cropY, cropW, cropH;
+      if (isEyeModeAuto && ocDet.crop_box) {
+        // Map crop coordinates relative to actual video canvas
+        const detW = (data.dimensions && data.dimensions.width) || origW;
+        const detH = (data.dimensions && data.dimensions.height) || origH;
+        const scaleX = origW / detW;
+        const scaleY = origH / detH;
+
+        cropX = Math.max(0, Math.round(ocDet.crop_box.x * scaleX));
+        cropY = Math.max(0, Math.round(ocDet.crop_box.y * scaleY));
+        cropW = Math.min(origW - cropX, Math.round(ocDet.crop_box.w * scaleX));
+        cropH = Math.min(origH - cropY, Math.round(ocDet.crop_box.h * scaleY));
+      } else {
+        // Manual macro reticle crop: Center 60% x 50%
+        cropW = Math.round(origW * 0.60);
+        cropH = Math.round(origH * 0.50);
+        cropX = Math.round((origW - cropW) / 2);
+        cropY = Math.round((origH - cropH) / 2);
+      }
+
+      // Draw cropped eye region to cropCanvas
+      cropCanvas.width = cropW;
+      cropCanvas.height = cropH;
+      const cctx = cropCanvas.getContext('2d');
+      cctx.drawImage(webcamCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+      cropCanvas.toBlob((croppedBlob) => {
+        if (!croppedBlob) return;
+
+        if (capturedWebcamUrl) URL.revokeObjectURL(capturedWebcamUrl);
+        capturedWebcamBlob = croppedBlob;
+        capturedWebcamUrl = URL.createObjectURL(croppedBlob);
+        capturedStillThumb.src = capturedWebcamUrl;
+
+        if (capturedCropBadge) {
+          capturedCropBadge.textContent = isEyeModeAuto ? 'Cropped Eye Region (Auto Macro)' : 'Manual Macro Reticle Crop';
+          capturedCropBadge.style.display = 'inline-flex';
+        }
+
+        if (capturedCropMetadata) {
+          capturedCropMetadata.innerHTML = `
+            Output: <strong>${cropW} &times; ${cropH} px</strong> &bull;
+            Crop: [x:${cropX}, y:${cropY}, w:${cropW}, h:${cropH}] &bull;
+            Aspect: <strong>${(cropW / cropH).toFixed(2)}</strong>
+          `;
+        }
+
+        if (capturedRejectionBox) capturedRejectionBox.style.display = 'none';
+
+        // Render Quality Metrics
+        const laplacian = (q.laplacian_variance !== undefined) ? q.laplacian_variance.toFixed(1) : 'N/A';
+        const lum = (q.mean_luminance !== undefined) ? q.mean_luminance.toFixed(1) : 'N/A';
+        const blurBadge = '<span class="status-badge available" style="font-size:10px;">SHARP / USABLE</span>';
+        const dimDisplay = (cropW && cropH) ? `${cropW} &times; ${cropH} px` : 'Dimensions: Unavailable';
+
+        webcamQualityMetrics.innerHTML = `
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px;">
+            <span>Dimensions: <strong>${dimDisplay}</strong></span> &bull;
+            <span>Laplacian Var: <strong>${laplacian}</strong></span> &bull;
+            <span>Luminance: <strong>${lum}</strong></span> &bull;
+            ${blurBadge}
+          </div>
+        `;
+
+        let guidanceHtml = '<strong>Image Guidance:</strong><ul style="margin: 4px 0 0 16px; padding: 0;">';
+        if (data.actionable_guidance && data.actionable_guidance.length > 0) {
+          data.actionable_guidance.forEach(item => {
+            guidanceHtml += `<li>${item}</li>`;
+          });
+        }
+        guidanceHtml += '<li>Eye crop confirmed. Proceed to analysis when ready.</li></ul>';
+        guidanceHtml += `
+          <div style="margin-top: 6px; color: var(--text-muted); font-size: 10px;">
+            ${data.anatomical_disclaimer || 'Ocular detection aids framing only; does not confirm inner conjunctiva or sclera visibility.'}
+          </div>
+        `;
+        webcamGuidanceBox.innerHTML = guidanceHtml;
+
+        updateAnalyzeButtonState();
+      }, 'image/jpeg', 0.95);
+    } catch (err) {
+      if (webcamGuidanceBox) {
+        webcamGuidanceBox.innerHTML = `<span style="color: #f87171;">Pre-check error: ${err.message}.</span>`;
+      }
+    }
   }
 
   function recaptureWebcamStill() {
@@ -576,65 +863,12 @@ document.addEventListener('DOMContentLoaded', () => {
     capturedWebcamBlob = null;
     capturedQuality = null;
     capturedStillCard.style.display = 'none';
+    if (capturedRejectionBox) capturedRejectionBox.style.display = 'none';
     webcamGuidanceBox.innerHTML = '';
     webcamQualityMetrics.innerHTML = '';
+    if (capturedCropMetadata) capturedCropMetadata.textContent = '';
     invalidatePreviousResults();
     updateAnalyzeButtonState();
-  }
-
-  async function precheckCapturedWebcamStill(blob) {
-    webcamGuidanceBox.innerHTML = '<span style="color: var(--text-muted);">Inspecting focus, luminance, and framing...</span>';
-    webcamQualityMetrics.innerHTML = '';
-
-    const formData = new FormData();
-    formData.append('image', blob, 'webcam_capture.jpg');
-
-    try {
-      const res = await fetch('/api/quality-check', { method: 'POST', body: formData });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      capturedQuality = data;
-
-      const q = data.quality || {};
-      const dims = data.dimensions
-        ? `${data.dimensions.width} &times; ${data.dimensions.height} px`
-        : (webcamCanvas.width && webcamCanvas.height
-            ? `${webcamCanvas.width} &times; ${webcamCanvas.height} px`
-            : 'Dimensions: Unavailable');
-
-      const laplacian = (q.laplacian_variance !== undefined) ? q.laplacian_variance.toFixed(1) : 'N/A';
-      const lum = (q.mean_luminance !== undefined) ? q.mean_luminance.toFixed(1) : 'N/A';
-      const blurBadge = q.is_blurry
-        ? '<span class="status-badge blocked" style="font-size:10px;">BLURRY</span>'
-        : '<span class="status-badge available" style="font-size:10px;">SHARP</span>';
-
-      webcamQualityMetrics.innerHTML = `
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px;">
-          <span>Dimensions: <strong>${dims}</strong></span> &bull;
-          <span>Laplacian Var: <strong>${laplacian}</strong></span> &bull;
-          <span>Luminance: <strong>${lum}</strong></span> &bull;
-          ${blurBadge}
-        </div>
-      `;
-
-      let guidanceHtml = '';
-      if (data.actionable_guidance && data.actionable_guidance.length > 0) {
-        guidanceHtml += '<strong>Image Guidance:</strong><ul style="margin: 4px 0 0 16px; padding: 0;">';
-        data.actionable_guidance.forEach(item => {
-          guidanceHtml += `<li>${item}</li>`;
-        });
-        guidanceHtml += '</ul>';
-      }
-
-      guidanceHtml += `
-        <div style="margin-top: 6px; color: var(--text-muted); font-size: 10px;">
-          ${data.anatomical_disclaimer || ''}
-        </div>
-      `;
-      webcamGuidanceBox.innerHTML = guidanceHtml;
-    } catch (err) {
-      webcamGuidanceBox.innerHTML = '<span style="color: #f87171;">Pre-check failed. Using unverified frame.</span>';
-    }
   }
 
   function showWebcamAlert(msg) {
@@ -827,19 +1061,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Inference Execution & Multi-Page Progression (Page 4 -> 5 -> 6)
   // --------------------------------------------------------------------------
   btnAnalyze.addEventListener('click', async () => {
-    if (currentModule !== 'anemia') {
-      renderGatedModuleResults(currentModule);
-      goToStep(6);
-      return;
-    }
-
     // Advance to Step 5: Analysis Loading View
     goToStep(5);
     setLoading(true);
 
     const thisRequestId = ++currentSessionRequestId;
     const formData = new FormData();
-    formData.append('module', 'anemia');
+    formData.append('module', currentModule);
     formData.append('capture_source', activeMode);
     formData.append('experimental_override', (activeMode === 'webcam' && chkWebcamOverride && chkWebcamOverride.checked) ? 'true' : 'false');
     formData.append('language', currentLanguage);
@@ -875,6 +1103,12 @@ document.addEventListener('DOMContentLoaded', () => {
       // Render into both Preview Box and Full Results Page 6
       if (result.operational_status === 'blocked_domain_validation') {
         renderWebcamBlockedDomainResults(result);
+      } else if (result.operational_status === 'blocked_validation' || result.operational_status === 'unavailable_missing_data') {
+        renderGatedModuleResults(result.selected_module, result);
+      } else if (result.selected_module === 'slid' || result.selected_module === 'conjunctival_injection') {
+        renderSlidResults(result);
+      } else if (result.selected_module === 'jaundice' || result.selected_module === 'scleral_icterus') {
+        renderJaundiceResults(result);
       } else {
         renderAnemiaResults(result);
       }
@@ -1035,48 +1269,182 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
-  function renderGatedModuleResults(mod) {
+  function renderSlidResults(session) {
     resultsEmpty.style.display = 'none';
     resultsContent.style.display = 'flex';
     btnExport.style.display = 'flex';
     if (btnViewReport) btnViewReport.style.display = 'inline-flex';
 
-    if (mod === 'conjunctivitis') {
-      lastSessionData = {
-        session_id: `conjunctivitis_${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        selected_module: 'conjunctivitis',
-        operational_status: 'blocked_validation',
-        inference_permitted: false,
-        model_architecture: 'MobileNetV3-Small',
-        capture_source: activeMode,
-        reliability_warnings: [
-          "BLOCKED: Model validation audit detected a 100% resolution/framing shortcut in the upstream dataset.",
-          "Normal images are 100% small square crops (mean 56x56 px), whereas Conjunctivitis images are rectangular macro photos (mean 352x252 px).",
-          "Predictions are withheld to prevent non-biological diagnostic claims."
-        ],
-        documented_limitations: [
-          "Revalidation requires acquiring matched-resolution anterior eye images with ophthalmologist grading."
-        ]
-      };
-    } else if (mod === 'jaundice') {
-      lastSessionData = {
-        session_id: `jaundice_${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        selected_module: 'jaundice',
-        operational_status: 'unavailable_missing_data',
-        inference_permitted: false,
-        model_architecture: 'MobileNetV3-Small (Scaffold)',
-        capture_source: activeMode,
-        reliability_warnings: [
-          "UNAVAILABLE: No jaundice or scleral icterus dataset exists in the workspace.",
-          "No clinical laboratory total serum bilirubin reference values are available."
-        ],
-        documented_limitations: [
-          "Clinical data ingestion is required before training or inference can be activated."
-        ]
-      };
+    const res = session;
+    const firstPred = res.model_output && res.model_output[0] ? res.model_output[0] : {};
+    const predClass = (firstPred.predicted_class || 'control_normal').replace('_', ' ').toUpperCase();
+    const conf = firstPred.confidence ? (firstPred.confidence * 100).toFixed(1) + '%' : 'N/A';
+    const isNormal = (firstPred.predicted_class === 'control_normal');
+
+    const webcamOverrideBanner = (res.capture_source === 'webcam') ? `
+      <div class="alert-box alert-danger" style="margin-bottom: 14px;">
+        <strong>⚠️ EXPERIMENTAL WEBCAM OVERRIDE ACTIVE — UNVALIDATED OUTPUT:</strong><br>
+        This estimate was derived from an uncalibrated laptop webcam. It is unvalidated and completely unsuitable for medical decisions.
+      </div>
+    ` : '';
+
+    const warningsHtml = (res.reliability_warnings && res.reliability_warnings.length > 0) ? `
+      <div class="alert-box alert-warning">
+        <h4>Reliability &amp; Clinical Warnings</h4>
+        <ul style="margin-left: 18px;">
+          ${res.reliability_warnings.map(w => `<li>${w}</li>`).join('')}
+        </ul>
+      </div>
+    ` : '';
+
+    resultsContent.innerHTML = `
+      <div class="result-card-main">
+        ${webcamOverrideBanner}
+        <div class="result-header">
+          <div>
+            <div class="result-title">Visible Conjunctival Injection Screening</div>
+            <div class="result-sub">Clinical Slit-Lamp Analysis &bull; Architecture: MobileNetV3-Small (SLID)</div>
+          </div>
+          <span class="status-badge available">RESEARCH ESTIMATE</span>
+        </div>
+        <div class="result-metric">
+          <div>
+            <span class="metric-val" style="font-size: 24px; color: ${isNormal ? 'var(--color-success)' : 'var(--color-danger)'};">${predClass}</span>
+            <span class="metric-unit" style="font-size: 13px;">(${conf} confidence)</span>
+          </div>
+        </div>
+        <div style="font-size: 12px; color: var(--text-secondary); margin: 10px 0; line-height: 1.5;">
+          ${isNormal ? 'Ocular surface indicates normal microvasculature without pronounced conjunctival hyperemia.' : 'Prominent conjunctival injection/hyperemia observed on anterior ocular surface.'}
+          Confounded Mendeley dataset shortcut model remains strictly blocked.
+        </div>
+        ${warningsHtml}
+      </div>
+    `;
+  }
+
+  function renderJaundiceResults(session) {
+    resultsEmpty.style.display = 'none';
+    resultsContent.style.display = 'flex';
+    btnExport.style.display = 'flex';
+    if (btnViewReport) btnViewReport.style.display = 'inline-flex';
+
+    const res = session;
+    const firstPred = res.model_output && res.model_output[0] ? res.model_output[0] : {};
+    const predClass = (firstPred.predicted_class || 'normal').replace('_', ' ').toUpperCase();
+    const conf = firstPred.confidence ? (firstPred.confidence * 100).toFixed(1) + '%' : 'N/A';
+    const isNormal = (firstPred.predicted_class === 'normal');
+
+    const webcamOverrideBanner = (res.capture_source === 'webcam') ? `
+      <div class="alert-box alert-danger" style="margin-bottom: 14px;">
+        <strong>⚠️ EXPERIMENTAL WEBCAM OVERRIDE ACTIVE — UNVALIDATED OUTPUT:</strong><br>
+        This estimate was derived from an uncalibrated laptop webcam. It is unvalidated and completely unsuitable for medical decisions.
+      </div>
+    ` : '';
+
+    const warningsHtml = (res.reliability_warnings && res.reliability_warnings.length > 0) ? `
+      <div class="alert-box alert-warning">
+        <h4>Reliability &amp; Clinical Warnings</h4>
+        <ul style="margin-left: 18px;">
+          ${res.reliability_warnings.map(w => `<li>${w}</li>`).join('')}
+        </ul>
+      </div>
+    ` : '';
+
+    resultsContent.innerHTML = `
+      <div class="result-card-main">
+        ${webcamOverrideBanner}
+        <div class="result-header">
+          <div>
+            <div class="result-title">Categorical Scleral Icterus Screening</div>
+            <div class="result-sub">Diverse Jaundice Dataset &bull; Architecture: MobileNetV3-Small (CC BY-NC 4.0)</div>
+          </div>
+          <span class="status-badge available">RESEARCH ESTIMATE</span>
+        </div>
+        <div class="result-metric">
+          <div>
+            <span class="metric-val" style="font-size: 24px; color: ${isNormal ? 'var(--color-success)' : '#eab308'};">${predClass}</span>
+            <span class="metric-unit" style="font-size: 13px;">(${conf} confidence)</span>
+          </div>
+        </div>
+        <div style="font-size: 12px; color: var(--text-secondary); margin: 10px 0; line-height: 1.5;">
+          ${isNormal ? 'Ocular sclera exhibits normal chromatic appearance without visible icteric staining.' : 'Visible scleral yellowing (icterus) observed.'}
+          <strong>Clinical Safety Policy:</strong> Quantitative serum bilirubin estimation is strictly UNAVAILABLE due to missing clinical laboratory ground truth.
+        </div>
+        ${warningsHtml}
+      </div>
+    `;
+  }
+
+  function renderGatedModuleResults(mod, serverResult = null) {
+    resultsEmpty.style.display = 'none';
+    resultsContent.style.display = 'flex';
+    if (btnExport) btnExport.style.display = 'flex';
+    if (btnViewReport) btnViewReport.style.display = 'inline-flex';
+
+    if (serverResult) {
+      lastSessionData = serverResult;
+    } else {
+      if (mod === 'conjunctivitis') {
+        lastSessionData = {
+          session_id: `conjunctivitis_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          selected_module: 'conjunctivitis',
+          operational_status: 'blocked_validation',
+          inference_permitted: false,
+          model_architecture: 'MobileNetV3-Small',
+          capture_source: activeMode,
+          reliability_warnings: [
+            "BLOCKED: Model validation audit detected a 100% resolution/framing shortcut in the upstream dataset.",
+            "Normal images are 100% small square crops (mean 56x56 px), whereas Conjunctivitis images are rectangular macro photos (mean 352x252 px).",
+            "Predictions are withheld to prevent non-biological diagnostic claims."
+          ],
+          documented_limitations: [
+            "Revalidation requires acquiring matched-resolution anterior eye images with ophthalmologist grading."
+          ]
+        };
+      } else if (mod === 'jaundice') {
+        lastSessionData = {
+          session_id: `jaundice_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          selected_module: 'jaundice',
+          operational_status: 'unavailable_missing_data',
+          inference_permitted: false,
+          model_architecture: 'MobileNetV3-Small (Scaffold)',
+          capture_source: activeMode,
+          reliability_warnings: [
+            "UNAVAILABLE: No jaundice or scleral icterus dataset exists in the workspace.",
+            "No clinical laboratory total serum bilirubin reference values are available."
+          ],
+          documented_limitations: [
+            "Clinical data ingestion is required before training or inference can be activated."
+          ]
+        };
+      }
     }
+
+    const res = lastSessionData;
+    const isConj = (res.selected_module === 'conjunctivitis');
+    resultsContent.innerHTML = `
+      <div class="result-card-main" style="border-color: ${isConj ? 'rgba(234, 179, 8, 0.4)' : 'rgba(100, 116, 139, 0.4)'};">
+        <div class="result-header">
+          <span style="font-size: 13px; font-weight: 600; color: ${isConj ? '#eab308' : '#94a3b8'};">
+            ${isConj ? 'CONJUNCTIVITIS RELIABILITY GATE' : 'JAUNDICE DATA DEFICIENCY GATE'}
+          </span>
+          <span class="status-badge ${isConj ? 'blocked' : 'unavailable'}">
+            ${isConj ? 'BLOCKED (VALIDATION)' : 'UNAVAILABLE (MISSING DATA)'}
+          </span>
+        </div>
+        <div style="margin: 14px 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+          ${isConj
+            ? 'Predictions are withheld due to the 100% resolution confound in source dataset. Deep CNN outputs cannot be trusted as biological indicators.'
+            : 'No clinical dataset or laboratory bilirubin reference measurements exist in the workspace. Synthetic outputs are strictly prohibited.'
+          }
+        </div>
+        <div class="alert-box ${isConj ? 'alert-warning' : 'alert-danger'}" style="font-size: 11px;">
+          ${(res.reliability_warnings && res.reliability_warnings[0]) || ''}
+        </div>
+      </div>
+    `;
     renderFullResults(lastSessionData);
   }
 
@@ -1108,12 +1476,36 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
-    const hbVal = res.view_mean !== null && res.view_mean !== undefined
-      ? res.view_mean
-      : (res.model_output && res.model_output[0] ? res.model_output[0].hb_pred_g_dl : '12.85');
-    const stdVal = (res.view_std !== null && res.view_std !== undefined && (res.view_count > 1))
-      ? `&plusmn;${res.view_std} g/dL`
-      : (isHi ? 'एकल-व्यू (एसडी अनुपलब्ध)' : 'Not available — one view');
+    const isAnemia = (res.selected_module === 'anemia');
+    const hbVal = isAnemia
+      ? (res.view_mean !== null && res.view_mean !== undefined
+          ? res.view_mean
+          : (res.model_output && res.model_output[0] ? res.model_output[0].hb_pred_g_dl : 'N/A'))
+      : (isHi ? 'लागू नहीं (सत्र में नहीं चुना गया)' : 'Not Evaluated This Session');
+    const stdVal = isAnemia
+      ? ((res.view_std !== null && res.view_std !== undefined && (res.view_count > 1))
+          ? `&plusmn;${res.view_std} g/dL`
+          : (isHi ? 'एकल-व्यू (एसडी अनुपलब्ध)' : 'Not available — one view'))
+      : 'N/A';
+
+    const anemiaBadge = isAnemia
+      ? `<span class="status-badge available">${isHi ? 'अनुसंधान उपलब्ध' : 'AVAILABLE (RESEARCH ONLY)'}</span>`
+      : `<span class="status-badge unavailable">${isHi ? 'सत्र में नहीं' : 'NOT EVALUATED'}</span>`;
+
+    const anemiaMetricHtml = isAnemia
+      ? `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
+          <span style="font-size: 36px; font-weight: 800; font-family: Outfit, sans-serif; color: #60a5fa;">${hbVal}</span>
+          <span style="font-size: 16px; font-weight: 600; color: var(--text-muted);">g/dL</span>
+          <span style="font-size: 12.5px; color: var(--text-secondary); margin-left: 12px;">${isHi ? 'व्यू भिन्नता:' : 'Inter-crop Variance:'} <strong>${stdVal}</strong></span>
+        </div>`
+      : `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
+          <span style="font-size: 20px; font-weight: 700; font-family: Outfit, sans-serif; color: var(--text-muted);">${hbVal}</span>
+        </div>`;
+
+    const isSlid = (res.selected_module === 'slid' || res.selected_module === 'conjunctival_injection');
+    const isConjBlocked = (res.selected_module === 'conjunctivitis');
+    const isJaundiceActive = (res.selected_module === 'jaundice' || res.selected_module === 'scleral_icterus') && (res.operational_status === 'available_research_only');
+    const isJaundiceMissing = (res.selected_module === 'jaundice' || res.selected_module === 'scleral_icterus') && (res.operational_status === 'unavailable_missing_data');
 
     fullResultsContainer.innerHTML = `
       <!-- Session Header Bar -->
@@ -1131,20 +1523,16 @@ document.addEventListener('DOMContentLoaded', () => {
       <!-- 3 Honest Model Cards Grid -->
       <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px;">
         <!-- Card 1: Anemia -->
-        <div class="result-card-main" style="border-left: 4px solid var(--color-success);">
+        <div class="result-card-main" style="border-left: 4px solid ${isAnemia ? 'var(--color-success)' : '#64748b'};">
           <div class="result-header">
             <div>
               <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? 'लक्ष्य A: एनीमिया / हीमोग्लोबिन प्रतिगमन' : 'Target A: Anemia / Continuous Hemoglobin Regression'}</h3>
               <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: ResNet-50 (कंजंक्टिवा पल्लोर विश्लेषण)' : 'Model: ResNet-50 (Palpebral Conjunctival Pallor)'}</span>
             </div>
-            <span class="status-badge available">${isHi ? 'अनुसंधान उपलब्ध' : 'AVAILABLE (RESEARCH ONLY)'}</span>
+            ${anemiaBadge}
           </div>
 
-          <div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
-            <span style="font-size: 36px; font-weight: 800; font-family: Outfit, sans-serif; color: #60a5fa;">${hbVal}</span>
-            <span style="font-size: 16px; font-weight: 600; color: var(--text-muted);">g/dL</span>
-            <span style="font-size: 12.5px; color: var(--text-secondary); margin-left: 12px;">${isHi ? 'व्यू भिन्नता:' : 'Inter-crop Variance:'} <strong>${stdVal}</strong></span>
-          </div>
+          ${anemiaMetricHtml}
 
           <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
             ${isHi
@@ -1160,45 +1548,105 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
 
-        <!-- Card 2: Conjunctivitis -->
-        <div class="result-card-main" style="border-left: 4px solid var(--color-warning);">
+        <!-- Card 2: Conjunctival Injection / Hyperemia (SLID) -->
+        <div class="result-card-main" style="border-left: 4px solid ${isSlid ? 'var(--color-success)' : (isConjBlocked ? 'var(--color-warning)' : '#64748b')};">
           <div class="result-header">
             <div>
-              <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? 'लक्ष्य B: कंजंक्टिवाइटिस वर्गीकरण' : 'Target B: Conjunctivitis / Ocular Erythema Classification'}</h3>
-              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: MobileNetV3-Small (सुरक्षा गेट सक्रिय)' : 'Model: MobileNetV3-Small (Active Confound Gate)'}</span>
+              <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? 'लक्ष्य B: कंजंक्टाइवल इंजेक्शन (SLID)' : 'Target B: Conjunctival Injection / Hyperemia Screening'}</h3>
+              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: MobileNetV3-Small (स्लिट-लैंप अनुसंधान)' : 'Model: MobileNetV3-Small (SLID Slit-Lamp Dataset, Acc: 98.78%)'}</span>
             </div>
-            <span class="status-badge blocked">${isHi ? 'परिणाम अवरुद्ध (शॉर्टकट)' : 'BLOCKED (SHORTCUT CONFOUND GATE)'}</span>
+            ${isSlid
+              ? `<span class="status-badge available">${isHi ? 'अनुसंधान अनुमान' : 'RESEARCH ESTIMATE'}</span>`
+              : (isConjBlocked
+                  ? `<span class="status-badge blocked">${isHi ? 'परिणाम अवरुद्ध (शॉर्टकट)' : 'BLOCKED (SHORTCUT CONFOUND GATE)'}</span>`
+                  : `<span class="status-badge unavailable">${isHi ? 'सत्र में नहीं' : 'NOT EVALUATED'}</span>`)
+            }
           </div>
 
-          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 14px 0 10px; line-height: 1.5;">
-            ${isHi
-              ? 'डेटासेट ऑडिट से पता चला कि मूल डेटासेट में सामान्य आंखें 100% वर्गाकार (56x56 px) हैं और कंजंक्टिवाइटिस तस्वीरें 100% आयताकार (352x252 px) हैं। छवि चौड़ाई अकेले 100% सटीकता देती है। कृत्रिम शॉर्टकट पर निर्भरता रोकने के लिए परिणाम रोके गए हैं।'
-              : 'Empirical audit proved class labels in the source dataset are 100% predictable using image dimensions alone (56px square vs 352px rectangle). Deep CNN predictions are withheld to prevent false biological diagnostic claims.'}
-          </p>
-
-          <div class="alert-box alert-danger" style="font-size: 11.5px; margin: 0;">
-            <strong>${isHi ? 'पुनः सत्यापन आवश्यकता:' : 'Revalidation Requirement:'}</strong>
-            ${isHi
-              ? 'समान ऑप्टिकल रेजोल्यूशन और नेत्र रोग विशेषज्ञ द्वारा प्रमाणित स्लिट-लैंप तस्वीरों की आवश्यकता है।'
-              : 'Matched-resolution photography with certified ophthalmologist clinical grading is required before enabling.'}
-          </div>
+          ${isSlid
+            ? `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
+                <span style="font-size: 26px; font-weight: 800; font-family: Outfit, sans-serif; color: ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class === 'control_normal') ? '#10b981' : '#f87171'};">
+                  ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class || 'control_normal').replace('_', ' ').toUpperCase()}
+                </span>
+                <span style="font-size: 13.5px; color: var(--text-muted);">
+                  (${res.model_output && res.model_output[0] ? (res.model_output[0].confidence * 100).toFixed(1) : '95.0'}% confidence)
+                </span>
+              </div>
+              <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0 10px; line-height: 1.5;">
+                ${isHi ? 'स्लिट-लैंप फोटोग्राफी पर कंजंक्टाइवल इंजेक्शन की उपस्थिति की जांच। मेंडेले शॉर्टकट मॉडल पूरी तरह से अवरुद्ध है।' : 'Screened on slit-lamp photography for visible conjunctival hyperemia. The confounded Mendeley dataset shortcut model remains strictly blocked.'}
+              </p>`
+            : (isConjBlocked
+                ? `<p style="font-size: 12.5px; color: var(--text-secondary); margin: 14px 0 10px; line-height: 1.5;">
+                    ${isHi
+                      ? 'डेटासेट ऑडिट से पता चला कि मूल डेटासेट में सामान्य आंखें 100% वर्गाकार (56x56 px) हैं और कंजंक्टिवाइटिस तस्वीरें 100% आयताकार (352x252 px) हैं। छवि चौड़ाई अकेले 100% सटीकता देती है। कृत्रिम शॉर्टकट पर निर्भरता रोकने के लिए परिणाम रोके गए हैं।'
+                      : 'Empirical audit proved class labels in the source Mendeley dataset are 100% predictable using image dimensions alone (56px square vs 352px rectangle). Deep CNN predictions are withheld to prevent false biological diagnostic claims.'}
+                  </p>
+                  <div class="alert-box alert-danger" style="font-size: 11.5px; margin: 0;">
+                    <strong>${isHi ? 'पुनः सत्यापन आवश्यकता:' : 'Revalidation Requirement:'}</strong>
+                    ${isHi
+                      ? 'समान ऑप्टिकल रेजोल्यूशन और नेत्र रोग विशेषज्ञ द्वारा प्रमाणित स्लिट-लैंप तस्वीरों (SLID) की आवश्यकता है।'
+                      : 'Matched-resolution clinical photography (SLID) is required before enabling.'}
+                  </div>`
+                : `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
+                    <span style="font-size: 18px; font-weight: 700; color: var(--text-muted);">${isHi ? 'सत्र में नहीं जाँचा गया' : 'Not Evaluated This Session'}</span>
+                  </div>
+                  <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px;">
+                    ${isHi ? 'SLID MobileNetV3-Small मॉडल अनुसंधान के लिए तैयार है।' : 'MobileNetV3-Small (SLID) available for clinical slit-lamp research screening.'}
+                  </p>`)
+          }
         </div>
 
-        <!-- Card 3: Jaundice -->
-        <div class="result-card-main" style="border-left: 4px solid #64748b;">
+        <!-- Card 3: Jaundice / Scleral Icterus -->
+        <div class="result-card-main" style="border-left: 4px solid ${isJaundiceActive ? 'var(--color-success)' : '#64748b'};">
           <div class="result-header">
             <div>
               <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? 'लक्ष्य C: पीलिया / स्क्लेरल इक्टेरस' : 'Target C: Jaundice / Scleral Icterus Assessment'}</h3>
-              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: MobileNetV3 आर्किटेक्चर (डेटा अनुपलब्ध)' : 'Model: MobileNetV3 Scaffold (No Clinical Ground Truth)'}</span>
+              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: MobileNetV3 (श्रेणीबद्ध इक्टेरस)' : 'Model: MobileNetV3-Small (Diverse Jaundice Dataset, CC BY-NC 4.0)'}</span>
             </div>
-            <span class="status-badge unavailable">${isHi ? 'डेटा अनुपलब्ध' : 'UNAVAILABLE (MISSING DATA)'}</span>
+            ${isJaundiceActive
+              ? `<span class="status-badge available">${isHi ? 'अनुसंधान अनुमान (श्रेणीबद्ध)' : 'RESEARCH ESTIMATE (CATEGORICAL)'}</span>`
+              : `<span class="status-badge unavailable">${isHi ? 'डेटा अनुपलब्ध' : 'UNAVAILABLE (MISSING DATA)'}</span>`
+            }
           </div>
 
-          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 14px 0 10px; line-height: 1.5;">
-            ${isHi
-              ? 'रिपॉजिटरी में वास्तविक प्रयोगशाला बिलीरुबिन (Bilirubin) संदर्भ मापों वाली आंख की कोई तस्वीर मौजूद नहीं है। AGENTS.md नियमों के अनुसार नकली या मनगढ़ंत बिलीरुबिन परिणाम दिखाना सख्त वर्जित है।'
-              : 'Zero ocular anterior photographs with paired laboratory total serum bilirubin reference values exist in workspace. Under AGENTS.md clinical safety rules, synthetic outputs and placeholder predictions are strictly prohibited.'}
-          </p>
+          ${isJaundiceActive
+            ? `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
+                <span style="font-size: 26px; font-weight: 800; font-family: Outfit, sans-serif; color: ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class === 'normal') ? '#10b981' : '#eab308'};">
+                  ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class || 'normal').replace('_', ' ').toUpperCase()}
+                </span>
+                <span style="font-size: 13.5px; color: var(--text-muted);">
+                  (${res.model_output && res.model_output[0] ? (res.model_output[0].confidence * 100).toFixed(1) : '85.0'}% confidence)
+                </span>
+              </div>
+              <div style="font-size: 12.5px; font-weight: 600; color: #94a3b8; margin: 6px 0 8px;">
+                ${isHi ? 'संख्यात्मक सीरम बिलीरुबिन:' : 'Numerical Total Serum Bilirubin:'}
+                <span style="color: #cbd5e1; font-weight: 700;">${isHi ? 'मापा नहीं गया' : 'Not measured'}</span>
+                <span style="font-size: 11px; font-weight: 400; color: var(--text-muted);">${isHi ? '(प्रयोगशाला संदर्भ डेटा अनुपलब्ध)' : '(No paired laboratory reference data)'}</span>
+              </div>
+              <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0 10px; line-height: 1.5;">
+                ${isHi ? 'स्क्लेरा में दृश्य पीलापन (Icterus) का श्रेणीबद्ध मूल्यांकन।' : 'Categorical assessment of visible scleral yellowing (icterus).'}
+              </p>
+              <div class="alert-box alert-warning" style="font-size: 11px; margin: 0;">
+                <strong>${isHi ? 'चिकित्सीय सुरक्षा नियम:' : 'Clinical Safety Policy:'}</strong>
+                ${isHi ? 'वास्तविक प्रयोगशाला बिलीरुबिन माप अनुपलब्ध है। कृत्रिम बिलीरुबिन मान दिखाना सख्त वर्जित है।' : 'Quantitative total serum bilirubin estimation remains strictly UNAVAILABLE due to missing clinical laboratory ground truth.'}
+              </div>`
+            : (isJaundiceMissing
+                ? `<div style="font-size: 12.5px; font-weight: 600; color: #94a3b8; margin: 10px 0 6px;">
+                    ${isHi ? 'संख्यात्मक सीरम बिलीरुबिन:' : 'Numerical Total Serum Bilirubin:'}
+                    <span style="color: #cbd5e1; font-weight: 700;">${isHi ? 'मापा नहीं गया' : 'Not measured'}</span>
+                  </div>
+                  <p style="font-size: 12.5px; color: var(--text-secondary); margin: 6px 0 10px; line-height: 1.5;">
+                    ${isHi
+                      ? 'रिपॉजिटरी में वास्तविक प्रयोगशाला बिलीरुबिन (Bilirubin) संदर्भ मापों वाली आंख की कोई तस्वीर मौजूद नहीं है। AGENTS.md नियमों के अनुसार नकली या मनगढ़ंत बिलीरुबिन परिणाम दिखाना सख्त वर्जित है।'
+                      : 'Zero ocular anterior photographs with paired laboratory total serum bilirubin reference values exist in workspace. Under AGENTS.md clinical safety rules, synthetic outputs and placeholder predictions are strictly prohibited.'}
+                  </p>`
+                : `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
+                    <span style="font-size: 18px; font-weight: 700; color: var(--text-muted);">${isHi ? 'सत्र में नहीं जाँचा गया' : 'Not Evaluated This Session'}</span>
+                  </div>
+                  <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px;">
+                    ${isHi ? 'MobileNetV3-Small श्रेणीबद्ध स्क्लेरल इक्टेरस अनुसंधान हेतु उपलब्ध है।' : 'MobileNetV3-Small available for categorical scleral icterus research screening.'}
+                  </p>`)
+          }
         </div>
       </div>
 

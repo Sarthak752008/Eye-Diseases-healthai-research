@@ -181,23 +181,31 @@ def test_real_held_out_anemia_inference(service):
     df = pd.read_csv(manifest_path)
     test_sample = df[(df['split'] == 'test') & (df['hb_available'] == True)].iloc[0]
     img_path = os.path.join(WORKSPACE_ROOT, test_sample['relative_path'])
+    assert os.path.exists(img_path), f"Explicit failure: missing required Anemia test image: {img_path}"
     
     res = service.predict_anemia(img_path, view_types=test_sample['view_type'], capture_source='upload')
     assert res['status'] == 'available_research_only'
     assert res['unit'] == 'g/dL'
     pred_val = res['prediction'][0]['hb_pred_g_dl']
     assert 6.0 <= pred_val <= 18.0
+    true_hb = float(test_sample['hb_value'])
+    print(f"\n[Smoke Test Anemia] Path: {img_path}")
+    print(f"[Smoke Test Anemia] Ground Truth Hb: {true_hb:.2f} g/dL | Predicted Hb: {pred_val:.2f} g/dL | Abs Error: {abs(pred_val - true_hb):.2f} g/dL")
 
 def test_real_held_out_slid_inference():
     manifest_path = os.path.join(WORKSPACE_ROOT, 'data', 'manifests', 'slid_injection_manifest.csv')
     df = pd.read_csv(manifest_path)
     test_sample = df[df['split'] == 'test'].iloc[0]
     img_path = os.path.join(WORKSPACE_ROOT, test_sample['relative_path'])
+    assert os.path.exists(img_path), f"Explicit failure: missing required SLID test image: {img_path}"
     
     ckpt_path = os.path.join(WORKSPACE_ROOT, 'saved_models', 'conjunctivitis', 'slid_injection_model.pth')
+    if not os.path.exists(ckpt_path):
+        ckpt_path = os.path.join(WORKSPACE_ROOT, 'saved_models', 'slid', 'best_model.pth')
     model = load_conjunctivitis_checkpoint(ckpt_path, device='cpu')
     
     im = safe_load_image(img_path)
+    assert im is not None, f"Explicit failure: failed to decode SLID test image: {img_path}"
     padded = resize_and_pad(im, (224, 224))
     tensor = get_anemia_transforms(is_train=False)(padded).unsqueeze(0)
     
@@ -209,17 +217,23 @@ def test_real_held_out_slid_inference():
     assert pred_cls in (0, 1)
     assert 0.0 <= probs[0] <= 1.0
     assert 0.0 <= probs[1] <= 1.0
+    gt_cls = "conjunctival_injection" if int(test_sample['label']) == 1 else "control_normal"
+    pred_name = "conjunctival_injection" if pred_cls == 1 else "control_normal"
+    print(f"\n[Smoke Test SLID] Path: {img_path}")
+    print(f"[Smoke Test SLID] Ground Truth: {gt_cls} (label={test_sample['label']}) | Predicted: {pred_name} (conf={probs[pred_cls]:.4f})")
 
 def test_real_held_out_jaundice_inference():
     manifest_path = os.path.join(WORKSPACE_ROOT, 'data', 'manifests', 'jaundice_manifest.csv')
     df = pd.read_csv(manifest_path)
     test_sample = df[df['split'] == 'test'].iloc[0]
     img_path = os.path.join(WORKSPACE_ROOT, test_sample['relative_path'])
+    assert os.path.exists(img_path), f"Explicit failure: missing required Jaundice test image: {img_path}"
     
     ckpt_path = os.path.join(WORKSPACE_ROOT, 'saved_models', 'jaundice', 'best_model.pth')
     model = load_jaundice_checkpoint(ckpt_path, device='cpu')
     
     im = safe_load_image(img_path)
+    assert im is not None, f"Explicit failure: failed to decode Jaundice test image: {img_path}"
     padded = resize_and_pad(im, (224, 224))
     tensor = get_anemia_transforms(is_train=False)(padded).unsqueeze(0)
     
@@ -230,6 +244,10 @@ def test_real_held_out_jaundice_inference():
         
     assert pred_cls in (0, 1)
     assert 0.0 <= probs[0] <= 1.0
+    gt_cls = "visibly_jaundiced" if int(test_sample['label']) == 1 else "normal"
+    pred_name = "visibly_jaundiced" if pred_cls == 1 else "normal"
+    print(f"\n[Smoke Test Jaundice] Path: {img_path}")
+    print(f"[Smoke Test Jaundice] Ground Truth: {gt_cls} (label={test_sample['label']}) | Predicted: {pred_name} (conf={probs[pred_cls]:.4f})")
 
 # ---------------------------------------------------------------------------
 # 5. Rejection & Error Handling
@@ -270,3 +288,86 @@ def test_two_page_pdf_generation():
     pdf_bytes = build_two_page_pdf(session_data, user_data=user_data, language="en")
     assert pdf_bytes is not None
     assert len(pdf_bytes) > 1000
+
+
+def test_slid_inference_service_end_to_end(service):
+    """Verifies that EyeHealthInferenceService runs SLID conjunctival injection classification."""
+    manifest_path = os.path.join(WORKSPACE_ROOT, 'data', 'manifests', 'slid_injection_manifest.csv')
+    df = pd.read_csv(manifest_path)
+    test_sample = df[df['split'] == 'test'].iloc[0]
+    img_path = os.path.join(WORKSPACE_ROOT, test_sample['relative_path'])
+    assert os.path.exists(img_path), f"Explicit failure: missing required SLID test image: {img_path}"
+
+    res = service.predict_conjunctival_injection(img_path)
+    assert res['module'] == 'slid'
+    assert res['status'] == 'available_research_only'
+    assert res['unit'] == 'categorical'
+    assert len(res['prediction']) == 1
+    assert res['prediction'][0]['predicted_class'] in ('control_normal', 'conjunctival_injection')
+    assert 0.0 <= res['prediction'][0]['confidence'] <= 1.0
+    gt_cls = "conjunctival_injection" if int(test_sample['label']) == 1 else "control_normal"
+    print(f"\n[Service SLID] Path: {img_path} | GT: {gt_cls} | Predicted: {res['prediction'][0]['predicted_class']} (conf={res['prediction'][0]['confidence']:.4f})")
+
+
+def test_jaundice_inference_service_end_to_end(service):
+    """Verifies that EyeHealthInferenceService runs categorical scleral icterus screening."""
+    manifest_path = os.path.join(WORKSPACE_ROOT, 'data', 'manifests', 'jaundice_manifest.csv')
+    df = pd.read_csv(manifest_path)
+    test_sample = df[df['split'] == 'test'].iloc[0]
+    img_path = os.path.join(WORKSPACE_ROOT, test_sample['relative_path'])
+    assert os.path.exists(img_path), f"Explicit failure: missing required Jaundice test image: {img_path}"
+
+    res = service.predict_scleral_icterus(img_path)
+    assert res['module'] == 'jaundice'
+    assert res['status'] == 'available_research_only'
+    assert res['unit'] == 'categorical'
+    assert len(res['prediction']) == 1
+    assert res['prediction'][0]['predicted_class'] in ('normal', 'visibly_jaundiced')
+    assert 0.0 <= res['prediction'][0]['confidence'] <= 1.0
+    assert any("numerical bilirubin unavailable" in w.lower() for w in res['warnings'])
+    gt_cls = "visibly_jaundiced" if int(test_sample['label']) == 1 else "normal"
+    print(f"\n[Service Jaundice] Path: {img_path} | GT: {gt_cls} | Predicted: {res['prediction'][0]['predicted_class']} (conf={res['prediction'][0]['confidence']:.4f})")
+
+
+def test_api_analyze_slid_and_jaundice(client):
+    """Verifies /api/analyze endpoints for SLID and Jaundice with real images."""
+    # SLID
+    slid_df = pd.read_csv(os.path.join(WORKSPACE_ROOT, 'data', 'manifests', 'slid_injection_manifest.csv'))
+    p_slid = os.path.join(WORKSPACE_ROOT, slid_df[slid_df['split'] == 'test'].iloc[0]['relative_path'])
+    assert os.path.exists(p_slid), f"Explicit failure: missing required SLID test image: {p_slid}"
+    with open(p_slid, 'rb') as f:
+        res_slid = client.post('/api/analyze', data={'module': 'slid'}, files=[('images', ('slid.png', f.read(), 'image/png'))])
+    assert res_slid.status_code == 200
+    d_slid = res_slid.json()
+    assert d_slid['selected_module'] == 'slid'
+    assert d_slid['operational_status'] == 'available_research_only'
+    assert d_slid['model_output'][0]['predicted_class'] in ('control_normal', 'conjunctival_injection')
+
+    # Jaundice
+    jaund_df = pd.read_csv(os.path.join(WORKSPACE_ROOT, 'data', 'manifests', 'jaundice_manifest.csv'))
+    p_jaund = os.path.join(WORKSPACE_ROOT, jaund_df[jaund_df['split'] == 'test'].iloc[0]['relative_path'])
+    assert os.path.exists(p_jaund), f"Explicit failure: missing required Jaundice test image: {p_jaund}"
+    with open(p_jaund, 'rb') as f:
+        res_jaund = client.post('/api/analyze', data={'module': 'jaundice'}, files=[('images', ('jaundice.jpg', f.read(), 'image/jpeg'))])
+    assert res_jaund.status_code == 200
+    d_jaund = res_jaund.json()
+    assert d_jaund['selected_module'] == 'jaundice'
+    assert d_jaund['operational_status'] == 'available_research_only'
+    assert d_jaund['model_output'][0]['predicted_class'] in ('normal', 'visibly_jaundiced')
+
+
+def test_new_image_upload_refreshes_results(client):
+    """Verifies that uploading a new image refreshes the session and produces distinct outputs."""
+    anemia_df = pd.read_csv(os.path.join(WORKSPACE_ROOT, 'data', 'manifests', 'anemia_manifest.csv'))
+    p1 = os.path.join(WORKSPACE_ROOT, anemia_df[anemia_df['split'] == 'test'].iloc[0]['relative_path'])
+    p2 = os.path.join(WORKSPACE_ROOT, anemia_df[anemia_df['split'] == 'test'].iloc[10]['relative_path'])
+
+    with open(p1, 'rb') as f1:
+        res1 = client.post('/api/analyze', data={'module': 'anemia', 'view_types': ['raw_eye']}, files=[('images', ('img1.jpg', f1.read(), 'image/jpeg'))])
+    with open(p2, 'rb') as f2:
+        res2 = client.post('/api/analyze', data={'module': 'anemia', 'view_types': ['raw_eye']}, files=[('images', ('img2.jpg', f2.read(), 'image/jpeg'))])
+
+    d1 = res1.json()
+    d2 = res2.json()
+    assert d1['session_id'] != d2['session_id']
+    assert d1['view_mean'] != d2['view_mean']

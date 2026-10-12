@@ -113,7 +113,13 @@ def verify_ocular_framing_or_detect_face(
         if not face_cascade.empty():
             gray = np.array(img.convert('L'))
             faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(60, 60))
-            if len(faces) > 0:
+            img_w, img_h = img.size
+            # A full-face portrait occupies a substantial portion of the frame
+            significant_faces = [
+                (x, y, w, h) for (x, y, w, h) in faces
+                if (w / img_w >= 0.25 or h / img_h >= 0.25 or (w * h) / (img_w * img_h) >= 0.06)
+            ]
+            if len(significant_faces) > 0:
                 return {
                     "supported": True,
                     "is_valid": False,

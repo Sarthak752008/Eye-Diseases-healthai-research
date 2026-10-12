@@ -189,6 +189,19 @@
               <label class="form-label" for="inputRegDob" data-i18n="labelDob">Date of Birth (YYYY-MM-DD) *</label>
               <input type="text" id="inputRegDob" class="form-input" placeholder="YYYY-MM-DD" required value="2008-01-15">
             </div>
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label class="form-label" for="selectRegGender" data-i18n="labelGender">Gender (Optional Demographic Data)</label>
+              <select id="selectRegGender" class="form-input">
+                <option value="prefer_not_to_say" selected data-i18n="genderOptPreferNot">Prefer not to say (Default)</option>
+                <option value="female" data-i18n="genderOptFemale">Female</option>
+                <option value="male" data-i18n="genderOptMale">Male</option>
+                <option value="non-binary" data-i18n="genderOptNonBinary">Non-binary</option>
+                <option value="self-describe" data-i18n="genderOptSelfDescribe">Self-describe</option>
+              </select>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.45;">
+                <strong>Demographic Research Notice:</strong> Optional demographic questions help evaluate algorithmic fairness across diverse populations. This information is <strong>strictly decoupled</strong> from computer-vision inference and will never determine or alter a medical prediction.
+              </div>
+            </div>
           </div>
 
           <!-- Informed Consent Accordion Box -->
@@ -216,6 +229,12 @@
               <input type="checkbox" id="chkConsentStorage" checked required>
               <label for="chkConsentStorage" class="consent-checkbox-label" data-i18n="chkConsentStorageText">
                 I consent to privacy-aware session and report metadata storage with the ability to purge my records at any time.
+              </label>
+            </div>
+            <div class="consent-checkbox-wrap" style="margin-top: 8px;">
+              <input type="checkbox" id="chkConsentDemographic">
+              <label for="chkConsentDemographic" class="consent-checkbox-label" data-i18n="chkConsentDemographicText">
+                (Optional) I consent to the collection of demographic data (gender) exclusively for research diversity evaluation. You may continue without selecting a gender.
               </label>
             </div>
           </div>
@@ -329,39 +348,57 @@
             </div>
           </article>
 
-          <!-- Module B: Conjunctivitis -->
-          <article class="module-card" id="moduleCardConj" data-module="conjunctivitis" tabindex="0" role="button" aria-pressed="false">
+          <!-- Module B: Conjunctival Injection (SLID) -->
+          <article class="module-card" id="moduleCardConj" data-module="slid" tabindex="0" role="button" aria-pressed="false">
             <div class="card-top">
               <div>
-                <h3 class="module-name">Conjunctivitis</h3>
-                <span class="module-sub">Ocular Erythema Classifier</span>
+                <h3 class="module-name">Conjunctival Injection (SLID)</h3>
+                <span class="module-sub">Clinical Slit-Lamp Hyperemia</span>
+              </div>
+              <span class="status-badge available">RESEARCH ONLY</span>
+            </div>
+            <p class="module-desc">
+              Predicts visible conjunctival injection on anterior slit-lamp photography using MobileNetV3-Small (Acc: 98.78%). Confounded Mendeley shortcut model remains strictly blocked.
+            </p>
+            <div class="module-meta">
+              <span>Arch: MobileNetV3-S</span>
+              <span>Test Acc: 98.78%</span>
+            </div>
+          </article>
+
+          <!-- Module C: Jaundice / Scleral Icterus -->
+          <article class="module-card" id="moduleCardJaund" data-module="jaundice" tabindex="0" role="button" aria-pressed="false">
+            <div class="card-top">
+              <div>
+                <h3 class="module-name">Scleral Icterus / Jaundice</h3>
+                <span class="module-sub">Categorical Yellowing Screening</span>
+              </div>
+              <span class="status-badge available">RESEARCH ONLY</span>
+            </div>
+            <p class="module-desc">
+              Categorical screening of visible scleral icterus (Normal vs. Jaundiced) via MobileNetV3-Small (CC BY-NC 4.0). Quantitative serum bilirubin estimation remains strictly unavailable.
+            </p>
+            <div class="module-meta">
+              <span>Arch: MobileNetV3-S</span>
+              <span>Categorical (No Lab Bilirubin)</span>
+            </div>
+          </article>
+
+          <!-- Module D: Mendeley Conjunctivitis (Audited & Blocked) -->
+          <article class="module-card" id="moduleCardMendeley" data-module="conjunctivitis" tabindex="0" role="button" aria-pressed="false">
+            <div class="card-top">
+              <div>
+                <h3 class="module-name">Mendeley Conjunctivitis</h3>
+                <span class="module-sub">Audited Shortcut Model</span>
               </div>
               <span class="status-badge blocked">BLOCKED (GATE)</span>
             </div>
             <p class="module-desc">
-              Reliability gate active. Layer 3.5 audit revealed normal vs disease classes have non-overlapping dimensions (56px square vs 352px macro). Predictions are blocked to prevent shortcut reliance.
+              Reliability gate active. Audit proved normal vs disease classes have non-overlapping dimensions (56px square vs 352px macro). Output is withheld to prevent shortcut reliance.
             </p>
             <div class="module-meta">
               <span>Arch: MobileNetV3-S</span>
               <span>Gate: Resolution Confound</span>
-            </div>
-          </article>
-
-          <!-- Module C: Jaundice -->
-          <article class="module-card disabled" id="moduleCardJaund" data-module="jaundice" tabindex="0" role="button" aria-pressed="false" aria-disabled="true">
-            <div class="card-top">
-              <div>
-                <h3 class="module-name">Jaundice / Icterus</h3>
-                <span class="module-sub">Scleral Bilirubin Screening</span>
-              </div>
-              <span class="status-badge unavailable">UNAVAILABLE</span>
-            </div>
-            <p class="module-desc">
-              No clinical dataset or laboratory total serum bilirubin measurements exist in workspace. Synthetic predictions and placeholder models are prohibited.
-            </p>
-            <div class="module-meta">
-              <span>Arch: MobileNetV3-S</span>
-              <span>Status: Dataset Missing</span>
             </div>
           </article>
         </div>
@@ -427,19 +464,43 @@
 
           <!-- Live Laptop Camera Section (Layer 6) -->
           <div id="webcamSection" style="display: none;">
+            <!-- Camera Mode & Zoom Toolbar -->
+            <div class="cam-toolbar">
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button type="button" id="btnCamModeAuto" class="cam-mode-pill active">Auto Eye Detection</button>
+                <button type="button" id="btnCamModeManual" class="cam-mode-pill">Manual Reticle</button>
+              </div>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button type="button" id="btnCamZoomToggle" class="cam-mode-pill" title="Toggle 2x Macro Close-Up View">🔍 1x View</button>
+                <span id="liveGuidancePill" class="crop-badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border-color: rgba(14, 165, 233, 0.3);">
+                  Move closer (10–15 cm)
+                </span>
+              </div>
+            </div>
+
             <!-- Camera Viewport Container -->
-            <div class="webcam-container">
+            <div class="webcam-container" id="webcamContainer">
               <video id="webcamVideo" autoplay playsinline muted></video>
               <div class="webcam-overlay" id="webcamOverlay">
-                <div class="eye-guide-reticle">
+                <!-- Dynamic Eye Tracking Bounding Box -->
+                <div id="eyeDetectorBox" class="eye-detector-box" style="display: none;">
+                  <div class="eye-box-corners"></div>
+                  <span class="eye-box-label" id="eyeBoxLabel">Target Eye</span>
+                </div>
+
+                <!-- Manual Macro Framing Target (Reticle) -->
+                <div class="eye-guide-reticle" id="eyeGuideReticle">
                   <div class="eye-guide-oval"></div>
                 </div>
-                <div class="guide-label-box">
-                  <span class="guide-title">Manual Macro Framing Target (10–15 cm)</span>
-                  <span class="guide-sub">Position one eye to fill this area. Positioning aid only; not automated eye detection.</span>
+
+                <!-- Live Guidance Box -->
+                <div class="guide-label-box" id="guideLabelBox">
+                  <span class="guide-title" id="guideTitleText">Manual Macro Framing Target (10–15 cm)</span>
+                  <span class="guide-sub" id="guideSubText">Position one eye to fill this area. Positioning aid only; not automated eye detection.</span>
                 </div>
               </div>
               <canvas id="webcamCanvas" style="display: none;"></canvas>
+              <canvas id="cropCanvas" style="display: none;"></canvas>
             </div>
 
             <!-- Anatomical Framing Warning (Prevent Full-Face Captures) -->
@@ -480,11 +541,16 @@
               <div style="display: flex; gap: 14px; align-items: flex-start;">
                 <img id="capturedStillThumb" class="preview-thumb" alt="Captured still frame" style="width: 80px; height: 80px;">
                 <div style="flex-grow: 1;">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <strong style="font-size: 13px;">Captured Webcam Still</strong>
+                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <strong style="font-size: 13px;">Captured Eye Crop</strong>
+                      <span id="capturedCropBadge" class="crop-badge" style="display: none;">Cropped Eye Region (Macro)</span>
+                    </div>
                     <button id="btnRecapture" class="btn-remove" title="Discard and recapture" type="button" style="width: auto; padding: 2px 8px; font-size: 11px;">Recapture</button>
                   </div>
+                  <div id="capturedCropMetadata" style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;"></div>
                   <div id="webcamQualityMetrics" style="font-size: 11px; margin-top: 4px;"></div>
+                  <div id="capturedRejectionBox" class="alert-box alert-danger" style="display: none; margin-top: 8px; font-size: 11px;"></div>
                   <div style="margin-top: 8px;">
                     <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 2px;">Anatomical View Tag:</label>
                     <select id="webcamViewSelect" style="width: 100%; background: rgba(10, 15, 29, 0.8); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 12px;">

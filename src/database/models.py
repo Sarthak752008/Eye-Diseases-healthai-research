@@ -51,6 +51,8 @@ class UserProfile(Base):
     phone = Column(String(32), nullable=False)
     email = Column(String(128), nullable=False, index=True)
     date_of_birth = Column(String(16), nullable=False)  # Format: YYYY-MM-DD
+    gender = Column(String(32), nullable=True, default="prefer_not_to_say")
+    demographic_consent = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
@@ -65,6 +67,8 @@ class UserProfile(Base):
             "phone": self.phone,
             "email": self.email,
             "date_of_birth": self.date_of_birth,
+            "gender": self.gender,
+            "demographic_consent": self.demographic_consent,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -81,6 +85,7 @@ class ConsentRecord(Base):
     consent_given = Column(Boolean, nullable=False, default=True)
     research_screening_consent = Column(Boolean, nullable=False, default=True)
     data_storage_consent = Column(Boolean, nullable=False, default=True)
+    demographic_consent = Column(Boolean, nullable=False, default=False)
     consent_version = Column(String(16), nullable=False, default="1.0")
     timestamp = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
 
@@ -94,6 +99,7 @@ class ConsentRecord(Base):
             "consent_given": self.consent_given,
             "research_screening_consent": self.research_screening_consent,
             "data_storage_consent": self.data_storage_consent,
+            "demographic_consent": self.demographic_consent,
             "consent_version": self.consent_version,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }

@@ -166,6 +166,8 @@ async def health_check():
     """
     anemia_ckpt = os.path.exists(settings.ANEMIA_CHECKPOINT_PATH)
     conj_ckpt = os.path.exists(settings.CONJUNCTIVITIS_CHECKPOINT_PATH)
+    slid_ckpt = os.path.exists(settings.SLID_CHECKPOINT_PATH)
+    jaundice_ckpt = os.path.exists(settings.JAUNDICE_CHECKPOINT_PATH)
     jaundice_cfg = os.path.exists(settings.JAUNDICE_CONFIG_PATH)
 
     return {
@@ -182,6 +184,12 @@ async def health_check():
                 "validation_status": "experimental_research_only",
                 "notes": "Non-diagnostic research regressor. Paired venous reference testing required."
             },
+            "slid_injection": {
+                "checkpoint_present": slid_ckpt,
+                "operational_status": "available_research_only" if slid_ckpt else "missing_checkpoint",
+                "validation_status": "experimental_research_only",
+                "notes": "Visible conjunctival injection screening on slit-lamp photography (SLID dataset)."
+            },
             "conjunctivitis": {
                 "checkpoint_present": conj_ckpt,
                 "operational_status": "blocked_validation",
@@ -193,6 +201,12 @@ async def health_check():
                 "operational_status": "unavailable_missing_data",
                 "validation_status": "unimplemented_no_ground_truth",
                 "notes": "No clinical dataset or laboratory bilirubin reference measurements exist."
+            },
+            "jaundice_icterus": {
+                "checkpoint_present": jaundice_ckpt,
+                "operational_status": "available_research_only" if jaundice_ckpt else "missing_checkpoint",
+                "validation_status": "experimental_research_only",
+                "notes": "Visible scleral icterus screening (Diverse Jaundice dataset). Numerical lab bilirubin unavailable."
             }
         },
         "disclaimer": "RESEARCH USE ONLY: Prototype service. Not certified or validated for clinical diagnostic use."
@@ -216,6 +230,8 @@ async def readiness_check():
 
     anemia_ckpt = os.path.exists(settings.ANEMIA_CHECKPOINT_PATH)
     conj_ckpt = os.path.exists(settings.CONJUNCTIVITIS_CHECKPOINT_PATH)
+    slid_ckpt = os.path.exists(settings.SLID_CHECKPOINT_PATH)
+    jaundice_ckpt = os.path.exists(settings.JAUNDICE_CHECKPOINT_PATH)
 
     # Core research prototype is ready when DB is connected and Anemia checkpoint is present
     is_ready = db_connected and anemia_ckpt
@@ -225,11 +241,15 @@ async def readiness_check():
         "database_connected": db_connected,
         "checkpoints": {
             "anemia_resnet50": anemia_ckpt,
-            "conjunctivitis_mobilenet": conj_ckpt
+            "slid_mobilenet": slid_ckpt,
+            "conjunctivitis_mobilenet": conj_ckpt,
+            "jaundice_mobilenet": jaundice_ckpt
         },
         "gates": {
             "conjunctivitis": "blocked_domain_validation",
-            "jaundice": "unavailable_missing_data"
+            "jaundice": "unavailable_missing_data",
+            "conjunctivitis_mendeley": "blocked_domain_validation",
+            "jaundice_laboratory_bilirubin": "unavailable_missing_data"
         },
         "status": "ready" if is_ready else "degraded",
         "service": "EyeHealthAI Research Backend"
@@ -241,6 +261,8 @@ async def get_system_status():
     """Returns operational status for all clinical modules and checkpoints."""
     anemia_ckpt = os.path.exists(settings.ANEMIA_CHECKPOINT_PATH)
     conj_ckpt = os.path.exists(settings.CONJUNCTIVITIS_CHECKPOINT_PATH)
+    slid_ckpt = os.path.exists(settings.SLID_CHECKPOINT_PATH)
+    jaundice_ckpt = os.path.exists(settings.JAUNDICE_CHECKPOINT_PATH)
 
     return {
         "project": "EyeHealthAI",
@@ -253,6 +275,14 @@ async def get_system_status():
                 "checkpoint_available": anemia_ckpt,
                 "target_unit": "g/dL",
                 "permitted_use": "Investigational research only (multi-view session aggregation)"
+            },
+            "slid_injection": {
+                "name": "SLID Visible Conjunctival Injection Classifier",
+                "status": "available_research_only",
+                "model_architecture": "MobileNetV3-Small",
+                "checkpoint_available": slid_ckpt,
+                "target_classes": ["control_normal", "conjunctival_injection"],
+                "permitted_use": "Investigational research only on slit-lamp photography (Acc 98.78%)"
             },
             "conjunctivitis": {
                 "name": "Conjunctivitis Classifier",
@@ -267,6 +297,14 @@ async def get_system_status():
                 "model_architecture": "MobileNetV3-Small (Scaffold)",
                 "checkpoint_available": False,
                 "gate_reason": "No clinical dataset or laboratory bilirubin reference measurements exist."
+            },
+            "jaundice_icterus": {
+                "name": "Visible Scleral Icterus Classifier",
+                "status": "available_research_only",
+                "model_architecture": "MobileNetV3-Small",
+                "checkpoint_available": jaundice_ckpt,
+                "target_classes": ["normal", "visibly_jaundiced"],
+                "permitted_use": "Categorical scleral icterus research only (CC BY-NC 4.0; no lab bilirubin)"
             }
         },
         "disclaimer": "RESEARCH USE ONLY: Experimental system. Not for medical diagnosis or clinical use."
@@ -295,6 +333,9 @@ async def quality_check(image: UploadFile = File(...)):
         quality = calculate_image_quality(rgb_img)
         dims = {"width": rgb_img.width, "height": rgb_img.height}
 
+        from src.preprocessing.eye_detector import detect_ocular_region
+        ocular_detection = detect_ocular_region(rgb_img)
+
         # Actionable guidance generation
         guidance = []
         is_usable = True
@@ -307,6 +348,10 @@ async def quality_check(image: UploadFile = File(...)):
         if quality.get("is_too_bright"):
             guidance.append("Reduce glare: adjust angle to prevent direct bright reflections on the ocular surface.")
             is_usable = False
+
+        if ocular_detection and ocular_detection.get("guidance"):
+            guidance.append(ocular_detection["guidance"])
+
         if not guidance:
             guidance.append("Exposure and sharpness are within operational bounds.")
 
@@ -317,6 +362,7 @@ async def quality_check(image: UploadFile = File(...)):
             "filename": image.filename,
             "dimensions": dims,
             "quality": quality,
+            "ocular_detection": ocular_detection,
             "usability_status": "usable" if is_usable else "needs_adjustment",
             "actionable_guidance": guidance,
             "anatomical_disclaimer": "Image-quality check verifies pixel sharpness and luminance only. It does not verify that the inner conjunctiva or sclera is properly everted or visible. A full-face image is not a valid conjunctiva image.",
@@ -329,9 +375,30 @@ async def quality_check(image: UploadFile = File(...)):
             "filename": image.filename,
             "dimensions": None,
             "quality": None,
+            "ocular_detection": None,
             "is_valid": False,
             "error": "Image processing error: unable to decode or inspect image."
         }
+
+
+@app.post("/api/detect-eye")
+async def detect_eye_endpoint(image: UploadFile = File(...)):
+    """
+    Dedicated endpoint for automated ocular region detection and eye-focused cropping.
+    """
+    content = await image.read()
+    validate_uploaded_image(image, content)
+    rgb_img = safe_decode_bytes(content)
+    if rgb_img is None:
+        raise HTTPException(status_code=400, detail="Corrupt or unreadable image bytes.")
+
+    from src.preprocessing.eye_detector import detect_ocular_region
+    detection = detect_ocular_region(rgb_img)
+    return {
+        "filename": image.filename,
+        "dimensions": {"width": rgb_img.width, "height": rgb_img.height},
+        "detection": detection
+    }
 
 
 @app.post("/api/analyze")
@@ -354,8 +421,8 @@ async def analyze_ocular_images(
     clean_module = module.strip().lower()
     clean_source = capture_source.strip().lower()
 
-    # Route blocked or unavailable modules immediately
-    if clean_module in ('conjunctivitis', 'red_eye'):
+    # 1. Mendeley Conjunctivitis (Strictly Blocked Reliability Gate)
+    if clean_module in ('conjunctivitis', 'mendeley', 'red_eye'):
         res = service.predict_conjunctivitis()
         export_payload = create_session_export(
             module="conjunctivitis",
@@ -366,21 +433,101 @@ async def analyze_ocular_images(
         _persist_db_session(export_payload, clean_module, clean_source, user_id, language, [], res.get("gate_reason"))
         return export_payload
 
-    if clean_module in ('jaundice', 'icterus'):
-        res = service.predict_jaundice()
+    # 2. SLID Visible Conjunctival Injection (Active Research Classifier)
+    if clean_module in ('slid', 'conjunctival_injection', 'injection'):
+        if not images or len(images) == 0:
+            raise HTTPException(status_code=400, detail="No images provided for conjunctival injection analysis.")
+        pil_images = []
+        filenames = []
+        for idx, f in enumerate(images):
+            filenames.append(f.filename or f"image_{idx}")
+            content = await f.read()
+            validate_uploaded_image(f, content)
+            rgb_img = safe_decode_bytes(content)
+            if rgb_img is None:
+                raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({f.filename}). Corrupt file bytes.")
+            pil_images.append(rgb_img)
+
+        inference_res = service.predict_conjunctival_injection(
+            pil_images,
+            capture_source=clean_source,
+            experimental_override=experimental_override
+        )
+        if inference_res.get('status') == 'error':
+            raise HTTPException(status_code=400, detail=inference_res.get('error'))
+
         export_payload = create_session_export(
-            module="jaundice",
-            inference_result=res,
-            filenames=[f.filename for f in (images or [])],
+            module="slid",
+            inference_result=inference_res,
+            filenames=filenames,
             capture_source=clean_source
         )
-        _persist_db_session(export_payload, clean_module, clean_source, user_id, language, [], res.get("gate_reason"))
+        _persist_db_session(
+            export_payload,
+            "slid",
+            clean_source,
+            user_id,
+            language,
+            ["anterior_slit_lamp"] * len(filenames),
+            inference_res.get('status')
+        )
+        return export_payload
+
+    # 3. Jaundice / Visible Scleral Icterus
+    if clean_module in ('jaundice', 'icterus', 'scleral_icterus'):
+        if not images or len(images) == 0:
+            # Missing clinical laboratory bilirubin gate enforced
+            res = service.predict_jaundice()
+            export_payload = create_session_export(
+                module="jaundice",
+                inference_result=res,
+                filenames=[],
+                capture_source=clean_source
+            )
+            _persist_db_session(export_payload, clean_module, clean_source, user_id, language, [], res.get("gate_reason"))
+            return export_payload
+
+        # When genuine images are supplied: run categorical scleral icterus screening
+        pil_images = []
+        filenames = []
+        for idx, f in enumerate(images):
+            filenames.append(f.filename or f"image_{idx}")
+            content = await f.read()
+            validate_uploaded_image(f, content)
+            rgb_img = safe_decode_bytes(content)
+            if rgb_img is None:
+                raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({f.filename}). Corrupt file bytes.")
+            pil_images.append(rgb_img)
+
+        inference_res = service.predict_scleral_icterus(
+            pil_images,
+            capture_source=clean_source,
+            experimental_override=experimental_override
+        )
+        if inference_res.get('status') == 'error':
+            raise HTTPException(status_code=400, detail=inference_res.get('error'))
+
+        export_payload = create_session_export(
+            module="jaundice",
+            inference_result=inference_res,
+            filenames=filenames,
+            capture_source=clean_source
+        )
+        _persist_db_session(
+            export_payload,
+            "jaundice",
+            clean_source,
+            user_id,
+            language,
+            ["scleral_crop"] * len(filenames),
+            inference_res.get('status')
+        )
         return export_payload
 
     if clean_module != 'anemia':
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown module '{module}'. Supported modules: ['anemia', 'conjunctivitis', 'jaundice']."
+            detail=f"Unknown module '{module}'. Supported modules: ['anemia', 'slid', 'conjunctivitis', 'jaundice']."
         )
 
     # Anemia validation
@@ -502,6 +649,8 @@ class UserRegisterRequest(BaseModel):
     phone: str = Field(..., min_length=7, max_length=24)
     email: str = Field(..., min_length=5, max_length=128)
     date_of_birth: str = Field(..., min_length=8, max_length=16)
+    gender: Optional[str] = Field("prefer_not_to_say", description="Optional demographic gender: female, male, non-binary, self-describe, prefer_not_to_say")
+    demographic_consent: bool = Field(False, description="Explicit consent for demographic research data collection")
     research_consent: bool = Field(True, description="Explicit consent for research-stage screening")
     data_storage_consent: bool = Field(True, description="Explicit consent for privacy-aware profile storage")
 
@@ -511,6 +660,8 @@ async def register_patient_user(payload: UserRegisterRequest):
     """
     Registers a new user and logs explicit informed consent.
     Enforces privacy validation rules before proceeding to screening.
+    
+    SAFETY RULE: Gender and demographic metadata are NEVER fed to computer-vision inference.
     """
     if not payload.research_consent:
         raise HTTPException(
@@ -535,6 +686,8 @@ async def register_patient_user(payload: UserRegisterRequest):
             phone=payload.phone,
             email=payload.email,
             date_of_birth=payload.date_of_birth,
+            gender=payload.gender,
+            demographic_consent=payload.demographic_consent,
             research_consent=payload.research_consent,
             data_storage_consent=payload.data_storage_consent
         )

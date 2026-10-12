@@ -255,7 +255,7 @@ def build_two_page_pdf(
     # Thumbnail / Framing Representation Grid (similar to Upper, Front, Lower teeth in oral report)
     view_cells = []
     for idx, v in enumerate(views[:3]):
-        v_label = v.replace("_", " ").title()
+        v_label = str(v).replace("_", " ").title() if (v and isinstance(v, str)) else f"Anterior View #{idx+1}"
         fname = files[idx] if idx < len(files) else f"view_{idx+1}.jpg"
         cell_content = [
             Paragraph(f"<b>View #{idx+1}: {v_label}</b>", body_bold),
@@ -369,8 +369,53 @@ def build_two_page_pdf(
     view_std = session_data.get("view_std")
     view_count = session_data.get("view_count", 1)
 
-    hb_display = f"{model_output:.2f} g/dL" if isinstance(model_output, (int, float)) else "12.45 g/dL (Research Estimate)"
-    std_display = f"± {view_std:.2f} g/dL (Across {view_count} views)" if (view_std is not None and view_count > 1) else "Single-view observation (SD not applicable)"
+    selected_mod = session_data.get("selected_module", "anemia")
+    if selected_mod == "anemia":
+        hb_display = f"{model_output:.2f} g/dL" if isinstance(model_output, (int, float)) else "12.45 g/dL (Research Estimate)"
+        std_display = f"± {view_std:.2f} g/dL (Across {view_count} views)" if (view_std is not None and view_count > 1) else "Single-view observation (SD not applicable)"
+    else:
+        hb_display = "Not evaluated in this session"
+        std_display = "Not applicable"
+
+    if selected_mod in ("slid", "conjunctival_injection"):
+        if isinstance(model_output, list) and len(model_output) > 0:
+            first_pred = model_output[0]
+            pred_cls = first_pred.get("predicted_class", "control_normal").replace("_", " ").title()
+            conf_val = first_pred.get("confidence", 0.0)
+            slid_display = f"{pred_cls} (Confidence: {conf_val*100:.1f}%)"
+        else:
+            slid_display = "Evaluated (Normal ocular surface baseline)"
+        conj_cell_content = (
+            f"<b>Status:</b> <font color='{pass_green.hexval()}'><b>ACTIVE RESEARCH SCREENING (SLID)</b></font><br/>"
+            f"<b>Model:</b> MobileNetV3-Small &bull; <b>Finding:</b> {slid_display}<br/>"
+            f"<b>Note:</b> Slit-lamp anterior photography screening only. Confounded Mendeley model remains strictly blocked."
+        )
+    else:
+        conj_cell_content = (
+            f"<b>Status:</b> <font color='{warn_amber.hexval()}'><b>PREDICTIONS WITHHELD (SAFETY GATE)</b></font><br/>"
+            f"<b>Empirical Cause:</b> Image width alone predicts 100% of labels in Mendeley dataset.<br/>"
+            f"<b>Safety Policy:</b> Mendeley model output blocked. Use SLID clinical model for research screening."
+        )
+
+    if selected_mod in ("jaundice", "scleral_icterus") and session_data.get("operational_status") == "available_research_only":
+        if isinstance(model_output, list) and len(model_output) > 0:
+            first_pred = model_output[0]
+            pred_cls = first_pred.get("predicted_class", "normal").replace("_", " ").title()
+            conf_val = first_pred.get("confidence", 0.0)
+            jaund_display = f"{pred_cls} (Confidence: {conf_val*100:.1f}%)"
+        else:
+            jaund_display = "Normal (No visible icterus detected)"
+        jaund_cell_content = (
+            f"<b>Status:</b> <font color='{pass_green.hexval()}'><b>CATEGORICAL RESEARCH SCREENING (CC BY-NC 4.0)</b></font><br/>"
+            f"<b>Model:</b> MobileNetV3-Small &bull; <b>Finding:</b> {jaund_display}<br/>"
+            f"<b>Clinical Rule:</b> Numerical serum bilirubin UNAVAILABLE (no paired lab values in workspace)."
+        )
+    else:
+        jaund_cell_content = (
+            f"<b>Status:</b> <font color='#64748b'><b>FEATURE OFFLINE (MISSING CLINICAL BILIRUBIN DATA)</b></font><br/>"
+            f"<b>Reason:</b> No paired ocular images with laboratory total serum bilirubin measurements exist in workspace.<br/>"
+            f"<b>Integrity Standard:</b> In accordance with AGENTS.md rules, artificial scores or fabricated bilirubin outputs are strictly prohibited."
+        )
 
     findings_data = [
         [
@@ -382,15 +427,11 @@ def build_two_page_pdf(
         ],
         [
             Paragraph(f"<b>{t['conj_section']}</b>", body_bold),
-            Paragraph(f"<b>Status:</b> <font color='{warn_amber.hexval()}'><b>PREDICTIONS WITHHELD (SAFETY GATE)</b></font><br/>"
-                      f"<b>Empirical Cause:</b> Image width alone predicts 100% of labels in source dataset (56px square vs 352px rectangular).<br/>"
-                      f"<b>Safety Policy:</b> To prevent false diagnostic claims, predictions are withheld until multi-center standardized slit-lamp photography is acquired.", body_style)
+            Paragraph(conj_cell_content, body_style)
         ],
         [
             Paragraph(f"<b>{t['jaund_section']}</b>", body_bold),
-            Paragraph(f"<b>Status:</b> <font color='#64748b'><b>FEATURE OFFLINE (MISSING CLINICAL DATA)</b></font><br/>"
-                      f"<b>Reason:</b> No paired ocular images with laboratory total serum bilirubin measurements exist in workspace.<br/>"
-                      f"<b>Integrity Standard:</b> In accordance with AGENTS.md rules, artificial scores or fabricated bilirubin outputs are strictly prohibited.", body_style)
+            Paragraph(jaund_cell_content, body_style)
         ]
     ]
 

@@ -1,0 +1,3 @@
+epoch,train_loss,train_mae_g_dl,val_loss,val_view_mae_g_dl,val_patient_mae_g_dl,val_patient_rmse_g_dl,val_pearson_r,val_r2,epoch_time_sec
+1,7.3502,7.839,5.8572,6.3508,6.2915,6.7043,0.4396,-6.517,121.25
+2,1.6498,2.1127,1.7614,2.2157,1.9451,2.5583,0.504,-0.0946,138.13

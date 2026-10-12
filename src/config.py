@@ -47,6 +47,14 @@ class Settings:
         "CONJUNCTIVITIS_CHECKPOINT_PATH",
         os.path.join(WORKSPACE_ROOT, "saved_models", "conjunctivitis", "best_model_v2_clean.pth")
     )
+    SLID_CHECKPOINT_PATH: str = os.getenv(
+        "SLID_CHECKPOINT_PATH",
+        os.path.join(WORKSPACE_ROOT, "saved_models", "slid", "best_model.pth")
+    )
+    JAUNDICE_CHECKPOINT_PATH: str = os.getenv(
+        "JAUNDICE_CHECKPOINT_PATH",
+        os.path.join(WORKSPACE_ROOT, "saved_models", "jaundice", "best_model.pth")
+    )
     JAUNDICE_CONFIG_PATH: str = os.getenv(
         "JAUNDICE_CONFIG_PATH",
         os.path.join(WORKSPACE_ROOT, "saved_models", "jaundice", "jaundice_config.json")
