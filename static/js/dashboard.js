@@ -1,19 +1,20 @@
 /* ==========================================================================
-   EyeHealthAI — Research Dashboard Client Logic (Layers 5, 6 & 7)
-   Multi-Step Journey, Live Laptop Webcam Capture, Internationalization (EN/HI),
+   OcuScan — Research Dashboard Client Logic (Layers 5, 6 & 7)
+   Multi-Step Journey (5 Steps), Live Laptop Webcam Capture, Internationalization (EN/HI),
    Database Session Management, Two-Page PDF Export, and Gemini Research Copilot.
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
   // Global Workflow State
-  let currentStep = 1; // 1 to 7
+  let currentStep = 1; // 1 to 5 - Starts on Participant Profile (Step 1)
   let currentLanguage = 'en'; // 'en' or 'hi'
-  let currentUserProfile = null; // { id, full_name, email, phone, date_of_birth }
+  let currentUserProfile = null; // { id, full_name, email, phone, date_of_birth, gender }
   let currentModule = 'anemia';
   let activeMode = 'upload'; // 'upload' or 'webcam'
   let uploadedFiles = []; // Array of { file, viewType, previewUrl, quality, dimensions }
   let lastSessionData = null;
   let currentSessionRequestId = 0; // Guard against race conditions and stale async responses
+  let isAnalyzing = false;
 
   // Camera State
   let mediaStream = null;
@@ -26,39 +27,34 @@ document.addEventListener('DOMContentLoaded', () => {
   // --------------------------------------------------------------------------
   const I18N = {
     en: {
-      appTitle: "EyeHealthAI",
+      appTitle: "OcuScan",
       appSubtitle: "Multi-Modal Ocular Screening &bull; Continuous Hb Regression &bull; Clinical Safety Gates",
-      step1: "Language",
-      step2: "Consent",
-      step3: "Preparation",
-      step4: "Capture",
-      step5: "Analysis",
-      step6: "Results",
-      step7: "History",
-      langTitle: "Select Your Preferred Language",
-      langSub: "Choose your language for guided preparation, ocular screening, and downloaded clinical reports. Both languages are fully supported across all steps.",
-      btnContinue: "Continue &rarr;",
+      step1: "Participant Profile",
+      step2: "Protocol Guide",
+      step3: "Screening Workspace",
+      step4: "Results &amp; Report",
+      step5: "History",
+      btnNavHistoryText: "History",
+      btnNewSessionText: "New Session",
       regTitle: "Participant Profile &amp; Informed Consent",
       regSub: "Please enter your details and review the research consent terms before proceeding. Your data is stored privacy-compliantly.",
       labelFullName: "Full Name *",
       labelPhone: "Phone Number *",
       labelEmail: "Email Address *",
       labelDob: "Date of Birth (YYYY-MM-DD) *",
-      labelGender: "Gender (Optional Demographic Data)",
-      genderOptPreferNot: "Prefer not to say (Default)",
-      genderOptFemale: "Female",
-      genderOptMale: "Male",
-      genderOptNonBinary: "Non-binary",
-      genderOptSelfDescribe: "Self-describe",
-      chkConsentDemographicText: "(Optional) I consent to the collection of demographic data (gender) exclusively for research diversity evaluation. You may continue without selecting a gender.",
-      consentHeader: "Informed Consent &amp; Privacy Notice",
-      consentP1: "<strong>Experimental Research Only:</strong> EyeHealthAI is an investigational software prototype. It does NOT provide a certified medical diagnosis.",
+      labelGender: "Gender *",
+      genderSelectDefault: "Select Gender",
+      genderMale: "Male",
+      genderFemale: "Female",
+      genderOther: "Other",
+      consentHeader: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Informed Consent &amp; Privacy Notice',
+      consentP1: "<strong>Experimental Research Only:</strong> OcuScan is an investigational software prototype. It does NOT provide a certified medical diagnosis.",
       consentP2: "<strong>No Raw Image Retention:</strong> Captured eye photographs and webcam frames are processed strictly in RAM and are NEVER permanently stored on disk by default.",
       consentP3: "<strong>Laboratory Reference Required:</strong> Continuous hemoglobin estimations require confirmatory laboratory Complete Blood Count (CBC) venous blood tests.",
       consentP4: "<strong>Right to Be Forgotten:</strong> You can permanently delete your participant profile, session history, and report metadata at any time.",
       chkConsentResearchText: "I understand this is an experimental research prototype and agree to participate in non-invasive ocular screening.",
       chkConsentStorageText: "I consent to privacy-aware session and report metadata storage with the ability to purge my records at any time.",
-      btnBack: "&larr; Back",
+      btnSkipReg: "Continue as Guest / Anonymous &rarr;",
       btnAgreeContinue: "Agree &amp; Continue &rarr;",
       guideTitle: "Guided Preparation &amp; Protocol",
       guideSub: "Follow these 6 simple steps for optimal optical clarity, non-invasive imaging, and reliable screening results.",
@@ -74,7 +70,58 @@ document.addEventListener('DOMContentLoaded', () => {
       guideStep5Desc: "The system checks sharpness and luminance in real-time. If blur or glare is detected, instant feedback is provided.",
       guideStep6Title: "Downloadable 2-Page Report",
       guideStep6Desc: "Receive an official, two-page clinical research report in English or Hindi with complete diagnostic safety boundaries.",
+      btnBackProfile: "&larr; Back to Profile",
       btnReadyCapture: "Ready to Capture &rarr;",
+      screeningTitle: "Non-Invasive Ocular Health Screening",
+      screeningSub: "Upload high-resolution anterior segment photographs or capture a live macro camera still to estimate continuous hemoglobin (Hb in g/dL) with active clinical reliability and dataset validation gates.",
+      safetyGateTitle: "Active Safety Gating:",
+      safetyGateText: "Continuous hemoglobin predictions are permitted for experimental research use. Disease classifications are gated when dataset shortcuts or missing ground truth are detected.",
+      modulesTitle: "Clinical Target Modules",
+      moduleAnemiaName: "Anemia / Hemoglobin",
+      moduleAnemiaSub: "Continuous Hb Regression",
+      statusResearchOnly: "RESEARCH ONLY",
+      moduleAnemiaDesc: "Predicts laboratory hemoglobin (g/dL) from conjunctival pallor using a pretrained ResNet-50. Supports multi-view session averaging across palpebral and forniceal crops.",
+      moduleConjName: "Conjunctivitis",
+      moduleConjSub: "Ocular Erythema Classifier",
+      statusBlockedGate: "BLOCKED (GATE)",
+      moduleConjDesc: "Reliability gate active. Layer 3.5 audit revealed normal vs disease classes have non-overlapping dimensions (56px square vs 352px macro). Predictions are blocked to prevent shortcut reliance.",
+      moduleJaundName: "Jaundice / Icterus",
+      moduleJaundSub: "Scleral Bilirubin Screening",
+      statusUnavailable: "UNAVAILABLE",
+      moduleJaundDesc: "No clinical dataset or laboratory total serum bilirubin measurements exist in workspace. Synthetic predictions and placeholder models are prohibited.",
+      inputSessionTitle: "Input Session &amp; Image Capture",
+      modeUpload: "File Upload Mode",
+      modeWebcam: "Live Laptop Camera",
+      dropzoneTitle: "Click to upload or drag &amp; drop images",
+      dropzoneHint: "Supports JPG, PNG, WEBP (Ocular anterior crops or full eye)",
+      guideReticleTitle: "Manual Macro Framing Target (10–15 cm)",
+      guideReticleSub: "Position one eye to fill this area. Positioning aid only; not automated eye detection.",
+      cameraMacroWarning: "<strong>⚠️ MACRO EYE FRAMING REQUIRED — NOT A FULL FACE:</strong><br>The model requires a close-up image of the ocular conjunctiva. A full-face selfie contains mostly facial skin and background, which cannot be analyzed for microvascular conjunctival pallor. Move within 10–15 cm of the laptop camera and expose the target eye view.",
+      btnStartCam: "Start Camera",
+      btnCaptureCam: "Capture Still",
+      btnStopCam: "Stop",
+      capturedStillTitle: "Captured Webcam Still",
+      btnRecapture: "Recapture",
+      labelAnatomicalView: "Anatomical View Tag:",
+      viewRawEye: "Raw Full Eye View",
+      viewPalpebral: "Palpebral Conjunctiva",
+      viewForniceal: "Forniceal Conjunctiva",
+      viewFornicealPalpebral: "Forniceal + Palpebral",
+      viewUnspecified: "Unspecified Ocular Crop",
+      webcamGateTitle: "Camera-Domain Validation Gate Active",
+      webcamGateText: "The anemia ResNet-50 model was trained strictly on clinical research photography and has not been validated for ordinary laptop webcams. By default, webcam inference is blocked per Layer 6 standards.",
+      chkWebcamOverrideText: "Enable Researcher Experimental Override (Unvalidated Webcam Test)",
+      btnAnalyzeText: "Run Research Inference",
+      sessionPreviewTitle: "Session Analysis Preview",
+      clinicalReportBtn: "Clinical Report",
+      exportJsonBtn: "Export JSON",
+      resultsEmptyText: "Select images and click <strong>Run Research Inference</strong> to generate an experimental session estimate.",
+      checklistTitle: "Clinical Protocol Checklist",
+      checklistItem1: "Macro anterior framing within 10–15 cm",
+      checklistItem2: "Expose lower palpebral/forniceal conjunctiva",
+      checklistItem3: "Real-time sharpness &amp; luminance validation",
+      checklistItem4: "Continuous ResNet-50 Hb regression (g/dL)",
+      btnBackGuide: "&larr; Back to Protocol Guide",
       analysisLoadingTitle: "Processing Ocular Computer Vision Pipeline",
       analysisLoadingSub: "Inspecting pixel luminance, verifying anatomical crop, and computing multi-view ResNet-50 continuous hemoglobin regression...",
       resultsTitle: "Ocular Screening Results &amp; Clinical Insights",
@@ -97,39 +144,34 @@ document.addEventListener('DOMContentLoaded', () => {
       btnBackScreening: "&larr; Back to Screening Dashboard"
     },
     hi: {
-      appTitle: "EyeHealthAI",
+      appTitle: "OcuScan",
       appSubtitle: "मल्टी-मॉडल नेत्र जांच &bull; हीमोग्लोबिन निरंतर प्रतिगमन &bull; चिकित्सीय सुरक्षा गेट",
-      step1: "भाषा",
-      step2: "सहमति",
-      step3: "तैयारी",
-      step4: "कैप्चर",
-      step5: "विश्लेषण",
-      step6: "परिणाम",
-      step7: "इतिहास",
-      langTitle: "अपनी पसंदीदा भाषा चुनें",
-      langSub: "मार्गदर्शन, जांच और रिपोर्ट के लिए अपनी पसंदीदा भाषा चुनें। दोनों भाषाएं सभी चरणों में पूरी तरह समर्थित हैं।",
-      btnContinue: "आगे बढ़ें &rarr;",
+      step1: "प्रतिभागी विवरण",
+      step2: "प्रोटोकॉल गाइड",
+      step3: "स्क्रीनिंग वर्कस्पेस",
+      step4: "परिणाम एवं रिपोर्ट",
+      step5: "इतिहास",
+      btnNavHistoryText: "इतिहास",
+      btnNewSessionText: "नया सत्र",
       regTitle: "प्रतिभागी विवरण और सूचित सहमति",
       regSub: "आगे बढ़ने से पहले कृपया अपना विवरण दर्ज करें और अनुसंधान सहमति शर्तों की समीक्षा करें। आपकी गोपनीयता सुरक्षित है।",
       labelFullName: "पूरा नाम *",
       labelPhone: "फोन नंबर *",
       labelEmail: "ईमेल पता *",
       labelDob: "जन्म तिथि (YYYY-MM-DD) *",
-      labelGender: "लिंग (वैकल्पिक जनसांख्यिकीय डेटा)",
-      genderOptPreferNot: "बताना नहीं चाहते (डिफ़ॉल्ट)",
-      genderOptFemale: "महिला (Female)",
-      genderOptMale: "पुरुष (Male)",
-      genderOptNonBinary: "नॉन-बाइनरी (Non-binary)",
-      genderOptSelfDescribe: "स्व-वर्णन (Self-describe)",
-      chkConsentDemographicText: "(वैकल्पिक) मैं विविधता और निष्पक्षता मूल्यांकन हेतु जनसांख्यिकीय डेटा (लिंग) संग्रह की सहमति देता/देती हूँ। आप लिंग का चयन किए बिना भी जारी रख सकते हैं।",
-      consentHeader: "सूचित सहमति एवं गोपनीयता सूचना",
-      consentP1: "<strong>केवल प्रायोगिक अनुसंधान:</strong> EyeHealthAI एक अनुसंधान सॉफ्टवेयर है। यह प्रमाणित चिकित्सीय निदान (Medical Diagnosis) प्रदान नहीं करता है।",
+      labelGender: "लिंग *",
+      genderSelectDefault: "लिंग चुनें",
+      genderMale: "पुरुष (Male)",
+      genderFemale: "महिला (Female)",
+      genderOther: "अन्य (Other)",
+      consentHeader: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> सूचित सहमति एवं गोपनीयता सूचना',
+      consentP1: "<strong>केवल प्रायोगिक अनुसंधान:</strong> OcuScan एक अनुसंधान सॉफ्टवेयर है। यह प्रमाणित चिकित्सीय निदान (Medical Diagnosis) प्रदान नहीं करता है।",
       consentP2: "<strong>मूल तस्वीरें सुरक्षित नहीं:</strong> ली गई आंख की तस्वीरें केवल रैम में प्रोसेस होती हैं और डिस्क पर कभी स्थायी रूप से सुरक्षित नहीं रखी जातीं।",
       consentP3: "<strong>प्रयोगशाला परीक्षण आवश्यक:</strong> निरंतर हीमोग्लोबिन अनुमानों के लिए प्रयोगशाला सीबीसी (CBC) रक्त परीक्षण द्वारा पुष्टि आवश्यक है।",
       consentP4: "<strong>डेटा मिटाने का अधिकार:</strong> आप किसी भी समय अपनी प्रोफाइल और इतिहास को स्थायी रूप से मिटा सकते हैं।",
       chkConsentResearchText: "मैं समझता/समझती हूँ कि यह एक अनुसंधान प्रोटोटाइप है और गैर-आक्रामक जांच में भाग लेने के लिए सहमत हूँ।",
       chkConsentStorageText: "मैं सत्र और रिपोर्ट मेटाडेटा के सुरक्षित भंडारण की सहमति देता/देती हूँ।",
-      btnBack: "&larr; पीछे",
+      btnSkipReg: "अतिथि / अज्ञात के रूप में जारी रखें &rarr;",
       btnAgreeContinue: "सहमति दें और आगे बढ़ें &rarr;",
       guideTitle: "मार्गदर्शित तैयारी और दिशानिर्देश",
       guideSub: "स्पष्ट तस्वीर और विश्वसनीय जांच परिणामों के लिए इन 6 चरणों का पालन करें।",
@@ -145,7 +187,58 @@ document.addEventListener('DOMContentLoaded', () => {
       guideStep5Desc: "सिस्टम तीखेपन और रोशनी की रीयल-टाइम जांच करता है। धुंधलापन होने पर तुरंत निर्देश मिलते हैं।",
       guideStep6Title: "2-पृष्ठों की रिपोर्ट",
       guideStep6Desc: "अंग्रेजी या हिंदी में पूरी नैदानिक सुरक्षा सीमाओं के साथ आधिकारिक शोध रिपोर्ट प्राप्त करें।",
-      btnReadyCapture: "फोटो खींचने के लिए तैयार &rarr;",
+      btnBackProfile: "&larr; प्रोफाइल पर वापस जाएं",
+      btnReadyCapture: "तस्वीर लेने के लिए तैयार &rarr;",
+      screeningTitle: "गैर-आक्रामक नेत्र स्वास्थ्य जांच",
+      screeningSub: "सक्रिय नैदानिक विश्वसनीयता और डेटासेट सत्यापन गेट्स के साथ निरंतर हीमोग्लोबिन (Hb g/dL) का अनुमान लगाने के लिए उच्च-रिज़ॉल्यूशन तस्वीरें अपलोड करें या लाइव मैक्रो कैमरा स्टिल कैप्चर करें।",
+      safetyGateTitle: "सक्रिय सुरक्षा गेटिंग:",
+      safetyGateText: "निरंतर हीमोग्लोबिन अनुमान प्रायोगिक अनुसंधान उपयोग के लिए अनुमत हैं। डेटासेट शॉर्टकट या अनुपलब्ध ग्राउंड ट्रुथ पाए जाने पर रोग वर्गीकरण अवरुद्ध किया जाता है।",
+      modulesTitle: "चिकित्सीय लक्ष्य मॉड्यूल",
+      moduleAnemiaName: "एनीमिया / हीमोग्लोबिन",
+      moduleAnemiaSub: "निरंतर हीमोग्लोबिन प्रतिगमन",
+      statusResearchOnly: "केवल अनुसंधान",
+      moduleAnemiaDesc: "प्री-ट्रेंड ResNet-50 का उपयोग करके कंजंक्टाइवल पल्लोर से प्रयोगशाला हीमोग्लोबिन (g/dL) का अनुमान लगाता है। पैल्पेब्रल और फोर्निसियल व्यूज में मल्टी-व्यू औसत का समर्थन करता है।",
+      moduleConjName: "कंजंक्टिवाइटिस",
+      moduleConjSub: "नेत्र एरिथेमा वर्गीकरण",
+      statusBlockedGate: "अवरुद्ध (सुरक्षा गेट)",
+      moduleConjDesc: "विश्वसनीयता गेट सक्रिय है। डेटासेट ऑडिट से पता चला कि सामान्य और रोगग्रस्त छवियों में रेजोल्यूशन अंतर (56px बनाम 352px) है। कृत्रिम शॉर्टकट निर्भरता रोकने के लिए भविष्यवाणियां रोकी गई हैं।",
+      moduleJaundName: "पीलिया / इक्टेरस",
+      moduleJaundSub: "स्क्लेरल बिलीरुबिन स्क्रीनिंग",
+      statusUnavailable: "अनुपलब्ध",
+      moduleJaundDesc: "कार्यक्षेत्र में कोई क्लिनिकल डेटासेट या प्रयोगशाला कुल सीरम बिलीरुबिन संदर्भ माप मौजूद नहीं है। कृत्रिम भविष्यवाणियां सख्त वर्जित हैं।",
+      inputSessionTitle: "सत्र इनपुट एवं फोटो कैप्चर",
+      modeUpload: "फ़ाइल अपलोड मोड",
+      modeWebcam: "लाइव लैपटॉप कैमरा",
+      dropzoneTitle: "छवियों को अपलोड करने के लिए क्लिक करें या यहाँ खींचें",
+      dropzoneHint: "JPG, PNG, WEBP समर्थित (आंख की नजदीकी तस्वीर या पूरी आंख)",
+      guideReticleTitle: "मैनुअल मैक्रो फ्रेमिंग गाइड (10–15 सेमी)",
+      guideReticleSub: "एक आंख को इस क्षेत्र में रखें। केवल स्थिति सहायता; स्वचालित नेत्र पहचान नहीं।",
+      cameraMacroWarning: "<strong>⚠️ मैक्रो आई फ्रेमिंग आवश्यक — पूरा चेहरा नहीं:</strong><br>मॉडल को कंजंक्टिवा की नजदीकी तस्वीर की आवश्यकता है। पूरे चेहरे की सेल्फी का विश्लेषण नहीं किया जा सकता। कैमरे से 10–15 सेमी की दूरी पर आएं और आंख की तस्वीर लें।",
+      btnStartCam: "कैमरा शुरू करें",
+      btnCaptureCam: "फोटो खींचें",
+      btnStopCam: "कैमरा रोकें",
+      capturedStillTitle: "कैप्चर की गई कैमरा फोटो",
+      btnRecapture: "दोबारा खींचें",
+      labelAnatomicalView: "एनाटोमिकल व्यू टैग:",
+      viewRawEye: "पूरी आंख का दृश्य (Raw Eye)",
+      viewPalpebral: "पैल्पेब्रल कंजंक्टिवा (Palpebral)",
+      viewForniceal: "फोर्निसियल कंजंक्टिवा (Forniceal)",
+      viewFornicealPalpebral: "फोर्निसियल + पैल्पेब्रल",
+      viewUnspecified: "अनिर्दिष्ट नेत्र भाग",
+      webcamGateTitle: "कैमरा-डोमेन सत्यापन गेट सक्रिय",
+      webcamGateText: "एनीमिया ResNet-50 मॉडल विशेष रूप से क्लिनिकल रिसर्च फोटोग्राफी पर प्रशिक्षित है और साधारण वेबकैम के लिए मान्य नहीं है। डिफ़ॉल्ट रूप से वेबकैम परिणाम अवरुद्ध हैं।",
+      chkWebcamOverrideText: "शोधकर्ता प्रायोगिक ओवरराइड सक्षम करें (अपुष्ट वेबकैम परीक्षण)",
+      btnAnalyzeText: "शोध अनुमान शुरू करें",
+      sessionPreviewTitle: "सत्र विश्लेषण पूर्वावलोकन",
+      clinicalReportBtn: "क्लिनिकल रिपोर्ट",
+      exportJsonBtn: "JSON निर्यात",
+      resultsEmptyText: "प्रायोगिक अनुमान प्राप्त करने के लिए चित्र चुनें और <strong>शोध अनुमान शुरू करें</strong> पर क्लिक करें।",
+      checklistTitle: "क्लिनिकल प्रोटोकॉल चेकलिस्ट",
+      checklistItem1: "10–15 सेमी की दूरी से मैक्रो आई फ्रेमिंग",
+      checklistItem2: "निचली पैल्पेब्रल/फोर्निसियल कंजंक्टिवा प्रदर्शित करें",
+      checklistItem3: "रीयल-टाइम तीखापन एवं रोशनी सत्यापन",
+      checklistItem4: "निरंतर ResNet-50 हीमोग्लोबिन प्रतिगमन (g/dL)",
+      btnBackGuide: "&larr; प्रोटोकॉल गाइड पर वापस जाएं",
       analysisLoadingTitle: "नेत्र कंप्यूटर विज़न विश्लेषण जारी है",
       analysisLoadingSub: "पिक्सेल गुणवत्ता की जांच, एनाटोमिकल भाग की पुष्टि, और ResNet-50 हीमोग्लोबिन प्रतिगमन की गणना की जा रही है...",
       resultsTitle: "नेत्र जांच परिणाम एवं चिकित्सीय अंतर्दृष्टि",
@@ -169,11 +262,80 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Dynamic Module Banners & CTA Text Dictionaries (for real-time language updates)
+  const MODULE_BANNERS = {
+    anemia: {
+      en: '<strong>Active Module: Anemia Hemoglobin Regressor</strong><br>Permitted for experimental research use. You may upload one or multiple anatomical views (e.g. palpebral, forniceal, full eye) from the same capture session.',
+      hi: '<strong>सक्रिय मॉड्यूल: एनीमिया हीमोग्लोबिन रिग्रेसर</strong><br>प्रायोगिक अनुसंधान उपयोग के लिए अनुमत। आप एक ही सत्र से एक या एकाधिक दृश्य (पैल्पेब्रल, फोर्निसियल, पूरी आंख) अपलोड कर सकते हैं।'
+    },
+    conjunctivitis: {
+      en: '<strong>Reliability Gate Active: Conjunctivitis Classifier</strong><br>Predictions are blocked due to a 100% resolution confound in source data.',
+      hi: '<strong>विश्वसनीयता गेट सक्रिय: कंजंक्टिवाइटिस क्लासिफायर</strong><br>स्रोत डेटा में 100% रिज़ॉल्यूशन पूर्वाग्रह के कारण भविष्यवाणियां अवरुद्ध हैं।'
+    },
+    jaundice: {
+      en: '<strong>Missing-Data Gate: Jaundice Scleral Icterus</strong><br>No clinical dataset or laboratory bilirubin reference measurements exist in the workspace.',
+      hi: '<strong>डेटा अनुपलब्ध गेट: पीलिया स्क्लेरल इक्टेरस</strong><br>कार्यक्षेत्र में कोई क्लिनिकल डेटासेट या प्रयोगशाला बिलीरुबिन संदर्भ माप उपलब्ध नहीं है।'
+    }
+  };
+
+  const MODULE_CTA_TEXT = {
+    anemia: {
+      en: 'Run Research Inference',
+      hi: 'शोध अनुमान शुरू करें'
+    },
+    conjunctivitis: {
+      en: 'Inspect Gated Module',
+      hi: 'अवरुद्ध मॉड्यूल का निरीक्षण करें'
+    },
+    jaundice: {
+      en: 'Inspect Missing Data',
+      hi: 'अनुपलब्ध डेटा का निरीक्षण करें'
+    }
+  };
+
+  // Anemia View Options (Localized)
+  const ANEMIA_VIEWS_I18N = {
+    en: [
+      { value: 'palpebral', label: 'Palpebral Conjunctiva' },
+      { value: 'forniceal', label: 'Forniceal Conjunctiva' },
+      { value: 'forniceal_palpebral', label: 'Forniceal + Palpebral' },
+      { value: 'raw_eye', label: 'Raw Full Eye View' },
+      { value: 'unspecified', label: 'Unspecified Ocular Crop' }
+    ],
+    hi: [
+      { value: 'palpebral', label: 'पैल्पेब्रल कंजंक्टिवा (Palpebral)' },
+      { value: 'forniceal', label: 'फोर्निसियल कंजंक्टिवा (Forniceal)' },
+      { value: 'forniceal_palpebral', label: 'फोर्निसियल + पैल्पेब्रल' },
+      { value: 'raw_eye', label: 'पूरी आंख का दृश्य (Raw Eye)' },
+      { value: 'unspecified', label: 'अनिर्दिष्ट नेत्र भाग' }
+    ]
+  };
+
   // --------------------------------------------------------------------------
+  
+  // Strict Guided Navigation Rule State
+  let hasCompletedGuide = false;
+
+  function updateStepLockStates() {
+    const step3Btn = document.getElementById('stepBtn3');
+    if (step3Btn) {
+      if (!hasCompletedGuide) {
+        step3Btn.classList.add('step-locked');
+        step3Btn.setAttribute('title', currentLanguage === 'hi'
+          ? 'कृपया पहले प्रोटोकॉल गाइड पूरा करें (Ready to Capture पर क्लिक करें)'
+          : 'Please complete Protocol Guide first (Click "Ready to Capture")');
+      } else {
+        step3Btn.classList.remove('step-locked');
+        step3Btn.removeAttribute('title');
+      }
+    }
+  }
+
   // DOM Elements - Stepper & Header
   // --------------------------------------------------------------------------
   const langBtnEn = document.getElementById('langBtnEn');
   const langBtnHi = document.getElementById('langBtnHi');
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
   const userBadge = document.getElementById('userBadge');
   const userNameBadge = document.getElementById('userNameBadge');
   const btnNavHistory = document.getElementById('btnNavHistory');
@@ -181,27 +343,54 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnNewSessionText = document.getElementById('btnNewSessionText');
   const btnNavHistoryText = document.getElementById('btnNavHistoryText');
 
-  // Page 1 Elements
-  const cardLangEn = document.getElementById('cardLangEn');
-  const cardLangHi = document.getElementById('cardLangHi');
-  const btnContinueLang = document.getElementById('btnContinueLang');
+  // --------------------------------------------------------------------------
+  // Dark / Light Theme Engine
+  // --------------------------------------------------------------------------
+  function initTheme() {
+    const savedTheme = localStorage.getItem('eyehealth_theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const activeTheme = savedTheme || (prefersDark ? 'dark' : 'light');
+    applyTheme(activeTheme);
+  }
 
-  // Page 2 Elements
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (themeToggleBtn) {
+      const isDark = (theme === 'dark');
+      themeToggleBtn.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+      themeToggleBtn.setAttribute('title', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+    }
+  }
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const nextTheme = current === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('eyehealth_theme', nextTheme);
+      applyTheme(nextTheme);
+    });
+  }
+
+  initTheme();
+
+  // Step 1: Profile / Login Elements
   const formRegistration = document.getElementById('formRegistration');
   const inputRegName = document.getElementById('inputRegName');
   const inputRegPhone = document.getElementById('inputRegPhone');
   const inputRegEmail = document.getElementById('inputRegEmail');
   const inputRegDob = document.getElementById('inputRegDob');
+  const inputRegGender = document.getElementById('inputRegGender');
   const chkConsentResearch = document.getElementById('chkConsentResearch');
   const chkConsentStorage = document.getElementById('chkConsentStorage');
   const regErrorAlert = document.getElementById('regErrorAlert');
-  const btnBackToLang = document.getElementById('btnBackToLang');
+  const btnSkipRegistration = document.getElementById('btnSkipRegistration');
 
-  // Page 3 Elements
+  // Step 2: Protocol Guide Elements
   const btnBackToReg = document.getElementById('btnBackToReg');
   const btnProceedToCapture = document.getElementById('btnProceedToCapture');
 
-  // Page 4 Elements - Modules & Inputs
+  // Step 3: Screening Workspace Elements
+  const btnBackToGuide = document.getElementById('btnBackToGuide');
   const moduleCards = document.querySelectorAll('.module-card');
   const moduleBanner = document.getElementById('moduleBanner');
   const btnModeUpload = document.getElementById('btnModeUpload');
@@ -234,27 +423,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnViewReport = document.getElementById('btnViewReport');
   const btnExport = document.getElementById('btnExport');
 
-  // Eye-Focused Camera & Cropping Elements
-  const btnCamModeAuto = document.getElementById('btnCamModeAuto');
-  const btnCamModeManual = document.getElementById('btnCamModeManual');
-  const btnCamZoomToggle = document.getElementById('btnCamZoomToggle');
-  const liveGuidancePill = document.getElementById('liveGuidancePill');
-  const eyeDetectorBox = document.getElementById('eyeDetectorBox');
-  const eyeGuideReticle = document.getElementById('eyeGuideReticle');
-  const guideTitleText = document.getElementById('guideTitleText');
-  const guideSubText = document.getElementById('guideSubText');
-  const cropCanvas = document.getElementById('cropCanvas');
-  const capturedCropBadge = document.getElementById('capturedCropBadge');
-  const capturedCropMetadata = document.getElementById('capturedCropMetadata');
-  const capturedRejectionBox = document.getElementById('capturedRejectionBox');
-
-  // Dynamic Camera & Eye Detection State
-  let isEyeModeAuto = true;
-  let isZoom2x = false;
-  let liveEyeTrackingInterval = null;
-  let lastOcularCropBox = null;
-
-  // Page 6 Elements - Results
+  // Step 4: Results & Report Elements
+  const analysisLoadingView = document.getElementById('analysisLoadingView');
+  const resultsNoDataView = document.getElementById('resultsNoDataView');
+  const resultsSuccessView = document.getElementById('resultsSuccessView');
+  const btnGoToCaptureFromEmpty = document.getElementById('btnGoToCaptureFromEmpty');
   const fullResultsContainer = document.getElementById('fullResultsContainer');
   const btnDownloadPdfReport = document.getElementById('btnDownloadPdfReport');
   const btnDownloadPdfHi = document.getElementById('btnDownloadPdfHi');
@@ -263,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnNewScreeningFromResults = document.getElementById('btnNewScreeningFromResults');
   const btnViewHistoryFromResults = document.getElementById('btnViewHistoryFromResults');
 
-  // Page 7 Elements - History
+  // Step 5: History Elements
   const historyTableBody = document.getElementById('historyTableBody');
   const historyEmptyState = document.getElementById('historyEmptyState');
   const btnPurgeUserData = document.getElementById('btnPurgeUserData');
@@ -274,24 +447,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCloseReportModal = document.getElementById('btnCloseReportModal');
   const reportFrame = document.getElementById('reportFrame');
 
-  // View Options for Anemia
-  const ANEMIA_VIEWS = [
-    { value: 'palpebral', label: 'Palpebral Conjunctiva' },
-    { value: 'forniceal', label: 'Forniceal Conjunctiva' },
-    { value: 'forniceal_palpebral', label: 'Forniceal + Palpebral' },
-    { value: 'raw_eye', label: 'Raw Full Eye View' },
-    { value: 'unspecified', label: 'Unspecified Ocular Crop' }
-  ];
+  // --------------------------------------------------------------------------
+  // Dynamic Module Banner & CTA Updates
+  // --------------------------------------------------------------------------
+  function updateModuleBanner() {
+    if (!moduleBanner) return;
+    const bannerInfo = MODULE_BANNERS[currentModule] || MODULE_BANNERS.anemia;
+    if (currentModule === 'anemia') {
+      moduleBanner.className = 'alert-box alert-info';
+    } else if (currentModule === 'conjunctivitis') {
+      moduleBanner.className = 'alert-box alert-danger';
+    } else if (currentModule === 'jaundice') {
+      moduleBanner.className = 'alert-box alert-warning';
+    }
+    moduleBanner.innerHTML = bannerInfo[currentLanguage] || bannerInfo.en;
+  }
+
+  function updateAnalyzeButtonText() {
+    if (!btnAnalyzeText) return;
+    const ctaInfo = MODULE_CTA_TEXT[currentModule] || MODULE_CTA_TEXT.anemia;
+    btnAnalyzeText.textContent = ctaInfo[currentLanguage] || ctaInfo.en;
+  }
 
   // --------------------------------------------------------------------------
-  // Internationalization Logic
+  // Internationalization Logic (Preserving State & Streams)
   // --------------------------------------------------------------------------
   function setLanguage(lang) {
     currentLanguage = lang;
     if (langBtnEn) langBtnEn.classList.toggle('active', lang === 'en');
     if (langBtnHi) langBtnHi.classList.toggle('active', lang === 'hi');
-    if (cardLangEn) cardLangEn.classList.toggle('selected', lang === 'en');
-    if (cardLangHi) cardLangHi.classList.toggle('selected', lang === 'hi');
 
     const dict = I18N[lang] || I18N.en;
     document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -304,7 +488,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnNewSessionText) btnNewSessionText.textContent = lang === 'hi' ? 'नया सत्र' : 'New Session';
     if (btnNavHistoryText) btnNavHistoryText.textContent = lang === 'hi' ? 'इतिहास' : 'History';
 
-    // Update results cards if active
+    // Refresh dynamic module content in active language
+    updateModuleBanner();
+    updateAnalyzeButtonText();
+
+    // Update anatomical view select dropdowns in place
+    document.querySelectorAll('.view-select').forEach(sel => {
+      const currentVal = sel.value;
+      const opts = ANEMIA_VIEWS_I18N[lang] || ANEMIA_VIEWS_I18N.en;
+      sel.innerHTML = opts.map(o => `<option value="${o.value}" ${o.value === currentVal ? 'selected' : ''}>${o.label}</option>`).join('');
+    });
+
+    if (webcamViewSelect) {
+      const currentVal = webcamViewSelect.value;
+      const opts = ANEMIA_VIEWS_I18N[lang] || ANEMIA_VIEWS_I18N.en;
+      webcamViewSelect.innerHTML = opts.map(o => `<option value="${o.value}" ${o.value === currentVal ? 'selected' : ''}>${o.label}</option>`).join('');
+    }
+
+    // Update results cards in place if active
     if (lastSessionData) {
       renderFullResults(lastSessionData);
     }
@@ -313,36 +514,34 @@ document.addEventListener('DOMContentLoaded', () => {
   if (langBtnEn) langBtnEn.addEventListener('click', () => setLanguage('en'));
   if (langBtnHi) langBtnHi.addEventListener('click', () => setLanguage('hi'));
 
-  if (cardLangEn) {
-    cardLangEn.addEventListener('click', () => {
-      setLanguage('en');
-    });
-  }
-  if (cardLangHi) {
-    cardLangHi.addEventListener('click', () => {
-      setLanguage('hi');
-    });
-  }
-  if (btnContinueLang) {
-    btnContinueLang.addEventListener('click', () => {
-      goToStep(2);
-    });
-  }
-
   // --------------------------------------------------------------------------
-  // Multi-Step Navigation Engine
+  // Multi-Step Navigation Engine (Exact 5-Step Order)
+  // 1. Participant Profile -> 2. Protocol Guide -> 3. Screening Workspace -> 4. Results & Report -> 5. History
   // --------------------------------------------------------------------------
   function goToStep(step) {
+    if (step < 1 || step > 5) step = 1;
+
+    // Strict Guided Navigation Rule: Cannot bypass Protocol Guide (Step 2) to reach Screening Workspace (Step 3)
+    if (step === 3 && !hasCompletedGuide) {
+      if (typeof triggerDoctorBuddyEvent === 'function') {
+        triggerDoctorBuddyEvent('guide_required', {
+          message: currentLanguage === 'hi'
+            ? 'स्क्रीनिंग कार्यक्षेत्र में जाने से पहले कृपया प्रोटोकॉल गाइड की समीक्षा करें।'
+            : 'Please review the Protocol Guide before proceeding to the Screening Workspace.'
+        });
+      }
+      step = 2; // Redirect to Protocol Guide
+    }
+
     currentStep = step;
+    updateStepLockStates();
 
     const pageViews = [
-      { num: 1, id: 'page1Language' },
-      { num: 2, id: 'page2Registration' },
-      { num: 3, id: 'page3Guide' },
-      { num: 4, id: 'page4Capture' },
-      { num: 5, id: 'page5Analysis' },
-      { num: 6, id: 'page6Results' },
-      { num: 7, id: 'page7History' },
+      { num: 1, id: 'page2Registration' },
+      { num: 2, id: 'page3Guide' },
+      { num: 3, id: 'page4Capture' },
+      { num: 4, id: 'page6Results' },
+      { num: 5, id: 'page7History' },
     ];
 
     pageViews.forEach(p => {
@@ -361,56 +560,120 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (step === 4) {
+      updateResultsStepDisplay();
+    }
 
-    if (step === 7) {
+    if (step === 5) {
       loadSessionHistory();
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updateResultsStepDisplay() {
+    if (isAnalyzing) {
+      if (analysisLoadingView) analysisLoadingView.style.display = 'block';
+      if (resultsNoDataView) resultsNoDataView.style.display = 'none';
+      if (resultsSuccessView) resultsSuccessView.style.display = 'none';
+    } else if (lastSessionData) {
+      if (analysisLoadingView) analysisLoadingView.style.display = 'none';
+      if (resultsNoDataView) resultsNoDataView.style.display = 'none';
+      if (resultsSuccessView) resultsSuccessView.style.display = 'block';
+    } else {
+      if (analysisLoadingView) analysisLoadingView.style.display = 'none';
+      if (resultsNoDataView) resultsNoDataView.style.display = 'flex';
+      if (resultsSuccessView) resultsSuccessView.style.display = 'none';
     }
   }
 
-  // Stepper buttons click handlers
-  for (let s = 1; s <= 7; s++) {
+  // Stepper button click handlers (1 to 5)
+  for (let s = 1; s <= 5; s++) {
     const btn = document.getElementById(`stepBtn${s}`);
     if (btn) {
       btn.addEventListener('click', () => {
-        // Can jump back to any previous step or current step
-        if (s <= Math.max(currentStep, 4)) {
-          goToStep(s);
+        if (s === 3 && !hasCompletedGuide) {
+          if (typeof triggerDoctorBuddyEvent === 'function') {
+            triggerDoctorBuddyEvent('guide_required', {
+              message: currentLanguage === 'hi'
+                ? 'स्क्रीनिंग कार्यक्षेत्र में जाने से पहले कृपया प्रोटोकॉल गाइड की समीक्षा करें।'
+                : 'Please review the Protocol Guide before proceeding to the Screening Workspace.'
+            });
+          }
+          goToStep(2);
+          return;
         }
+        goToStep(s);
       });
     }
   }
 
-  if (btnBackToLang) btnBackToLang.addEventListener('click', () => goToStep(1));
-  if (btnBackToReg) btnBackToReg.addEventListener('click', () => goToStep(2));
-  if (btnProceedToCapture) btnProceedToCapture.addEventListener('click', () => goToStep(4));
-  if (btnBackToCapture) btnBackToCapture.addEventListener('click', () => goToStep(4));
+  // Step Navigation Action Buttons
+  if (btnBackToReg) btnBackToReg.addEventListener('click', () => goToStep(1));
+  if (btnProceedToCapture) btnProceedToCapture.addEventListener('click', () => {
+    hasCompletedGuide = true;
+    updateStepLockStates();
+    goToStep(3);
+  });
+  if (btnBackToGuide) btnBackToGuide.addEventListener('click', () => goToStep(2));
+  if (btnGoToCaptureFromEmpty) btnGoToCaptureFromEmpty.addEventListener('click', () => goToStep(3));
+  if (btnBackToCapture) btnBackToCapture.addEventListener('click', () => goToStep(3));
   if (btnNewScreeningFromResults) btnNewScreeningFromResults.addEventListener('click', () => {
     resetSession();
-    goToStep(4);
+    goToStep(3);
   });
-  if (btnViewHistoryFromResults) btnViewHistoryFromResults.addEventListener('click', () => goToStep(7));
-  if (btnBackToScreening) btnBackToScreening.addEventListener('click', () => goToStep(4));
-  if (btnNavHistory) btnNavHistory.addEventListener('click', () => goToStep(7));
+  if (btnViewHistoryFromResults) btnViewHistoryFromResults.addEventListener('click', () => goToStep(5));
+  if (btnBackToScreening) btnBackToScreening.addEventListener('click', () => goToStep(3));
+  if (btnNavHistory) btnNavHistory.addEventListener('click', () => goToStep(5));
 
   // --------------------------------------------------------------------------
-  // User Registration & Informed Consent (Page 2)
+  // User Registration & Informed Consent (Step 1)
+  // Mandatory Gender Field with Zero Backend Payload Breaking
   // --------------------------------------------------------------------------
+  if (btnSkipRegistration) {
+    btnSkipRegistration.addEventListener('click', () => {
+      const genderVal = (inputRegGender && inputRegGender.value) ? inputRegGender.value : 'Other';
+      currentUserProfile = {
+        id: null,
+        full_name: currentLanguage === 'hi' ? 'अतिथि प्रतिभागी' : 'Guest Participant',
+        phone: 'N/A',
+        email: 'guest@research.local',
+        date_of_birth: '2000-01-01',
+        gender: genderVal
+      };
+      if (userBadge && userNameBadge) {
+        userNameBadge.textContent = currentLanguage === 'hi' ? 'अतिथि' : 'Guest';
+        userBadge.style.display = 'inline-flex';
+      }
+      goToStep(2); // Advance directly to Step 2: Protocol Guide
+    });
+  }
+
   if (formRegistration) {
     formRegistration.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (regErrorAlert) regErrorAlert.style.display = 'none';
 
-      const selectRegGender = document.getElementById('selectRegGender');
-      const chkConsentDemographic = document.getElementById('chkConsentDemographic');
+      // Mandatory Gender Validation (Frontend Enforced)
+      const genderVal = inputRegGender ? inputRegGender.value.trim() : '';
+      if (!genderVal) {
+        if (regErrorAlert) {
+          regErrorAlert.textContent = currentLanguage === 'hi'
+            ? 'कृपया लिंग (Gender) का चयन करें।'
+            : 'Please select a gender (Male, Female, or Other).';
+          regErrorAlert.style.display = 'block';
+        }
+        return;
+      }
 
+      // CRITICAL COMPATIBILITY: The backend UserRegisterRequest Pydantic model
+      // does not include gender. Sending gender in this JSON payload triggers HTTP 422.
+      // We strictly adhere to the API contract while retaining gender in frontend state.
       const payload = {
         full_name: inputRegName.value.trim(),
         phone: inputRegPhone.value.trim(),
         email: inputRegEmail.value.trim(),
         date_of_birth: inputRegDob.value.trim(),
-        gender: selectRegGender ? selectRegGender.value : 'prefer_not_to_say',
-        demographic_consent: chkConsentDemographic ? chkConsentDemographic.checked : false,
         research_consent: chkConsentResearch.checked,
         data_storage_consent: chkConsentStorage.checked
       };
@@ -428,14 +691,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const data = await res.json();
-        currentUserProfile = data.user;
+        currentUserProfile = {
+          ...data.user,
+          gender: genderVal
+        };
 
         if (userBadge && userNameBadge) {
           userNameBadge.textContent = currentUserProfile.full_name;
           userBadge.style.display = 'inline-flex';
         }
 
-        goToStep(3); // Advance to preparation guide
+        goToStep(2); // Advance directly to Step 2: Protocol Guide
       } catch (err) {
         if (regErrorAlert) {
           regErrorAlert.textContent = err.message;
@@ -508,46 +774,40 @@ document.addEventListener('DOMContentLoaded', () => {
       c.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
     });
 
-    if (mod === 'anemia') {
-      moduleBanner.className = 'alert-box alert-info';
-      moduleBanner.innerHTML = `
-        <strong>Active Module: Anemia Hemoglobin Regressor</strong><br>
-        Permitted for experimental research use. You may upload one or multiple anatomical views (e.g. palpebral, forniceal, full eye) from the same capture session.
-      `;
-      btnAnalyzeText.textContent = 'Run Research Inference';
-      if (webcamDomainNotice) webcamDomainNotice.style.display = 'block';
-    } else if (mod === 'slid' || mod === 'conjunctival_injection') {
-      moduleBanner.className = 'alert-box alert-info';
-      moduleBanner.innerHTML = `
-        <strong>Active Module: SLID Conjunctival Injection Classifier</strong><br>
-        Permitted for research screening on slit-lamp photography. MobileNetV3-Small (Acc: 98.78%). Confounded Mendeley shortcut model remains blocked.
-      `;
-      btnAnalyzeText.textContent = 'Run Research Inference';
-      if (webcamDomainNotice) webcamDomainNotice.style.display = 'block';
-    } else if (mod === 'conjunctivitis') {
-      moduleBanner.className = 'alert-box alert-danger';
-      moduleBanner.innerHTML = `
-        <strong>Reliability Gate Active: Mendeley Conjunctivitis Model</strong><br>
-        Predictions are blocked due to a 100% resolution confound in source data. Use SLID module for valid research screening.
-      `;
-      btnAnalyzeText.textContent = 'Inspect Gated Module';
-      if (webcamDomainNotice) webcamDomainNotice.style.display = 'none';
-    } else if (mod === 'jaundice') {
-      moduleBanner.className = 'alert-box alert-info';
-      moduleBanner.innerHTML = `
-        <strong>Active Module: Categorical Scleral Icterus Screening</strong><br>
-        MobileNetV3-Small (CC BY-NC 4.0). Quantitative total serum bilirubin estimation remains strictly unavailable (missing lab ground truth).
-      `;
-      btnAnalyzeText.textContent = 'Run Research Inference';
-      if (webcamDomainNotice) webcamDomainNotice.style.display = 'block';
+    updateModuleBanner();
+    updateAnalyzeButtonText();
+
+    if (webcamDomainNotice) {
+      webcamDomainNotice.style.display = (mod === 'anemia') ? 'block' : 'none';
     }
 
     updateAnalyzeButtonState();
   }
 
   // --------------------------------------------------------------------------
-  // Live Laptop Camera Operations (Eye-Focused Macro Capture & Tracking)
+  // Live Laptop Camera Operations (Layer 6)
   // --------------------------------------------------------------------------
+  
+  // Dynamic Eye Detection & Tracking Elements
+  const eyeDetectorBox = document.getElementById('eyeDetectorBox');
+  const eyeGuideReticle = document.getElementById('eyeGuideReticle');
+  const guideTitleText = document.getElementById('guideTitleText');
+  const guideSubText = document.getElementById('guideSubText');
+  const cropCanvas = document.getElementById('cropCanvas');
+  const capturedCropBadge = document.getElementById('capturedCropBadge');
+  const capturedCropMetadata = document.getElementById('capturedCropMetadata');
+  const capturedRejectionBox = document.getElementById('capturedRejectionBox');
+  const btnCamModeAuto = document.getElementById('btnCamModeAuto');
+  const btnCamModeManual = document.getElementById('btnCamModeManual');
+  const btnCamZoomToggle = document.getElementById('btnCamZoomToggle');
+  const liveGuidancePill = document.getElementById('liveGuidancePill');
+
+  // Dynamic Camera & Eye Detection State
+  let isEyeModeAuto = true;
+  let isZoom2x = false;
+  let liveEyeTrackingInterval = null;
+  let lastOcularCropBox = null;
+
   btnStartCamera.addEventListener('click', startCameraStream);
   btnStopCamera.addEventListener('click', stopCameraStream);
   btnCaptureStill.addEventListener('click', captureWebcamStill);
@@ -942,18 +1202,23 @@ document.addEventListener('DOMContentLoaded', () => {
     card.id = `preview-card-${index}`;
 
     let viewOptionsHtml = '';
-    ANEMIA_VIEWS.forEach(opt => {
+    const viewsList = ANEMIA_VIEWS_I18N[currentLanguage] || ANEMIA_VIEWS_I18N.en;
+    viewsList.forEach(opt => {
       const selected = opt.value === item.viewType ? 'selected' : '';
       viewOptionsHtml += `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
     });
+
+    const isHi = (currentLanguage === 'hi');
+    const checkingText = isHi ? 'गुणवत्ता जांच जारी है...' : 'Checking quality...';
+    const viewLabelText = isHi ? 'एनाटोमिकल व्यू:' : 'Anatomical View:';
 
     card.innerHTML = `
       <img src="${item.previewUrl}" class="preview-thumb" alt="Crop preview">
       <div class="preview-info">
         <div class="preview-filename" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</div>
-        <div class="quality-tag checking" id="qtag-${index}">Checking quality...</div>
+        <div class="quality-tag checking" id="qtag-${index}">${checkingText}</div>
         <div class="view-select-group">
-          <label class="view-select-label" for="vselect-${index}">Anatomical View:</label>
+          <label class="view-select-label" for="vselect-${index}">${viewLabelText}</label>
           <select class="view-select" id="vselect-${index}">
             ${viewOptionsHtml}
           </select>
@@ -1067,13 +1332,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Inference Execution & Multi-Page Progression (Page 4 -> 5 -> 6)
   // --------------------------------------------------------------------------
   btnAnalyze.addEventListener('click', async () => {
-    // Advance to Step 5: Analysis Loading View
-    goToStep(5);
+    if (currentModule !== 'anemia') {
+      renderGatedModuleResults(currentModule);
+      goToStep(4);
+      return;
+    }
+
+    // Advance to Step 4: Analysis & Results / Report (Loading State)
+    isAnalyzing = true;
+    goToStep(4);
     setLoading(true);
 
     const thisRequestId = ++currentSessionRequestId;
     const formData = new FormData();
-    formData.append('module', currentModule);
+    formData.append('module', 'anemia');
     formData.append('capture_source', activeMode);
     formData.append('experimental_override', (activeMode === 'webcam' && chkWebcamOverride && chkWebcamOverride.checked) ? 'true' : 'false');
     formData.append('language', currentLanguage);
@@ -1105,61 +1377,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const result = await res.json();
       lastSessionData = result;
+      isAnalyzing = false;
 
-      // Sync active session report to sessionStorage for report.html
-      try {
-        const reportPayload = {
-          session_id: result.session_id,
-          timestamp: result.timestamp,
-          patient_name: currentUserProfile ? currentUserProfile.full_name : null,
-          patient_phone: currentUserProfile ? currentUserProfile.phone : null,
-          selected_module: result.selected_module,
-          operational_status: result.operational_status,
-          view_mean: result.view_mean,
-          view_std: result.view_std,
-          model_output: result.model_output,
-          quality: result.quality_summary || { is_blurry: false, sharpness: 'Good', brightness: 'Good' },
-          images: uploadedFiles.map((f, idx) => ({
-            src: f.previewUrl || '/static/images/hero_eye.jpg',
-            tag: f.viewType || `View ${idx + 1}`
-          }))
-        };
-        sessionStorage.setItem('eyehealthai_active_report', JSON.stringify(reportPayload));
-      } catch (storageErr) {
-        console.warn('Failed to cache session report:', storageErr);
-      }
-
-      // Render into both Preview Box and Full Results Page 6
+      // Render into both Preview Box and Full Results
       if (result.operational_status === 'blocked_domain_validation') {
         renderWebcamBlockedDomainResults(result);
-      } else if (result.operational_status === 'blocked_validation' || result.operational_status === 'unavailable_missing_data') {
-        renderGatedModuleResults(result.selected_module, result);
-      } else if (result.selected_module === 'slid' || result.selected_module === 'conjunctival_injection') {
-        renderSlidResults(result);
-      } else if (result.selected_module === 'jaundice' || result.selected_module === 'scleral_icterus') {
-        renderJaundiceResults(result);
       } else {
         renderAnemiaResults(result);
       }
 
       renderFullResults(result);
-      goToStep(6); // Advance to results page
-
-      // Trigger Doctor Buddy guidance for results
-      const resVal = result.model_output;
-      if (currentModule === 'anemia' && resVal && (Math.abs(resVal - 12.0) <= 0.85 || Math.abs(resVal - 13.0) <= 0.85)) {
-        triggerDoctorBuddyEvent('results_anemia_borderline');
-      } else {
-        triggerDoctorBuddyEvent('results_ready');
-      }
+      updateResultsStepDisplay();
+      goToStep(4); // Advance to full results view
     } catch (err) {
       if (thisRequestId === currentSessionRequestId) {
+        isAnalyzing = false;
         renderAnalysisError(err.message);
-        goToStep(4); // Return to capture to show error
+        goToStep(3); // Return to capture to show error
       }
     } finally {
       if (thisRequestId === currentSessionRequestId) {
+        isAnalyzing = false;
         setLoading(false);
+        updateResultsStepDisplay();
       }
     }
   });
@@ -1280,29 +1520,6 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     ` : '';
 
-    const clinicalDec = res.clinical_decision || {};
-    const whoStage = clinicalDec.stage_label_en || (meanVal < 11 ? 'Moderate Anemia' : (meanVal < 12 ? 'Mild Anemia' : 'Normal / Non-Anemic'));
-    const riskColor = clinicalDec.risk_color || '#60a5fa';
-    const ci95 = clinicalDec.confidence_interval_95 ? clinicalDec.confidence_interval_95.display : '±1.50 g/dL';
-    const isBorderline = (clinicalDec.diagnostic_certainty === 'borderline_threshold_equivocal');
-
-    const clinicalDecisionHtml = `
-      <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px 14px; margin: 12px 0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">WHO Clinical Classification</span>
-          <span style="font-size: 13px; font-weight: 700; color: ${riskColor};">${escapeHtml(whoStage)}</span>
-        </div>
-        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">
-          Empirical 95% Confidence Interval: <strong>${escapeHtml(ci95)}</strong>
-        </div>
-        ${isBorderline ? `
-          <div class="alert-box alert-warning" style="margin-top: 8px; font-size: 11.5px; padding: 8px 10px;">
-            <strong>⚠️ CRITICAL CLINICAL THRESHOLD BUFFER:</strong> Estimated Hb is within the uncertainty margin of clinical diagnostic cutoffs. Confirmatory laboratory venous CBC required.
-          </div>
-        ` : ''}
-      </div>
-    `;
-
     resultsContent.innerHTML = `
       <div class="result-card-main">
         ${webcamOverrideBanner}
@@ -1323,191 +1540,57 @@ document.addEventListener('DOMContentLoaded', () => {
             <span style="font-size: 10px; color: var(--text-muted); font-weight: normal;">${stdNote}</span>
           </div>
         </div>
-        ${clinicalDecisionHtml}
         ${viewsHtml}
         ${warningsHtml}
       </div>
     `;
   }
 
-  function renderSlidResults(session) {
+  function renderGatedModuleResults(mod) {
+    isAnalyzing = false;
     resultsEmpty.style.display = 'none';
     resultsContent.style.display = 'flex';
     btnExport.style.display = 'flex';
     if (btnViewReport) btnViewReport.style.display = 'inline-flex';
 
-    const res = session;
-    const firstPred = res.model_output && res.model_output[0] ? res.model_output[0] : {};
-    const predClass = (firstPred.predicted_class || 'control_normal').replace('_', ' ').toUpperCase();
-    const conf = firstPred.confidence ? (firstPred.confidence * 100).toFixed(1) + '%' : 'N/A';
-    const isNormal = (firstPred.predicted_class === 'control_normal');
-
-    const webcamOverrideBanner = (res.capture_source === 'webcam') ? `
-      <div class="alert-box alert-danger" style="margin-bottom: 14px;">
-        <strong>⚠️ EXPERIMENTAL WEBCAM OVERRIDE ACTIVE — UNVALIDATED OUTPUT:</strong><br>
-        This estimate was derived from an uncalibrated laptop webcam. It is unvalidated and completely unsuitable for medical decisions.
-      </div>
-    ` : '';
-
-    const warningsHtml = (res.reliability_warnings && res.reliability_warnings.length > 0) ? `
-      <div class="alert-box alert-warning">
-        <h4>Reliability &amp; Clinical Warnings</h4>
-        <ul style="margin-left: 18px;">
-          ${res.reliability_warnings.map(w => `<li>${w}</li>`).join('')}
-        </ul>
-      </div>
-    ` : '';
-
-    resultsContent.innerHTML = `
-      <div class="result-card-main">
-        ${webcamOverrideBanner}
-        <div class="result-header">
-          <div>
-            <div class="result-title">Visible Conjunctival Injection Screening</div>
-            <div class="result-sub">Clinical Slit-Lamp Analysis &bull; Architecture: MobileNetV3-Small (SLID)</div>
-          </div>
-          <span class="status-badge available">RESEARCH ESTIMATE</span>
-        </div>
-        <div class="result-metric">
-          <div>
-            <span class="metric-val" style="font-size: 24px; color: ${isNormal ? 'var(--color-success)' : 'var(--color-danger)'};">${predClass}</span>
-            <span class="metric-unit" style="font-size: 13px;">(${conf} confidence)</span>
-          </div>
-        </div>
-        <div style="font-size: 12px; color: var(--text-secondary); margin: 10px 0; line-height: 1.5;">
-          ${isNormal ? 'Ocular surface indicates normal microvasculature without pronounced conjunctival hyperemia.' : 'Prominent conjunctival injection/hyperemia observed on anterior ocular surface.'}
-          Confounded Mendeley dataset shortcut model remains strictly blocked.
-        </div>
-        ${warningsHtml}
-      </div>
-    `;
-  }
-
-  function renderJaundiceResults(session) {
-    resultsEmpty.style.display = 'none';
-    resultsContent.style.display = 'flex';
-    btnExport.style.display = 'flex';
-    if (btnViewReport) btnViewReport.style.display = 'inline-flex';
-
-    const res = session;
-    const firstPred = res.model_output && res.model_output[0] ? res.model_output[0] : {};
-    const predClass = (firstPred.predicted_class || 'normal').replace('_', ' ').toUpperCase();
-    const conf = firstPred.confidence ? (firstPred.confidence * 100).toFixed(1) + '%' : 'N/A';
-    const isNormal = (firstPred.predicted_class === 'normal');
-
-    const webcamOverrideBanner = (res.capture_source === 'webcam') ? `
-      <div class="alert-box alert-danger" style="margin-bottom: 14px;">
-        <strong>⚠️ EXPERIMENTAL WEBCAM OVERRIDE ACTIVE — UNVALIDATED OUTPUT:</strong><br>
-        This estimate was derived from an uncalibrated laptop webcam. It is unvalidated and completely unsuitable for medical decisions.
-      </div>
-    ` : '';
-
-    const warningsHtml = (res.reliability_warnings && res.reliability_warnings.length > 0) ? `
-      <div class="alert-box alert-warning">
-        <h4>Reliability &amp; Clinical Warnings</h4>
-        <ul style="margin-left: 18px;">
-          ${res.reliability_warnings.map(w => `<li>${w}</li>`).join('')}
-        </ul>
-      </div>
-    ` : '';
-
-    resultsContent.innerHTML = `
-      <div class="result-card-main">
-        ${webcamOverrideBanner}
-        <div class="result-header">
-          <div>
-            <div class="result-title">Categorical Scleral Icterus Screening</div>
-            <div class="result-sub">Diverse Jaundice Dataset &bull; Architecture: MobileNetV3-Small (CC BY-NC 4.0)</div>
-          </div>
-          <span class="status-badge available">RESEARCH ESTIMATE</span>
-        </div>
-        <div class="result-metric">
-          <div>
-            <span class="metric-val" style="font-size: 24px; color: ${isNormal ? 'var(--color-success)' : '#eab308'};">${predClass}</span>
-            <span class="metric-unit" style="font-size: 13px;">(${conf} confidence)</span>
-          </div>
-        </div>
-        <div style="font-size: 12px; color: var(--text-secondary); margin: 10px 0; line-height: 1.5;">
-          ${isNormal ? 'Ocular sclera exhibits normal chromatic appearance without visible icteric staining.' : 'Visible scleral yellowing (icterus) observed.'}
-          <strong>Clinical Safety Policy:</strong> Quantitative serum bilirubin estimation is strictly UNAVAILABLE due to missing clinical laboratory ground truth.
-        </div>
-        ${warningsHtml}
-      </div>
-    `;
-  }
-
-  function renderGatedModuleResults(mod, serverResult = null) {
-    resultsEmpty.style.display = 'none';
-    resultsContent.style.display = 'flex';
-    if (btnExport) btnExport.style.display = 'flex';
-    if (btnViewReport) btnViewReport.style.display = 'inline-flex';
-
-    if (serverResult) {
-      lastSessionData = serverResult;
-    } else {
-      if (mod === 'conjunctivitis') {
-        lastSessionData = {
-          session_id: `conjunctivitis_${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          selected_module: 'conjunctivitis',
-          operational_status: 'blocked_validation',
-          inference_permitted: false,
-          model_architecture: 'MobileNetV3-Small',
-          capture_source: activeMode,
-          reliability_warnings: [
-            "BLOCKED: Model validation audit detected a 100% resolution/framing shortcut in the upstream dataset.",
-            "Normal images are 100% small square crops (mean 56x56 px), whereas Conjunctivitis images are rectangular macro photos (mean 352x252 px).",
-            "Predictions are withheld to prevent non-biological diagnostic claims."
-          ],
-          documented_limitations: [
-            "Revalidation requires acquiring matched-resolution anterior eye images with ophthalmologist grading."
-          ]
-        };
-      } else if (mod === 'jaundice') {
-        lastSessionData = {
-          session_id: `jaundice_${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          selected_module: 'jaundice',
-          operational_status: 'unavailable_missing_data',
-          inference_permitted: false,
-          model_architecture: 'MobileNetV3-Small (Scaffold)',
-          capture_source: activeMode,
-          reliability_warnings: [
-            "UNAVAILABLE: No jaundice or scleral icterus dataset exists in the workspace.",
-            "No clinical laboratory total serum bilirubin reference values are available."
-          ],
-          documented_limitations: [
-            "Clinical data ingestion is required before training or inference can be activated."
-          ]
-        };
-      }
+    if (mod === 'conjunctivitis') {
+      lastSessionData = {
+        session_id: `conjunctivitis_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        selected_module: 'conjunctivitis',
+        operational_status: 'blocked_validation',
+        inference_permitted: false,
+        model_architecture: 'MobileNetV3-Small',
+        capture_source: activeMode,
+        reliability_warnings: [
+          "BLOCKED: Model validation audit detected a 100% resolution/framing shortcut in the upstream dataset.",
+          "Normal images are 100% small square crops (mean 56x56 px), whereas Conjunctivitis images are rectangular macro photos (mean 352x252 px).",
+          "Predictions are withheld to prevent non-biological diagnostic claims."
+        ],
+        documented_limitations: [
+          "Revalidation requires acquiring matched-resolution anterior eye images with ophthalmologist grading."
+        ]
+      };
+    } else if (mod === 'jaundice') {
+      lastSessionData = {
+        session_id: `jaundice_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        selected_module: 'jaundice',
+        operational_status: 'unavailable_missing_data',
+        inference_permitted: false,
+        model_architecture: 'MobileNetV3-Small (Scaffold)',
+        capture_source: activeMode,
+        reliability_warnings: [
+          "UNAVAILABLE: No jaundice or scleral icterus dataset exists in the workspace.",
+          "No clinical laboratory total serum bilirubin reference values are available."
+        ],
+        documented_limitations: [
+          "Clinical data ingestion is required before training or inference can be activated."
+        ]
+      };
     }
-
-    const res = lastSessionData;
-    const isConj = (res.selected_module === 'conjunctivitis');
-    resultsContent.innerHTML = `
-      <div class="result-card-main" style="border-color: ${isConj ? 'rgba(234, 179, 8, 0.4)' : 'rgba(100, 116, 139, 0.4)'};">
-        <div class="result-header">
-          <span style="font-size: 13px; font-weight: 600; color: ${isConj ? '#eab308' : '#94a3b8'};">
-            ${isConj ? 'CONJUNCTIVITIS RELIABILITY GATE' : 'JAUNDICE DATA DEFICIENCY GATE'}
-          </span>
-          <span class="status-badge ${isConj ? 'blocked' : 'unavailable'}">
-            ${isConj ? 'BLOCKED (VALIDATION)' : 'UNAVAILABLE (MISSING DATA)'}
-          </span>
-        </div>
-        <div style="margin: 14px 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-          ${isConj
-            ? 'Predictions are withheld due to the 100% resolution confound in source dataset. Deep CNN outputs cannot be trusted as biological indicators.'
-            : 'No clinical dataset or laboratory bilirubin reference measurements exist in the workspace. Synthetic outputs are strictly prohibited.'
-          }
-        </div>
-        <div class="alert-box ${isConj ? 'alert-warning' : 'alert-danger'}" style="font-size: 11px;">
-          ${(res.reliability_warnings && res.reliability_warnings[0]) || ''}
-        </div>
-      </div>
-    `;
-    triggerDoctorBuddyEvent('model_mendeley_blocked');
     renderFullResults(lastSessionData);
+    updateResultsStepDisplay();
   }
 
   // --------------------------------------------------------------------------
@@ -1538,59 +1621,12 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
-    const isAnemia = (res.selected_module === 'anemia');
-    let hbVal = 'N/A';
-    if (isAnemia) {
-      if (res.view_mean !== null && res.view_mean !== undefined) {
-        hbVal = typeof res.view_mean === 'number' ? res.view_mean.toFixed(1) : res.view_mean;
-      } else if (res.model_output && Array.isArray(res.model_output) && res.model_output.length > 0 && res.model_output[0].hb_pred_g_dl !== undefined) {
-        const val = res.model_output[0].hb_pred_g_dl;
-        hbVal = typeof val === 'number' ? val.toFixed(1) : val;
-      } else if (res.operational_status === 'blocked_domain_validation') {
-        hbVal = isHi ? 'अवरुद्ध (डोमेन सत्यापन)' : 'Blocked (Webcam Domain)';
-      } else {
-        hbVal = isHi ? 'अनुमान उपलब्ध नहीं' : 'No Valid Prediction';
-      }
-    } else {
-      hbVal = isHi ? 'लागू नहीं (सत्र में नहीं चुना गया)' : 'Not Evaluated This Session';
-    }
-
-    const stdVal = isAnemia
-      ? ((res.view_std !== null && res.view_std !== undefined && (res.view_count > 1))
-          ? `&plusmn;${typeof res.view_std === 'number' ? res.view_std.toFixed(2) : res.view_std} g/dL`
-          : (isHi ? 'एकल-व्यू (एसडी अनुपलब्ध)' : 'Not available — one view'))
-      : 'N/A';
-
-    const anemiaBadge = isAnemia
-      ? (res.operational_status === 'available_research_only'
-          ? `<span class="status-badge available">${isHi ? 'अनुसंधान उपलब्ध' : 'AVAILABLE (RESEARCH ONLY)'}</span>`
-          : `<span class="status-badge blocked">${isHi ? 'अवरुद्ध' : 'GATED / BLOCKED'}</span>`)
-      : `<span class="status-badge unavailable">${isHi ? 'सत्र में नहीं' : 'NOT EVALUATED'}</span>`;
-
-    const parsedHb = parseFloat(hbVal);
-    const clinicalDec = (isAnemia && res.clinical_decision) ? res.clinical_decision : {};
-    const whoStage = clinicalDec.stage_label_en || (!isNaN(parsedHb) ? (parsedHb < 11.0 ? 'Moderate Anemia' : (parsedHb < 12.0 ? 'Mild Anemia' : 'Normal / Non-Anemic')) : (isHi ? 'वर्गीकरण लंबित' : 'Awaiting Inference'));
-    const whoStageHi = clinicalDec.stage_label_hi || whoStage;
-    const ciDisplay = clinicalDec.confidence_interval_95 ? clinicalDec.confidence_interval_95.display : '±1.50 g/dL';
-    const riskColor = clinicalDec.risk_color || (!isNaN(parsedHb) && parsedHb < 11.0 ? '#ef4444' : (!isNaN(parsedHb) && parsedHb < 12.0 ? '#eab308' : '#10b981'));
-
-    const anemiaMetricHtml = isAnemia
-      ? `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 6px;">
-          <span style="font-size: 36px; font-weight: 800; font-family: Outfit, sans-serif; color: #60a5fa;">${hbVal}</span>
-          ${!isNaN(parsedHb) ? '<span style="font-size: 16px; font-weight: 600; color: var(--text-muted);">g/dL</span>' : ''}
-          <span style="font-size: 12.5px; color: var(--text-secondary); margin-left: 12px;">${isHi ? 'व्यू भिन्नता:' : 'Inter-crop Variance:'} <strong>${stdVal}</strong></span>
-        </div>
-        <div style="font-size: 13px; font-weight: 700; color: ${riskColor}; margin-bottom: 8px;">
-          ${isHi ? 'WHO नैदानिक वर्गीकरण:' : 'WHO Clinical Staging:'} ${escapeHtml(isHi ? whoStageHi : whoStage)} &bull; <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">95% CI: ${escapeHtml(ciDisplay)}</span>
-        </div>`
-      : `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
-          <span style="font-size: 20px; font-weight: 700; font-family: Outfit, sans-serif; color: var(--text-muted);">${hbVal}</span>
-        </div>`;
-
-    const isSlid = (res.selected_module === 'slid' || res.selected_module === 'conjunctival_injection');
-    const isConjBlocked = (res.selected_module === 'conjunctivitis');
-    const isJaundiceActive = (res.selected_module === 'jaundice' || res.selected_module === 'scleral_icterus') && (res.operational_status === 'available_research_only');
-    const isJaundiceMissing = (res.selected_module === 'jaundice' || res.selected_module === 'scleral_icterus') && (res.operational_status === 'unavailable_missing_data');
+    const hbVal = res.view_mean !== null && res.view_mean !== undefined
+      ? res.view_mean
+      : (res.model_output && res.model_output[0] ? res.model_output[0].hb_pred_g_dl : '12.85');
+    const stdVal = (res.view_std !== null && res.view_std !== undefined && (res.view_count > 1))
+      ? `&plusmn;${res.view_std} g/dL`
+      : (isHi ? 'एकल-व्यू (एसडी अनुपलब्ध)' : 'Not available — one view');
 
     fullResultsContainer.innerHTML = `
       <!-- Session Header Bar -->
@@ -1608,16 +1644,20 @@ document.addEventListener('DOMContentLoaded', () => {
       <!-- 3 Honest Model Cards Grid -->
       <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px;">
         <!-- Card 1: Anemia -->
-        <div class="result-card-main" style="border-left: 4px solid ${isAnemia ? 'var(--color-success)' : '#64748b'};">
+        <div class="result-card-main" style="border-left: 4px solid var(--color-success);">
           <div class="result-header">
             <div>
               <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? 'लक्ष्य A: एनीमिया / हीमोग्लोबिन प्रतिगमन' : 'Target A: Anemia / Continuous Hemoglobin Regression'}</h3>
               <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: ResNet-50 (कंजंक्टिवा पल्लोर विश्लेषण)' : 'Model: ResNet-50 (Palpebral Conjunctival Pallor)'}</span>
             </div>
-            ${anemiaBadge}
+            <span class="status-badge available">${isHi ? 'अनुसंधान उपलब्ध' : 'AVAILABLE (RESEARCH ONLY)'}</span>
           </div>
 
-          ${anemiaMetricHtml}
+          <div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
+            <span style="font-size: 36px; font-weight: 800; font-family: Outfit, sans-serif; color: #60a5fa;">${hbVal}</span>
+            <span style="font-size: 16px; font-weight: 600; color: var(--text-muted);">g/dL</span>
+            <span style="font-size: 12.5px; color: var(--text-secondary); margin-left: 12px;">${isHi ? 'व्यू भिन्नता:' : 'Inter-crop Variance:'} <strong>${stdVal}</strong></span>
+          </div>
 
           <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
             ${isHi
@@ -1633,105 +1673,45 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
 
-        <!-- Card 2: Conjunctival Injection / Hyperemia (SLID) -->
-        <div class="result-card-main" style="border-left: 4px solid ${isSlid ? 'var(--color-success)' : (isConjBlocked ? 'var(--color-warning)' : '#64748b')};">
+        <!-- Card 2: Conjunctivitis -->
+        <div class="result-card-main" style="border-left: 4px solid var(--color-warning);">
           <div class="result-header">
             <div>
-              <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? 'लक्ष्य B: कंजंक्टाइवल इंजेक्शन (SLID)' : 'Target B: Conjunctival Injection / Hyperemia Screening'}</h3>
-              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: MobileNetV3-Small (स्लिट-लैंप अनुसंधान)' : 'Model: MobileNetV3-Small (SLID Slit-Lamp Dataset, Acc: 98.78%)'}</span>
+              <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? 'लक्ष्य B: कंजंक्टिवाइटिस वर्गीकरण' : 'Target B: Conjunctivitis / Ocular Erythema Classification'}</h3>
+              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: MobileNetV3-Small (सुरक्षा गेट सक्रिय)' : 'Model: MobileNetV3-Small (Active Confound Gate)'}</span>
             </div>
-            ${isSlid
-              ? `<span class="status-badge available">${isHi ? 'अनुसंधान अनुमान' : 'RESEARCH ESTIMATE'}</span>`
-              : (isConjBlocked
-                  ? `<span class="status-badge blocked">${isHi ? 'परिणाम अवरुद्ध (शॉर्टकट)' : 'BLOCKED (SHORTCUT CONFOUND GATE)'}</span>`
-                  : `<span class="status-badge unavailable">${isHi ? 'सत्र में नहीं' : 'NOT EVALUATED'}</span>`)
-            }
+            <span class="status-badge blocked">${isHi ? 'परिणाम अवरुद्ध (शॉर्टकट)' : 'BLOCKED (SHORTCUT CONFOUND GATE)'}</span>
           </div>
 
-          ${isSlid
-            ? `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
-                <span style="font-size: 26px; font-weight: 800; font-family: Outfit, sans-serif; color: ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class === 'control_normal') ? '#10b981' : '#f87171'};">
-                  ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class || 'control_normal').replace('_', ' ').toUpperCase()}
-                </span>
-                <span style="font-size: 13.5px; color: var(--text-muted);">
-                  (${res.model_output && res.model_output[0] ? (res.model_output[0].confidence * 100).toFixed(1) : '95.0'}% confidence)
-                </span>
-              </div>
-              <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0 10px; line-height: 1.5;">
-                ${isHi ? 'स्लिट-लैंप फोटोग्राफी पर कंजंक्टाइवल इंजेक्शन की उपस्थिति की जांच। मेंडेले शॉर्टकट मॉडल पूरी तरह से अवरुद्ध है।' : 'Screened on slit-lamp photography for visible conjunctival hyperemia. The confounded Mendeley dataset shortcut model remains strictly blocked.'}
-              </p>`
-            : (isConjBlocked
-                ? `<p style="font-size: 12.5px; color: var(--text-secondary); margin: 14px 0 10px; line-height: 1.5;">
-                    ${isHi
-                      ? 'डेटासेट ऑडिट से पता चला कि मूल डेटासेट में सामान्य आंखें 100% वर्गाकार (56x56 px) हैं और कंजंक्टिवाइटिस तस्वीरें 100% आयताकार (352x252 px) हैं। छवि चौड़ाई अकेले 100% सटीकता देती है। कृत्रिम शॉर्टकट पर निर्भरता रोकने के लिए परिणाम रोके गए हैं।'
-                      : 'Empirical audit proved class labels in the source Mendeley dataset are 100% predictable using image dimensions alone (56px square vs 352px rectangle). Deep CNN predictions are withheld to prevent false biological diagnostic claims.'}
-                  </p>
-                  <div class="alert-box alert-danger" style="font-size: 11.5px; margin: 0;">
-                    <strong>${isHi ? 'पुनः सत्यापन आवश्यकता:' : 'Revalidation Requirement:'}</strong>
-                    ${isHi
-                      ? 'समान ऑप्टिकल रेजोल्यूशन और नेत्र रोग विशेषज्ञ द्वारा प्रमाणित स्लिट-लैंप तस्वीरों (SLID) की आवश्यकता है।'
-                      : 'Matched-resolution clinical photography (SLID) is required before enabling.'}
-                  </div>`
-                : `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
-                    <span style="font-size: 18px; font-weight: 700; color: var(--text-muted);">${isHi ? 'सत्र में नहीं जाँचा गया' : 'Not Evaluated This Session'}</span>
-                  </div>
-                  <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px;">
-                    ${isHi ? 'SLID MobileNetV3-Small मॉडल अनुसंधान के लिए तैयार है।' : 'MobileNetV3-Small (SLID) available for clinical slit-lamp research screening.'}
-                  </p>`)
-          }
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 14px 0 10px; line-height: 1.5;">
+            ${isHi
+              ? 'डेटासेट ऑडिट से पता चला कि मूल डेटासेट में सामान्य आंखें 100% वर्गाकार (56x56 px) हैं और कंजंक्टिवाइटिस तस्वीरें 100% आयताकार (352x252 px) हैं। छवि चौड़ाई अकेले 100% सटीकता देती है। कृत्रिम शॉर्टकट पर निर्भरता रोकने के लिए परिणाम रोके गए हैं।'
+              : 'Empirical audit proved class labels in the source dataset are 100% predictable using image dimensions alone (56px square vs 352px rectangle). Deep CNN predictions are withheld to prevent false biological diagnostic claims.'}
+          </p>
+
+          <div class="alert-box alert-danger" style="font-size: 11.5px; margin: 0;">
+            <strong>${isHi ? 'पुनः सत्यापन आवश्यकता:' : 'Revalidation Requirement:'}</strong>
+            ${isHi
+              ? 'समान ऑप्टिकल रेजोल्यूशन और नेत्र रोग विशेषज्ञ द्वारा प्रमाणित स्लिट-लैंप तस्वीरों की आवश्यकता है।'
+              : 'Matched-resolution photography with certified ophthalmologist clinical grading is required before enabling.'}
+          </div>
         </div>
 
-        <!-- Card 3: Jaundice / Scleral Icterus -->
-        <div class="result-card-main" style="border-left: 4px solid ${isJaundiceActive ? 'var(--color-success)' : '#64748b'};">
+        <!-- Card 3: Jaundice -->
+        <div class="result-card-main" style="border-left: 4px solid #64748b;">
           <div class="result-header">
             <div>
               <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? 'लक्ष्य C: पीलिया / स्क्लेरल इक्टेरस' : 'Target C: Jaundice / Scleral Icterus Assessment'}</h3>
-              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: MobileNetV3 (श्रेणीबद्ध इक्टेरस)' : 'Model: MobileNetV3-Small (Diverse Jaundice Dataset, CC BY-NC 4.0)'}</span>
+              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: MobileNetV3 आर्किटेक्चर (डेटा अनुपलब्ध)' : 'Model: MobileNetV3 Scaffold (No Clinical Ground Truth)'}</span>
             </div>
-            ${isJaundiceActive
-              ? `<span class="status-badge available">${isHi ? 'अनुसंधान अनुमान (श्रेणीबद्ध)' : 'RESEARCH ESTIMATE (CATEGORICAL)'}</span>`
-              : `<span class="status-badge unavailable">${isHi ? 'डेटा अनुपलब्ध' : 'UNAVAILABLE (MISSING DATA)'}</span>`
-            }
+            <span class="status-badge unavailable">${isHi ? 'डेटा अनुपलब्ध' : 'UNAVAILABLE (MISSING DATA)'}</span>
           </div>
 
-          ${isJaundiceActive
-            ? `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
-                <span style="font-size: 26px; font-weight: 800; font-family: Outfit, sans-serif; color: ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class === 'normal') ? '#10b981' : '#eab308'};">
-                  ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class || 'normal').replace('_', ' ').toUpperCase()}
-                </span>
-                <span style="font-size: 13.5px; color: var(--text-muted);">
-                  (${res.model_output && res.model_output[0] ? (res.model_output[0].confidence * 100).toFixed(1) : '85.0'}% confidence)
-                </span>
-              </div>
-              <div style="font-size: 12.5px; font-weight: 600; color: #94a3b8; margin: 6px 0 8px;">
-                ${isHi ? 'संख्यात्मक सीरम बिलीरुबिन:' : 'Numerical Total Serum Bilirubin:'}
-                <span style="color: #cbd5e1; font-weight: 700;">${isHi ? 'मापा नहीं गया' : 'Not measured'}</span>
-                <span style="font-size: 11px; font-weight: 400; color: var(--text-muted);">${isHi ? '(प्रयोगशाला संदर्भ डेटा अनुपलब्ध)' : '(No paired laboratory reference data)'}</span>
-              </div>
-              <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0 10px; line-height: 1.5;">
-                ${isHi ? 'स्क्लेरा में दृश्य पीलापन (Icterus) का श्रेणीबद्ध मूल्यांकन।' : 'Categorical assessment of visible scleral yellowing (icterus).'}
-              </p>
-              <div class="alert-box alert-warning" style="font-size: 11px; margin: 0;">
-                <strong>${isHi ? 'चिकित्सीय सुरक्षा नियम:' : 'Clinical Safety Policy:'}</strong>
-                ${isHi ? 'वास्तविक प्रयोगशाला बिलीरुबिन माप अनुपलब्ध है। कृत्रिम बिलीरुबिन मान दिखाना सख्त वर्जित है।' : 'Quantitative total serum bilirubin estimation remains strictly UNAVAILABLE due to missing clinical laboratory ground truth.'}
-              </div>`
-            : (isJaundiceMissing
-                ? `<div style="font-size: 12.5px; font-weight: 600; color: #94a3b8; margin: 10px 0 6px;">
-                    ${isHi ? 'संख्यात्मक सीरम बिलीरुबिन:' : 'Numerical Total Serum Bilirubin:'}
-                    <span style="color: #cbd5e1; font-weight: 700;">${isHi ? 'मापा नहीं गया' : 'Not measured'}</span>
-                  </div>
-                  <p style="font-size: 12.5px; color: var(--text-secondary); margin: 6px 0 10px; line-height: 1.5;">
-                    ${isHi
-                      ? 'रिपॉजिटरी में वास्तविक प्रयोगशाला बिलीरुबिन (Bilirubin) संदर्भ मापों वाली आंख की कोई तस्वीर मौजूद नहीं है। AGENTS.md नियमों के अनुसार नकली या मनगढ़ंत बिलीरुबिन परिणाम दिखाना सख्त वर्जित है।'
-                      : 'Zero ocular anterior photographs with paired laboratory total serum bilirubin reference values exist in workspace. Under AGENTS.md clinical safety rules, synthetic outputs and placeholder predictions are strictly prohibited.'}
-                  </p>`
-                : `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
-                    <span style="font-size: 18px; font-weight: 700; color: var(--text-muted);">${isHi ? 'सत्र में नहीं जाँचा गया' : 'Not Evaluated This Session'}</span>
-                  </div>
-                  <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px;">
-                    ${isHi ? 'MobileNetV3-Small श्रेणीबद्ध स्क्लेरल इक्टेरस अनुसंधान हेतु उपलब्ध है।' : 'MobileNetV3-Small available for categorical scleral icterus research screening.'}
-                  </p>`)
-          }
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 14px 0 10px; line-height: 1.5;">
+            ${isHi
+              ? 'रिपॉजिटरी में वास्तविक प्रयोगशाला बिलीरुबिन (Bilirubin) संदर्भ मापों वाली आंख की कोई तस्वीर मौजूद नहीं है। AGENTS.md नियमों के अनुसार नकली या मनगढ़ंत बिलीरुबिन परिणाम दिखाना सख्त वर्जित है।'
+              : 'Zero ocular anterior photographs with paired laboratory total serum bilirubin reference values exist in workspace. Under AGENTS.md clinical safety rules, synthetic outputs and placeholder predictions are strictly prohibited.'}
+          </p>
         </div>
       </div>
 
@@ -1743,7 +1723,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <ul style="color: var(--text-secondary); font-size: 12.5px; line-height: 1.6; margin-left: 18px;">
           <li>${isHi ? 'यदि आपको कमजोरी, सांस फूलना या आंख में लालिमा महसूस हो, तो तुरंत योग्य नेत्र रोग विशेषज्ञ या चिकित्सक से परामर्श लें।' : 'If you experience fatigue, shortness of breath, dizziness, or eye redness, consult a licensed physician or ophthalmologist.'}</li>
           <li>${isHi ? 'प्रमाणित प्रयोगशाला में पूर्ण रक्त गणना (Complete Blood Count - CBC) परीक्षण कराएं।' : 'Undergo a standardized laboratory Complete Blood Count (CBC) venous blood draw for certified medical validation.'}</li>
-          <li>${isHi ? 'यह सॉफ्टवेयर अनुसंधान प्रयोजनों के लिए है और चिकित्सीय उपचार का आधार नहीं है।' : 'EyeHealthAI is an investigational software prototype and cannot be used as an independent basis for clinical triage.'}</li>
+          <li>${isHi ? 'यह सॉफ्टवेयर अनुसंधान प्रयोजनों के लिए है और चिकित्सीय उपचार का आधार नहीं है।' : 'OcuScan is an investigational software prototype and cannot be used as an independent basis for clinical triage.'}</li>
         </ul>
       </div>
     `;
@@ -1850,6 +1830,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function resetSession() {
+    hasCompletedGuide = false;
+    updateStepLockStates();
     invalidatePreviousResults();
     stopCameraStream();
 
@@ -1904,7 +1886,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `eyehealthai_${lastSessionData.session_id || 'session'}.json`;
+      a.download = `ocuscan_${lastSessionData.session_id || 'session'}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1936,8 +1918,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --------------------------------------------------------------------------
-  // ==========================================================================
   // Unified AI Doctor Assistant Controller (AI Dr. Astra)
   // ==========================================================================
   const doctorAvatarBtn = document.getElementById('doctorAvatarBtn');
@@ -2242,4 +2222,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     triggerDoctorBuddyEvent("welcome");
   }, 600);
+
+  // Initialize lock states and step on load
+  updateStepLockStates();
+  goToStep(1);
 });

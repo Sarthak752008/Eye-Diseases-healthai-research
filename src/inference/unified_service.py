@@ -15,17 +15,29 @@ import os
 import sys
 from typing import List, Dict, Any, Optional, Union
 import numpy as np
-import torch
-from torchvision import transforms
 from PIL import Image
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if WORKSPACE_ROOT not in sys.path:
     sys.path.insert(0, WORKSPACE_ROOT)
 
-from src.models.anemia_model import load_anemia_checkpoint, AnemiaRegressor
-from src.models.conjunctivitis_model import load_conjunctivitis_checkpoint, ConjunctivitisClassifier
-from src.models.jaundice_model import load_jaundice_checkpoint, JaundiceClassifier
+try:
+    import torch
+    from torchvision import transforms
+    from src.models.anemia_model import load_anemia_checkpoint, AnemiaRegressor
+    from src.models.conjunctivitis_model import load_conjunctivitis_checkpoint, ConjunctivitisClassifier
+    from src.models.jaundice_model import load_jaundice_checkpoint, JaundiceClassifier
+    TORCH_AVAILABLE = True
+except (ImportError, Exception):
+    torch = None
+    transforms = None
+    load_anemia_checkpoint = None
+    AnemiaRegressor = Any  # type: ignore
+    load_conjunctivitis_checkpoint = None
+    ConjunctivitisClassifier = Any  # type: ignore
+    load_jaundice_checkpoint = None
+    JaundiceClassifier = Any  # type: ignore
+    TORCH_AVAILABLE = False
 from src.preprocessing.image_quality import (
     safe_load_image,
     calculate_image_quality,
@@ -113,13 +125,20 @@ class EyeHealthInferenceService:
         self._anemia_model: Optional[AnemiaRegressor] = None
         self._slid_model: Optional[ConjunctivitisClassifier] = None
         self._jaundice_model: Optional[JaundiceClassifier] = None
-        self._transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
+        if TORCH_AVAILABLE and transforms is not None:
+            self._transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])
+        else:
+            self._transform = None
 
     def _get_anemia_model(self) -> AnemiaRegressor:
         """Lazy single-instance loading of the Anemia model."""
+        if not TORCH_AVAILABLE:
+            raise RuntimeError(
+                "PyTorch runtime is not installed in the environment. Deep learning forward inference is unavailable."
+            )
         if self._anemia_model is None:
             if not os.path.exists(self.anemia_checkpoint_path):
                 raise FileNotFoundError(
@@ -133,6 +152,10 @@ class EyeHealthInferenceService:
 
     def _get_slid_model(self) -> ConjunctivitisClassifier:
         """Lazy single-instance loading of the SLID Conjunctival Injection model."""
+        if not TORCH_AVAILABLE:
+            raise RuntimeError(
+                "PyTorch runtime is not installed in the environment. Deep learning forward inference is unavailable."
+            )
         if self._slid_model is None:
             path = self.slid_checkpoint_path
             if not os.path.exists(path):
@@ -147,6 +170,10 @@ class EyeHealthInferenceService:
 
     def _get_jaundice_model(self) -> JaundiceClassifier:
         """Lazy single-instance loading of the Jaundice Scleral Icterus model."""
+        if not TORCH_AVAILABLE:
+            raise RuntimeError(
+                "PyTorch runtime is not installed in the environment. Deep learning forward inference is unavailable."
+            )
         if self._jaundice_model is None:
             if not os.path.exists(self.jaundice_checkpoint_path):
                 raise FileNotFoundError(f"Jaundice checkpoint not found at: {self.jaundice_checkpoint_path}")
