@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EyeHealthAI — Ocular Health Screening Report</title>
+  <title>OcuScan — Ocular Health Screening Report</title>
   <meta name="description" content="AI-Powered Ocular Screening Report & Ocular Health Scorecard">
   
   <!-- Modern Google Fonts -->
@@ -543,7 +543,7 @@
       Dashboard
     </a>
     <div style="font-size: 13px; font-weight: 600; color: #475569;">
-      EyeHealthAI Clinical Screening Report Preview
+      OcuScan Clinical Screening Report Preview
     </div>
     <button class="btn-action btn-print" onclick="window.print()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -846,8 +846,8 @@
     <!-- Bottom Contact Bar -->
     <div class="bottom-info-bar">
       <span>📞 +91 90194 88301</span>
-      <span>✉️ research@eyehealthai.org</span>
-      <span>🌐 www.eyehealthai-research.org</span>
+      <span>✉️ research@ocuscan.org</span>
+      <span>🌐 www.ocuscan-healthai.org</span>
       <span>📍 HealthAI Research Prototype, India</span>
     </div>
 
@@ -856,7 +856,7 @@
   <script>
     // Hydrate Report from sessionStorage or query parameters
     document.addEventListener('DOMContentLoaded', () => {
-      const rawData = sessionStorage.getItem('eyehealthai_active_report');
+      const rawData = sessionStorage.getItem('ocuscan_active_report') || sessionStorage.getItem('eyehealthai_active_report');
       if (!rawData) return;
 
       try {
