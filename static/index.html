@@ -868,6 +868,57 @@
     </div>
   </div>
 
+  <!-- ================================================================
+       AI Doctor Buddy Floating Mascot & Voice Assistant (Dr. Netra)
+       ================================================================ -->
+  <aside class="doctor-buddy-container" id="doctorBuddyContainer" aria-label="AI Doctor Buddy Guide">
+    <!-- Doctor Avatar Floating Button -->
+    <button class="doctor-buddy-avatar-btn idle" id="doctorAvatarBtn" type="button" title="Dr. Netra — AI Eye Health Guide" aria-label="Toggle Dr. Netra Voice Guide">
+      <img id="doctorAvatarImg" class="doctor-avatar-img" src="/static/images/doctor_avatar_default.png" alt="Dr. Netra Mascot">
+      <span class="doctor-status-badge" id="doctorStatusBadge" title="Ready to guide"></span>
+    </button>
+
+    <!-- Context-Aware Speech Bubble -->
+    <div class="doctor-speech-bubble" id="doctorSpeechBubble" role="status" aria-live="polite">
+      <div class="doctor-bubble-header">
+        <span class="doctor-name-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+          Dr. Netra &bull; <span style="font-size: 10px; font-weight: normal; color: #94a3b8;">AI Eye Guide</span>
+        </span>
+        <div class="doctor-voice-controls">
+          <button id="btnDocReplay" class="btn-doc-ctrl" type="button" title="Replay Voice (आवाज़ दोहराएं)">
+            🔊
+          </button>
+          <button id="btnDocMute" class="btn-doc-ctrl" type="button" title="Mute/Unmute Voice (म्यूट करें)">
+            🔇
+          </button>
+          <button id="btnDocCloseBubble" class="btn-doc-ctrl" type="button" title="Dismiss" style="font-size: 13px;">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Guidance Text -->
+      <p class="doctor-message-text" id="doctorMessageText">
+        Hello! I'm Dr. Netra, your AI Eye Health Guide. Let's begin by selecting your preferred language.
+      </p>
+
+      <!-- Suggested Next Action -->
+      <div class="doctor-next-step-pill" id="doctorNextStepPill">
+        <span>👉</span>
+        <span id="doctorNextStepText">Select English or Hindi to continue.</span>
+      </div>
+
+      <!-- Quick Ask Input for Doctor Buddy -->
+      <form class="doctor-quick-ask" id="doctorQuickAskForm">
+        <input type="text" id="doctorAskInput" class="doctor-ask-input" placeholder="Ask Dr. Netra (e.g., lighting, positioning)…" maxlength="200">
+        <button type="submit" class="doctor-ask-btn" id="doctorAskBtn">Ask</button>
+      </form>
+    </div>
+  </aside>
+
   <script src="/static/js/dashboard.js"></script>
 </body>
 </html>

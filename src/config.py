@@ -63,4 +63,7 @@ class Settings:
     # Compute Device
     DEVICE: str = os.getenv("DEVICE", "cpu")
 
+    # Gemini LLM Assistant Configuration
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
 settings = Settings()

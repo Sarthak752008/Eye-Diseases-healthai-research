@@ -268,6 +268,8 @@ async def chat(
 
     # Step 4: Build conversation contents for Gemini
     try:
+        from src.config import settings
+        target_model = getattr(settings, "GEMINI_MODEL", "gemini-2.0-flash")
         contents = []
 
         # Add conversation history if provided
@@ -289,7 +291,7 @@ async def chat(
         })
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model=target_model,
             contents=contents,
             config={
                 "system_instruction": _SYSTEM_INSTRUCTION,

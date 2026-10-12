@@ -918,6 +918,54 @@ async def research_copilot_chat(request: ChatRequest):
     return result
 
 
+# ---------------------------------------------------------------------------
+# AI Doctor Buddy Mascot Endpoints
+# ---------------------------------------------------------------------------
+
+class DoctorBuddyEventPayload(BaseModel):
+    """Payload for notifying Doctor Buddy of UI and camera workflow events."""
+    event_code: str = Field(..., max_length=64, description="Application event code")
+    language: str = Field("en", max_length=5, description="'en' or 'hi'")
+    context_note: Optional[str] = Field(None, max_length=256, description="Non-PII context tag")
+
+
+class DoctorBuddyAskPayload(BaseModel):
+    """Payload for user queries to Doctor Buddy."""
+    question: str = Field(..., min_length=1, max_length=500, description="User question")
+    language: str = Field("en", max_length=5, description="'en' or 'hi'")
+    current_step: int = Field(1, ge=1, le=7, description="Current wizard step index")
+
+
+@app.post("/api/doctor-buddy/event")
+async def doctor_buddy_event_endpoint(payload: DoctorBuddyEventPayload):
+    """
+    Returns context-aware, deterministic guidance for camera, quality, and navigation events.
+    Guarantees clinical consistency and instant response time.
+    """
+    from src.inference.doctor_buddy import get_doctor_buddy_guidance
+    guidance = get_doctor_buddy_guidance(
+        event_code=payload.event_code,
+        language=payload.language,
+        context_note=payload.context_note
+    )
+    return guidance
+
+
+@app.post("/api/doctor-buddy/ask")
+async def doctor_buddy_ask_endpoint(payload: DoctorBuddyAskPayload):
+    """
+    Processes user questions through safe Gemini enrichment with deterministic fallback.
+    PII sanitization and medical diagnostic advice blocking strictly enforced.
+    """
+    from src.inference.doctor_buddy import ask_doctor_buddy_question
+    response = await ask_doctor_buddy_question(
+        question=payload.question,
+        language=payload.language,
+        current_step=payload.current_step
+    )
+    return response
+
+
 if __name__ == "__main__":
     import uvicorn
     print("\n=======================================================")

@@ -744,15 +744,21 @@ document.addEventListener('DOMContentLoaded', () => {
       if (q.is_blurry) {
         isRejected = true;
         rejectMessage = '⚠️ Image unclear — capture again. Hold camera steady to reduce motion blur.';
+        triggerDoctorBuddyEvent('quality_blurry');
       } else if (q.is_too_dark) {
         isRejected = true;
         rejectMessage = '⚠️ Image unclear — capture again. Improve room lighting or face diffuse light source.';
+        triggerDoctorBuddyEvent('quality_dark');
       } else if (q.is_too_bright) {
         isRejected = true;
         rejectMessage = '⚠️ Image unclear — capture again. Reduce direct reflections or glare on eye.';
+        triggerDoctorBuddyEvent('quality_bright');
       } else if (isEyeModeAuto && !ocDet.eye_detected) {
         isRejected = true;
         rejectMessage = `⚠️ No eye detected — capture again. ${ocDet.guidance || 'Move closer and bring one eye into the frame.'}`;
+        triggerDoctorBuddyEvent('positioning_too_far');
+      } else {
+        triggerDoctorBuddyEvent('quality_passed');
       }
 
       if (isRejected) {
@@ -1115,6 +1121,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       renderFullResults(result);
       goToStep(6); // Advance to results page
+
+      // Trigger Doctor Buddy guidance for results
+      const resVal = result.model_output;
+      if (currentModule === 'anemia' && resVal && (Math.abs(resVal - 12.0) <= 0.85 || Math.abs(resVal - 13.0) <= 0.85)) {
+        triggerDoctorBuddyEvent('results_anemia_borderline');
+      } else {
+        triggerDoctorBuddyEvent('results_ready');
+      }
     } catch (err) {
       if (thisRequestId === currentSessionRequestId) {
         renderAnalysisError(err.message);
@@ -1469,6 +1483,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
     `;
+    triggerDoctorBuddyEvent('model_mendeley_blocked');
     renderFullResults(lastSessionData);
   }
 
@@ -2076,4 +2091,224 @@ document.addEventListener('DOMContentLoaded', () => {
       if (copilotFab) copilotFab.classList.remove('open');
     }
   });
+
+  // ==========================================================================
+  // AI Doctor Buddy Mascot & Voice Assistant Controller (Dr. Netra)
+  // ==========================================================================
+  const doctorAvatarBtn = document.getElementById('doctorAvatarBtn');
+  const doctorAvatarImg = document.getElementById('doctorAvatarImg');
+  const doctorSpeechBubble = document.getElementById('doctorSpeechBubble');
+  const doctorMessageText = document.getElementById('doctorMessageText');
+  const doctorNextStepText = document.getElementById('doctorNextStepText');
+  const btnDocReplay = document.getElementById('btnDocReplay');
+  const btnDocMute = document.getElementById('btnDocMute');
+  const btnDocCloseBubble = document.getElementById('btnDocCloseBubble');
+  const doctorQuickAskForm = document.getElementById('doctorQuickAskForm');
+  const doctorAskInput = document.getElementById('doctorAskInput');
+
+  let isDocVoiceMuted = false;
+  let lastSpokenText = "";
+  let doctorExpression = "default"; // 'default', 'speaking', 'alert', 'happy'
+  let currentUtterance = null;
+
+  const AVATAR_EXPRESSION_MAP = {
+    default: '/static/images/doctor_avatar_default.png',
+    speaking: '/static/images/doctor_avatar_speaking.png',
+    alert: '/static/images/doctor_avatar_alert.png',
+    happy: '/static/images/doctor_avatar_happy.png'
+  };
+
+  function setDoctorExpression(expr) {
+    doctorExpression = expr;
+    const src = AVATAR_EXPRESSION_MAP[expr] || AVATAR_EXPRESSION_MAP.default;
+    if (doctorAvatarImg) doctorAvatarImg.src = src;
+    if (doctorAvatarBtn) {
+      if (expr === 'speaking') {
+        doctorAvatarBtn.classList.add('speaking');
+        doctorAvatarBtn.classList.remove('idle');
+      } else {
+        doctorAvatarBtn.classList.remove('speaking');
+        doctorAvatarBtn.classList.add('idle');
+      }
+    }
+  }
+
+  function speakDoctorVoice(text) {
+    if (!text || isDocVoiceMuted || !('speechSynthesis' in window)) return;
+
+    try {
+      window.speechSynthesis.cancel(); // Stop prior speech
+      const utter = new SpeechSynthesisUtterance(text);
+      currentUtterance = utter;
+
+      // Select voice: Hindi or English
+      const voices = window.speechSynthesis.getVoices();
+      if (currentLanguage === 'hi') {
+        const hiVoice = voices.find(v => v.lang.startsWith('hi') || v.name.toLowerCase().includes('hindi'));
+        if (hiVoice) utter.voice = hiVoice;
+        utter.lang = 'hi-IN';
+      } else {
+        const enVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Female')));
+        if (enVoice) utter.voice = enVoice;
+        utter.lang = 'en-US';
+      }
+
+      utter.rate = 1.0;
+      utter.pitch = 1.05;
+
+      utter.onstart = () => {
+        setDoctorExpression('speaking');
+      };
+
+      utter.onend = () => {
+        setDoctorExpression('default');
+        currentUtterance = null;
+      };
+
+      utter.onerror = () => {
+        setDoctorExpression('default');
+        currentUtterance = null;
+      };
+
+      window.speechSynthesis.speak(utter);
+    } catch (e) {
+      console.warn("SpeechSynthesis error:", e);
+      setDoctorExpression('default');
+    }
+  }
+
+  async function triggerDoctorBuddyEvent(eventCode, contextNote = null) {
+    try {
+      const res = await fetch('/api/doctor-buddy/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_code: eventCode,
+          language: currentLanguage,
+          context_note: contextNote
+        })
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (doctorMessageText) doctorMessageText.textContent = data.message;
+      if (doctorNextStepText) doctorNextStepText.textContent = data.suggested_next_step;
+      if (doctorSpeechBubble) doctorSpeechBubble.style.display = 'flex';
+
+      lastSpokenText = data.speak_text || data.message;
+      setDoctorExpression(data.expression || 'default');
+      speakDoctorVoice(lastSpokenText);
+    } catch (err) {
+      console.warn("Doctor buddy event error:", err);
+    }
+  }
+
+  // Voice Controls
+  if (btnDocReplay) {
+    btnDocReplay.addEventListener('click', () => {
+      if (lastSpokenText) speakDoctorVoice(lastSpokenText);
+    });
+  }
+
+  if (btnDocMute) {
+    btnDocMute.addEventListener('click', () => {
+      isDocVoiceMuted = !isDocVoiceMuted;
+      btnDocMute.classList.toggle('active', isDocVoiceMuted);
+      btnDocMute.textContent = isDocVoiceMuted ? '🔇' : '🔊';
+      if (isDocVoiceMuted && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        setDoctorExpression('default');
+      }
+    });
+  }
+
+  if (btnDocCloseBubble) {
+    btnDocCloseBubble.addEventListener('click', () => {
+      if (doctorSpeechBubble) doctorSpeechBubble.style.display = 'none';
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      setDoctorExpression('default');
+    });
+  }
+
+  if (doctorAvatarBtn) {
+    doctorAvatarBtn.addEventListener('click', () => {
+      if (!doctorSpeechBubble) return;
+      const isVisible = doctorSpeechBubble.style.display !== 'none';
+      doctorSpeechBubble.style.display = isVisible ? 'none' : 'flex';
+      if (!isVisible && lastSpokenText) {
+        speakDoctorVoice(lastSpokenText);
+      }
+    });
+  }
+
+  // Quick Question Form
+  if (doctorQuickAskForm && doctorAskInput) {
+    doctorQuickAskForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = doctorAskInput.value.trim();
+      if (!q) return;
+
+      doctorAskInput.value = '';
+      if (doctorMessageText) doctorMessageText.innerHTML = '<em>Consulting Dr. Netra…</em>';
+      setDoctorExpression('speaking');
+
+      try {
+        const res = await fetch('/api/doctor-buddy/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question: q,
+            language: currentLanguage,
+            current_step: currentStep
+          })
+        });
+        if (!res.ok) throw new Error("Consultation request failed");
+        const data = await res.json();
+
+        if (doctorMessageText) doctorMessageText.textContent = data.message;
+        if (doctorNextStepText) doctorNextStepText.textContent = data.suggested_next_step;
+        lastSpokenText = data.speak_text || data.message;
+        setDoctorExpression(data.expression || 'default');
+        speakDoctorVoice(lastSpokenText);
+      } catch (err) {
+        if (doctorMessageText) doctorMessageText.textContent = "I couldn't process your question. Please proceed with the screening steps.";
+        setDoctorExpression('default');
+      }
+    });
+  }
+
+  // Wire doctor buddy into stepper and workflow
+  const originalGoToStep = goToStep;
+  goToStep = function(step) {
+    originalGoToStep(step);
+    if (step === 1) triggerDoctorBuddyEvent("welcome");
+    else if (step === 2) triggerDoctorBuddyEvent("registration");
+    else if (step === 3) triggerDoctorBuddyEvent("preparation");
+    else if (step === 4) {
+      if (activeMode === 'webcam') triggerDoctorBuddyEvent("camera_permission_prompt");
+    }
+  };
+
+  // Wire camera start / denial
+  const originalStartCamera = startCameraStream;
+  startCameraStream = async function() {
+    triggerDoctorBuddyEvent("camera_permission_prompt");
+    try {
+      await originalStartCamera();
+    } catch (err) {
+      const msg = (err && err.message) ? err.message.toLowerCase() : "";
+      if (msg.includes("denied") || msg.includes("not allowed")) {
+        triggerDoctorBuddyEvent("camera_permission_denied");
+      } else if (msg.includes("not found") || msg.includes("not readable")) {
+        triggerDoctorBuddyEvent("camera_not_found");
+      } else {
+        triggerDoctorBuddyEvent("camera_permission_denied");
+      }
+    }
+  };
+
+  // Trigger initial welcome greeting
+  setTimeout(() => {
+    triggerDoctorBuddyEvent("welcome");
+  }, 600);
 });

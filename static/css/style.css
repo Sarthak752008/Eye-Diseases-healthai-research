@@ -1835,4 +1835,227 @@ body {
   border-top: 1px solid var(--border-subtle);
 }
 
+/* ==========================================================================
+   AI Doctor Buddy Mascot & Voice Assistant Styles
+   ========================================================================== */
+
+.doctor-buddy-container {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 9500;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.doctor-buddy-avatar-btn {
+  pointer-events: auto;
+  position: relative;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 3px solid rgba(6, 182, 212, 0.6);
+  background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6), 0 0 20px rgba(6, 182, 212, 0.4);
+  cursor: pointer;
+  padding: 2px;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  flex-shrink: 0;
+}
+
+.doctor-buddy-avatar-btn:hover {
+  transform: scale(1.08) translateY(-4px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7), 0 0 28px rgba(6, 182, 212, 0.65);
+}
+
+.doctor-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  transition: opacity 0.2s ease;
+}
+
+/* Subtle idle bobbing animation */
+.doctor-buddy-avatar-btn.idle {
+  animation: doctorBob 3.5s ease-in-out infinite;
+}
+
+@keyframes doctorBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* Pulse ring when speaking */
+.doctor-buddy-avatar-btn.speaking {
+  border-color: #38bdf8;
+  animation: doctorSpeakingGlow 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes doctorSpeakingGlow {
+  from { box-shadow: 0 0 12px rgba(56, 189, 248, 0.4); }
+  to { box-shadow: 0 0 26px rgba(56, 189, 248, 0.9); }
+}
+
+.doctor-status-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #0f172a;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+/* Floating Speech Bubble */
+.doctor-speech-bubble {
+  pointer-events: auto;
+  max-width: 340px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 20px rgba(6, 182, 212, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: bubbleFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: relative;
+  margin-bottom: 8px;
+}
+
+@keyframes bubbleFadeIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.doctor-bubble-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 6px;
+}
+
+.doctor-name-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.2px;
+}
+
+.doctor-voice-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-doc-ctrl {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 11px;
+  transition: color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-doc-ctrl:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-doc-ctrl.active {
+  color: #38bdf8;
+}
+
+.doctor-message-text {
+  font-size: 12.5px;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+.doctor-next-step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #a5f3fc;
+  background: rgba(6, 182, 212, 0.12);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  margin-top: 2px;
+}
+
+/* Quick Question Input inside Doctor Bubble */
+.doctor-quick-ask {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 8px;
+}
+
+.doctor-ask-input {
+  flex: 1;
+  background: rgba(10, 15, 29, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 5px 9px;
+  font-size: 11.5px;
+  outline: none;
+  font-family: inherit;
+}
+
+.doctor-ask-input:focus {
+  border-color: #38bdf8;
+}
+
+.doctor-ask-btn {
+  background: linear-gradient(135deg, #0284c7, #06b6d4);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.doctor-ask-btn:hover {
+  opacity: 0.9;
+}
+
+/* Responsive Doctor Buddy on Mobile */
+@media (max-width: 640px) {
+  .doctor-buddy-container {
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    flex-direction: column-reverse;
+    align-items: flex-start;
+  }
+  .doctor-speech-bubble {
+    max-width: 100%;
+    width: calc(100vw - 24px);
+  }
+}
+
 
