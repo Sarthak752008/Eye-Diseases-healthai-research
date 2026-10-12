@@ -12,6 +12,18 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="/static/css/style.css">
+
+  <!-- Early theme initialization to prevent Flash of Unstyled Theme -->
+  <script>
+    (function() {
+      try {
+        var saved = localStorage.getItem('eyehealth_theme');
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = saved ? saved : (prefersDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch(e) {}
+    })();
+  </script>
 </head>
 <body>
   <div class="container">
@@ -30,13 +42,31 @@
         </div>
       </div>
       
-      <!-- Header Actions: Language Switcher, User Badge, History, Disclaimer -->
+      <!-- Header Actions: Language Switcher, Theme Toggle, User Badge, History, Disclaimer -->
       <div class="header-actions">
         <!-- Language Switcher -->
         <div class="lang-toggle" role="group" aria-label="Language Selector">
           <button id="langBtnEn" class="lang-btn active" type="button" title="Switch to English">English</button>
           <button id="langBtnHi" class="lang-btn" type="button" title="हिंदी में बदलें">हिंदी</button>
         </div>
+
+        <!-- Dark/Light Theme Toggle -->
+        <button id="themeToggleBtn" class="theme-toggle-btn" type="button" aria-label="Toggle dark/light theme" title="Toggle dark/light theme">
+          <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+          </svg>
+          <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2"/>
+            <path d="M12 20v2"/>
+            <path d="m4.93 4.93 1.41 1.41"/>
+            <path d="m17.66 17.66 1.41 1.41"/>
+            <path d="M2 12h2"/>
+            <path d="M20 12h2"/>
+            <path d="m6.34 17.66-1.41 1.41"/>
+            <path d="m19.07 4.93-1.41 1.41"/>
+          </svg>
+        </button>
 
         <!-- Registered User Badge -->
         <div id="userBadge" class="btn-secondary" style="display: none; padding: 5px 10px; font-size: 11.5px;">

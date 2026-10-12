@@ -174,12 +174,25 @@ document.addEventListener('DOMContentLoaded', () => {
   // --------------------------------------------------------------------------
   const langBtnEn = document.getElementById('langBtnEn');
   const langBtnHi = document.getElementById('langBtnHi');
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
   const userBadge = document.getElementById('userBadge');
   const userNameBadge = document.getElementById('userNameBadge');
   const btnNavHistory = document.getElementById('btnNavHistory');
   const btnResetSession = document.getElementById('btnResetSession');
   const btnNewSessionText = document.getElementById('btnNewSessionText');
   const btnNavHistoryText = document.getElementById('btnNavHistoryText');
+
+  // Theme Toggle Handler
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', nextTheme);
+      try {
+        localStorage.setItem('eyehealth_theme', nextTheme);
+      } catch (e) {}
+    });
+  }
 
   // Page 1 Elements
   const cardLangEn = document.getElementById('cardLangEn');
