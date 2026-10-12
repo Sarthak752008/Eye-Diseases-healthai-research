@@ -1243,6 +1243,29 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     ` : '';
 
+    const clinicalDec = res.clinical_decision || {};
+    const whoStage = clinicalDec.stage_label_en || (meanVal < 11 ? 'Moderate Anemia' : (meanVal < 12 ? 'Mild Anemia' : 'Normal / Non-Anemic'));
+    const riskColor = clinicalDec.risk_color || '#60a5fa';
+    const ci95 = clinicalDec.confidence_interval_95 ? clinicalDec.confidence_interval_95.display : '±1.50 g/dL';
+    const isBorderline = (clinicalDec.diagnostic_certainty === 'borderline_threshold_equivocal');
+
+    const clinicalDecisionHtml = `
+      <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px 14px; margin: 12px 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">WHO Clinical Classification</span>
+          <span style="font-size: 13px; font-weight: 700; color: ${riskColor};">${escapeHtml(whoStage)}</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">
+          Empirical 95% Confidence Interval: <strong>${escapeHtml(ci95)}</strong>
+        </div>
+        ${isBorderline ? `
+          <div class="alert-box alert-warning" style="margin-top: 8px; font-size: 11.5px; padding: 8px 10px;">
+            <strong>⚠️ CRITICAL CLINICAL THRESHOLD BUFFER:</strong> Estimated Hb is within the uncertainty margin of clinical diagnostic cutoffs. Confirmatory laboratory venous CBC required.
+          </div>
+        ` : ''}
+      </div>
+    `;
+
     resultsContent.innerHTML = `
       <div class="result-card-main">
         ${webcamOverrideBanner}
@@ -1263,6 +1286,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span style="font-size: 10px; color: var(--text-muted); font-weight: normal;">${stdNote}</span>
           </div>
         </div>
+        ${clinicalDecisionHtml}
         ${viewsHtml}
         ${warningsHtml}
       </div>
@@ -1492,11 +1516,20 @@ document.addEventListener('DOMContentLoaded', () => {
       ? `<span class="status-badge available">${isHi ? 'अनुसंधान उपलब्ध' : 'AVAILABLE (RESEARCH ONLY)'}</span>`
       : `<span class="status-badge unavailable">${isHi ? 'सत्र में नहीं' : 'NOT EVALUATED'}</span>`;
 
+    const clinicalDec = (isAnemia && res.clinical_decision) ? res.clinical_decision : {};
+    const whoStage = clinicalDec.stage_label_en || (typeof hbVal === 'number' ? (hbVal < 11 ? 'Moderate Anemia' : (hbVal < 12 ? 'Mild Anemia' : 'Normal / Non-Anemic')) : '');
+    const whoStageHi = clinicalDec.stage_label_hi || whoStage;
+    const ciDisplay = clinicalDec.confidence_interval_95 ? clinicalDec.confidence_interval_95.display : '±1.50 g/dL';
+    const riskColor = clinicalDec.risk_color || '#60a5fa';
+
     const anemiaMetricHtml = isAnemia
-      ? `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
+      ? `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 6px;">
           <span style="font-size: 36px; font-weight: 800; font-family: Outfit, sans-serif; color: #60a5fa;">${hbVal}</span>
           <span style="font-size: 16px; font-weight: 600; color: var(--text-muted);">g/dL</span>
           <span style="font-size: 12.5px; color: var(--text-secondary); margin-left: 12px;">${isHi ? 'व्यू भिन्नता:' : 'Inter-crop Variance:'} <strong>${stdVal}</strong></span>
+        </div>
+        <div style="font-size: 13px; font-weight: 700; color: ${riskColor}; margin-bottom: 8px;">
+          ${isHi ? 'WHO नैदानिक वर्गीकरण:' : 'WHO Clinical Staging:'} ${escapeHtml(isHi ? whoStageHi : whoStage)} &bull; <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">95% CI: ${escapeHtml(ciDisplay)}</span>
         </div>`
       : `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
           <span style="font-size: 20px; font-weight: 700; font-family: Outfit, sans-serif; color: var(--text-muted);">${hbVal}</span>

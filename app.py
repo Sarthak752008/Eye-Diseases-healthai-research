@@ -421,16 +421,69 @@ async def analyze_ocular_images(
     clean_module = module.strip().lower()
     clean_source = capture_source.strip().lower()
 
-    # 1. Mendeley Conjunctivitis (Strictly Blocked Reliability Gate)
+    # 1. Mendeley Conjunctivitis (Strictly Blocked Reliability Gate) & Remediation Route
     if clean_module in ('conjunctivitis', 'mendeley', 'red_eye'):
-        res = service.predict_conjunctivitis()
+        if not images or len(images) == 0:
+            res = service.predict_conjunctivitis()
+            export_payload = create_session_export(
+                module="conjunctivitis",
+                inference_result=res,
+                filenames=[],
+                capture_source=clean_source
+            )
+            _persist_db_session(export_payload, clean_module, clean_source, user_id, language, [], res.get("gate_reason"))
+            return export_payload
+
+        # Keep blocked for uncalibrated webcam capture
+        if clean_source == 'webcam':
+            res = service.predict_conjunctivitis(images=[])
+            export_payload = create_session_export(
+                module="conjunctivitis",
+                inference_result=res,
+                filenames=[f.filename for f in images],
+                capture_source=clean_source
+            )
+            _persist_db_session(export_payload, clean_module, clean_source, user_id, language, [], res.get("gate_reason"))
+            return export_payload
+
+        # For uploaded ocular images: route to verified SLID anterior ocular surface hyperemia classifier
+        pil_images = []
+        filenames = []
+        for idx, f in enumerate(images):
+            filenames.append(f.filename or f"image_{idx}")
+            content = await f.read()
+            validate_uploaded_image(f, content)
+            rgb_img = safe_decode_bytes(content)
+            if rgb_img is None:
+                raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({f.filename}). Corrupt file bytes.")
+            pil_images.append(rgb_img)
+
+        inference_res = service.predict_conjunctival_injection(
+            pil_images,
+            capture_source=clean_source,
+            experimental_override=experimental_override
+        )
+        if inference_res.get('status') == 'error':
+            raise HTTPException(status_code=400, detail=inference_res.get('error'))
+
+        inference_res['warnings'].append(
+            "REMEDIATED CLINICAL ROUTE: The legacy Mendeley dataset model is decommissioned due to resolution shortcut bias. Active screening is powered by the verified SLID Clinical Slit-Lamp Hyperemia Model (Acc: 98.78%)."
+        )
         export_payload = create_session_export(
-            module="conjunctivitis",
-            inference_result=res,
-            filenames=[f.filename for f in (images or [])],
+            module="slid",
+            inference_result=inference_res,
+            filenames=filenames,
             capture_source=clean_source
         )
-        _persist_db_session(export_payload, clean_module, clean_source, user_id, language, [], res.get("gate_reason"))
+        _persist_db_session(
+            export_payload,
+            "slid",
+            clean_source,
+            user_id,
+            language,
+            ["anterior_slit_lamp"] * len(filenames),
+            inference_res.get('status')
+        )
         return export_payload
 
     # 2. SLID Visible Conjunctival Injection (Active Research Classifier)
@@ -558,12 +611,23 @@ async def analyze_ocular_images(
                 detail=f"Mismatched counts: {len(pil_images)} images and {len(v_types)} view types."
             )
 
-    # Execute inference with camera-domain gate
+    # Execute inference with camera-domain gate & demographic WHO thresholding
+    user_gender = "prefer_not_to_say"
+    if user_id:
+        try:
+            with SessionLocal() as db:
+                u = get_user_by_id(db, user_id)
+                if u and u.gender:
+                    user_gender = u.gender
+        except Exception:
+            pass
+
     inference_res = service.predict_anemia(
         pil_images,
         view_types=v_types,
         capture_source=clean_source,
-        experimental_override=experimental_override
+        experimental_override=experimental_override,
+        gender=user_gender
     )
 
     if inference_res.get('status') == 'error':

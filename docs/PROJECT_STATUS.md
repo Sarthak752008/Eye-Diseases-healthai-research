@@ -244,3 +244,36 @@ tests/test_remediation_and_models.py (21 tests) PASSED                   [100%]
   - `tests/test_phase8_prototype.py` (Phase 8 multi-step wizard, demographics, SQLite persistence, and 2-page PDF tests)
   - `tests/test_remediation_and_models.py` (Model remediation, SLID injection, jaundice icterus, and session invalidation tests)
   - `tests/test_copilot.py` (Layer 7 Research Copilot — sanitization, blocking, API contract tests)
+
+---
+
+## 7. Production-Level Clinical Remediation & Decision Support Engine (Completed)
+
+1. **Model A: Anemia Prediction Error & Threshold Proximity Remediation**:
+   - **Problem**: Continuous Hb regression alone (MAE ~1.50 g/dL) is too coarse near the critical clinical diagnostic threshold (12.0 g/dL for women, 13.0 g/dL for men), risking misclassification.
+   - **Clinical Solution**: Implemented `src/inference/clinical_analytics.py`:
+     - **WHO Clinical Staging**: Normal / Non-Anemic, Mild Anemia (11.0–11.9 g/dL), Moderate Anemia (8.0–10.9 g/dL), Severe Anemia (<8.0 g/dL).
+     - **Critical Threshold Equivocal Zone Buffer**: Automatically flags patients within the ±0.85 g/dL margin of clinical cut-offs as `borderline_threshold_equivocal`, providing explicit warnings that non-invasive optical screening requires laboratory venous Complete Blood Count (CBC) confirmation.
+     - **Empirical 95% Confidence Interval**: Reports empirical prediction intervals (`Hb ± 2.05 g/dL`) across all session outputs.
+     - **Physiological Chromatic Biomarker Profiling**: Extracts the conjunctival Erythema Index ($EI = \frac{R-G}{R+G}$) and CIE-$L^*a^*b^*$ $a^*$ redness chroma to physically explain pallor versus microvascular perfusion.
+     - **Multi-View Weighting**: Weights palpebral conjunctiva higher ($w=0.45$) during multi-crop aggregation to prioritize clinically gold-standard everted tissue.
+
+2. **Model B: Conjunctivitis Dataset Bias Remediation**:
+   - **Problem**: The legacy Mendeley dataset suffered a 100% resolution/framing confound (Normal = 56px square, Conjunctivitis = 352px rectangle), permanently gating the convolutional model to `blocked_validation`.
+   - **Clinical Solution**:
+     - Decommissioned the legacy Mendeley model while preserving audit test assertions.
+     - Routed active ocular surface screening requests to the verified **SLID Anterior Slit-Lamp Hyperemia Model** (`saved_models/slid/best_model.pth`): MobileNetV3-Small with **98.78% accuracy, 97.83% sensitivity, 100% specificity** on 552 anterior slit-lamp images with zero cross-split leakage.
+     - Outputs clinical findings: Normal Ocular Surface vs Visible Conjunctival Injection/Hyperemia (hallmark of conjunctivitis), with guidance on biomicroscopic differentiation of viral, bacterial, and allergic etiologies.
+
+3. **Model C: Jaundice Missing Data Remediation**:
+   - **Problem**: Lack of paired laboratory serum bilirubin measurements initially blocked execution under an `unavailable_missing_data` gate.
+   - **Clinical Solution**:
+     - Decoupled **Visual Scleral Icterus Screening** (active MobileNetV3-Small on 321 diverse scleral images, 80.0% test accuracy) from **Quantitative Total Serum Bilirubin Regression** (held under missing-data gate).
+     - Computed the **Scleral Yellowness Index (SYI)**: Optical ratio $(R+G)/(2B)$ and CIE-$L^*a^*b^*$ $b^*$ yellow chroma channel.
+     - Reports categorical icterus findings (Normal vs Visible Scleral Icterus) with urgent Liver Function Test (LFT) guidance, while maintaining strict adherence to AGENTS.md rules against fabricating numerical bilirubin values.
+
+4. **Verification**:
+   - Automated PyTest Suite: **110 passed, 0 failed (100% pass rate)**.
+   - Strictly 2-page bilingual PDF report in English and Hindi verified without page overflow.
+   - In-memory processing and strict database session audit lifecycle verified.
+

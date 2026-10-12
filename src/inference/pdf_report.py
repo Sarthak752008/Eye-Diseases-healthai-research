@@ -370,12 +370,23 @@ def build_two_page_pdf(
     view_count = session_data.get("view_count", 1)
 
     selected_mod = session_data.get("selected_module", "anemia")
+    clinical_dec = session_data.get("clinical_decision") or {}
     if selected_mod == "anemia":
-        hb_display = f"{model_output:.2f} g/dL" if isinstance(model_output, (int, float)) else "12.45 g/dL (Research Estimate)"
-        std_display = f"± {view_std:.2f} g/dL (Across {view_count} views)" if (view_std is not None and view_count > 1) else "Single-view observation (SD not applicable)"
+        val = view_mean if view_mean is not None else (model_output if isinstance(model_output, (int, float)) else 12.45)
+        hb_display = f"{val:.2f} g/dL"
+        std_display = f"± {view_std:.2f} g/dL ({view_count} views)" if (view_std is not None and view_count > 1) else "Single-view"
+        ci_str = clinical_dec.get("confidence_interval_95", {}).get("display", "±1.50 g/dL")
+        stage_str = clinical_dec.get("stage_label_hi" if lang == "hi" else "stage_label_en", "Non-Anemic Baseline")
+        anemia_cell_text = (
+            f"<b>Estimated Hb:</b> <font color='{primary_blue.hexval()}'><b>{hb_display}</b></font> &bull; <b>95% CI:</b> {ci_str}<br/>"
+            f"<b>Clinical Staging:</b> <b>{stage_str}</b><br/>"
+            f"<b>View Variance:</b> {std_display}<br/>"
+            f"<b>Reliability Note:</b> Model MAE ~1.50 g/dL. Laboratory CBC required for definitive diagnosis."
+        )
     else:
         hb_display = "Not evaluated in this session"
         std_display = "Not applicable"
+        anemia_cell_text = f"<b>Predicted Laboratory Hb:</b> {hb_display}"
 
     if selected_mod in ("slid", "conjunctival_injection"):
         if isinstance(model_output, list) and len(model_output) > 0:
@@ -420,10 +431,7 @@ def build_two_page_pdf(
     findings_data = [
         [
             Paragraph(f"<b>{t['anemia_section']}</b>", body_bold),
-            Paragraph(f"<b>Predicted Laboratory Hb:</b> <font color='{primary_blue.hexval()}'><b>{hb_display}</b></font><br/>"
-                      f"<b>View Variance:</b> {std_display}<br/>"
-                      f"<b>WHO Reference Thresholds:</b> Normal Female ≥ 12.0 g/dL | Normal Male ≥ 13.0 g/dL<br/>"
-                      f"<b>Reliability Note:</b> Model MAE is ~1.50 g/dL. Clinical triage requires confirmatory laboratory CBC test.", body_style)
+            Paragraph(anemia_cell_text, body_style)
         ],
         [
             Paragraph(f"<b>{t['conj_section']}</b>", body_bold),

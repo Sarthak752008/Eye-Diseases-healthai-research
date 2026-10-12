@@ -62,6 +62,16 @@ def create_session_export(
             'disclaimer',
             "RESEARCH USE ONLY: Experimental system. Not for medical diagnosis or clinical use."
         ),
+        "clinical_decision": (
+            inference_result.get('prediction', [{}])[0].get('clinical_decision')
+            if (permitted and isinstance(inference_result.get('prediction'), list) and len(inference_result.get('prediction')) > 0 and isinstance(inference_result.get('prediction')[0], dict))
+            else None
+        ),
+        "chromatic_biomarkers": (
+            inference_result.get('prediction', [{}])[0].get('chromatic')
+            if (permitted and isinstance(inference_result.get('prediction'), list) and len(inference_result.get('prediction')) > 0 and isinstance(inference_result.get('prediction')[0], dict))
+            else None
+        ),
         "error": inference_result.get('error')
     }
     

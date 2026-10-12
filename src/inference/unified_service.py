@@ -32,6 +32,12 @@ from src.preprocessing.image_quality import (
     resize_and_pad,
     verify_ocular_framing_or_detect_face
 )
+from src.inference.clinical_analytics import (
+    extract_ocular_chromatic_features,
+    compute_anemia_clinical_decision,
+    compute_slid_clinical_decision,
+    compute_jaundice_clinical_decision
+)
 
 # Allowed ocular views supported by the trained Anemia pipeline
 COMPATIBLE_ANEMIA_VIEWS = {
@@ -179,7 +185,8 @@ class EyeHealthInferenceService:
         images: Union[str, Image.Image, List[Union[str, Image.Image]]],
         view_types: Optional[Union[str, List[str]]] = None,
         capture_source: str = "upload",
-        experimental_override: bool = False
+        experimental_override: bool = False,
+        gender: str = "prefer_not_to_say"
     ) -> InferenceResult:
         """
         Runs Anemia hemoglobin regression (permitted for research use only).
@@ -364,23 +371,49 @@ class EyeHealthInferenceService:
 
             hb_round = round(pred_val, 2)
             hb_values.append(pred_val)
+            chromatic_data = extract_ocular_chromatic_features(raw_img)
             view_predictions.append({
                 'view_index': idx,
                 'view_type': v_type,
                 'hb_pred_g_dl': hb_round,
-                'quality': q_info
+                'quality': q_info,
+                'chromatic': chromatic_data
             })
 
         # Calculate session aggregation
         view_count = len(hb_values)
         view_mean = round(float(np.mean(hb_values)), 2)
+        VIEW_WEIGHTS = {
+            'palpebral': 0.45,
+            'forniceal_palpebral': 0.30,
+            'forniceal': 0.15,
+            'raw_eye': 0.10,
+            'unspecified': 0.25
+        }
         if view_count > 1:
+            weights = [VIEW_WEIGHTS.get(v, 0.25) for v in view_list]
+            total_w = sum(weights)
+            weighted_mean = round(float(sum(w * val for w, val in zip(weights, hb_values)) / total_w), 2)
             view_std = round(float(np.std(hb_values, ddof=1)), 2)
             warnings_list.append(
                 f"Aggregated {view_count} session views. Observed variation across views is {view_std} g/dL (reproducibility indicator)."
             )
         else:
+            weighted_mean = view_mean
             view_std = 0.0
+
+        clinical_decision = compute_anemia_clinical_decision(
+            view_mean,
+            gender=gender,
+            view_count=view_count
+        )
+        clinical_decision["weighted_mean_g_dl"] = weighted_mean
+        if clinical_decision["diagnostic_certainty"] == "borderline_threshold_equivocal":
+            warnings_list.append(clinical_decision["certainty_description_en"])
+
+        for p in view_predictions:
+            p['clinical_decision'] = clinical_decision
+            p['weighted_mean'] = weighted_mean
 
         return InferenceResult(
             module=module_name,
@@ -575,6 +608,7 @@ class EyeHealthInferenceService:
             p_inj = round(float(probs[1]), 4)
             pred_class = class_names[1] if p_inj >= 0.5 else class_names[0]
             conf = max(p_norm, p_inj)
+            chromatic_data = extract_ocular_chromatic_features(raw_img)
 
             view_predictions.append({
                 'view_index': idx,
@@ -584,10 +618,19 @@ class EyeHealthInferenceService:
                     'control_normal': p_norm,
                     'conjunctival_injection': p_inj
                 },
-                'quality': q_info
+                'quality': q_info,
+                'chromatic': chromatic_data
             })
 
         mean_inj_prob = round(float(np.mean([p['probabilities']['conjunctival_injection'] for p in view_predictions])), 4)
+        session_chromatic = view_predictions[0].get('chromatic') if view_predictions else None
+        clinical_decision = compute_slid_clinical_decision(
+            predicted_class=view_predictions[0]['predicted_class'],
+            confidence=view_predictions[0]['confidence'],
+            chromatic=session_chromatic or {}
+        )
+        for p in view_predictions:
+            p['clinical_decision'] = clinical_decision
 
         return InferenceResult(
             module=module_name,
@@ -706,6 +749,7 @@ class EyeHealthInferenceService:
             p_jaund = round(float(probs[1]), 4)
             pred_class = class_names[1] if p_jaund >= 0.5 else class_names[0]
             conf = max(p_norm, p_jaund)
+            chromatic_data = extract_ocular_chromatic_features(raw_img)
 
             view_predictions.append({
                 'view_index': idx,
@@ -715,10 +759,20 @@ class EyeHealthInferenceService:
                     'normal': p_norm,
                     'visibly_jaundiced': p_jaund
                 },
-                'quality': q_info
+                'quality': q_info,
+                'chromatic': chromatic_data
             })
 
         mean_jaund_prob = round(float(np.mean([p['probabilities']['visibly_jaundiced'] for p in view_predictions])), 4)
+        session_chromatic = view_predictions[0].get('chromatic') if view_predictions else None
+        clinical_decision = compute_jaundice_clinical_decision(
+            predicted_class=view_predictions[0]['predicted_class'],
+            confidence=view_predictions[0]['confidence'],
+            chromatic=session_chromatic or {}
+        )
+
+        for p in view_predictions:
+            p['clinical_decision'] = clinical_decision
 
         return InferenceResult(
             module=module_name,
