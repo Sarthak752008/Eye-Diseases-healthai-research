@@ -15,9 +15,12 @@ import os
 import sys
 import io
 import json
+import logging
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from PIL import Image, ImageFile
+
+logger = logging.getLogger("eyehealthai.app")
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import FileResponse, Response, JSONResponse
@@ -577,10 +580,76 @@ async def analyze_ocular_images(
         )
         return export_payload
 
+    # 4. Unified Multi-Target Ocular Screening (Anemia + SLID + Jaundice in One Automatic Pass)
+    if clean_module in ('unified', 'all', 'multi', 'multi_target', 'unified_ocular_screening'):
+        if not images or len(images) == 0:
+            raise HTTPException(status_code=400, detail="No images provided for unified ocular screening.")
+
+        pil_images = []
+        filenames = []
+        for idx, f in enumerate(images):
+            filenames.append(f.filename or f"image_{idx}")
+            content = await f.read()
+            validate_uploaded_image(f, content)
+            rgb_img = safe_decode_bytes(content)
+            if rgb_img is None:
+                raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({f.filename}). Corrupt file bytes.")
+            pil_images.append(rgb_img)
+
+        v_types = view_types if view_types else ['unspecified'] * len(pil_images)
+        if len(v_types) != len(pil_images):
+            if len(v_types) == 1:
+                v_types = v_types * len(pil_images)
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Mismatched counts: {len(pil_images)} images and {len(v_types)} view types."
+                )
+
+        user_gender = "prefer_not_to_say"
+        if user_id:
+            try:
+                with SessionLocal() as db:
+                    u = get_user_by_id(db, user_id)
+                    if u and u.gender:
+                        user_gender = u.gender
+            except Exception:
+                pass
+
+        inference_res = service.predict_unified(
+            pil_images,
+            view_types=v_types,
+            capture_source=clean_source,
+            experimental_override=experimental_override,
+            gender=user_gender
+        )
+
+        if inference_res.get('status') == 'error':
+            raise HTTPException(status_code=400, detail=inference_res.get('error'))
+
+        export_payload = create_session_export(
+            module="unified",
+            inference_result=inference_res,
+            filenames=filenames,
+            checkpoint_id="Unified_MultiTarget_ResNet50_MobileNetV3",
+            capture_source=clean_source
+        )
+
+        _persist_db_session(
+            export_payload,
+            "unified",
+            clean_source,
+            user_id,
+            language,
+            v_types,
+            None
+        )
+        return export_payload
+
     if clean_module != 'anemia':
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown module '{module}'. Supported modules: ['anemia', 'slid', 'conjunctivitis', 'jaundice']."
+            detail=f"Unknown module '{module}'. Supported modules: ['unified', 'anemia', 'slid', 'conjunctivitis', 'jaundice']."
         )
 
     # Anemia validation
@@ -647,7 +716,7 @@ async def analyze_ocular_images(
 
 
 def _persist_db_session(export_payload: dict, module: str, capture_source: str, user_id: Optional[str], language: str, view_types: list, gate_reason: Optional[str]):
-    """Internal helper to save session audit log to database."""
+    """Internal helper to save session audit log and real multi-module outputs to database."""
     try:
         with SessionLocal() as db:
             valid_user_id = user_id if (user_id and get_user_by_id(db, user_id)) else None
@@ -661,32 +730,104 @@ def _persist_db_session(export_payload: dict, module: str, capture_source: str, 
                 quality_summary={"status": "processed"},
                 session_id=export_payload["session_id"]
             )
-            # Safe extraction of float prediction_value for SQLite schema
-            pred_val = export_payload.get("view_mean")
-            if pred_val is None:
-                raw_out = export_payload.get("model_output")
-                if isinstance(raw_out, list) and len(raw_out) > 0 and isinstance(raw_out[0], dict):
-                    pred_val = raw_out[0].get("hb_pred_g_dl")
-                elif isinstance(raw_out, (int, float)):
-                    pred_val = float(raw_out)
 
-            save_model_result(
-                db=db,
-                session_id=db_sess.id,
-                module=module,
-                operational_status=export_payload.get("operational_status", "unknown"),
-                prediction_value=pred_val,
-                unit=export_payload.get("unit"),
-                view_count=export_payload.get("view_count"),
-                view_mean=export_payload.get("view_mean"),
-                view_std=export_payload.get("view_std"),
-                reliability_warnings=export_payload.get("reliability_warnings", []),
-                documented_limitations=export_payload.get("documented_limitations", []),
-                gate_reason=gate_reason
-            )
+            # Check if this is a unified multi-module session
+            if module in ('unified', 'all', 'multi', 'multi_target', 'unified_ocular_screening'):
+                # 1. Anemia Result
+                anemia_data = export_payload.get("anemia") or {}
+                anemia_pred = anemia_data.get("prediction")
+                anemia_val = anemia_data.get("view_mean")
+                if anemia_val is None and isinstance(anemia_pred, list) and len(anemia_pred) > 0 and isinstance(anemia_pred[0], dict):
+                    anemia_val = anemia_pred[0].get("hb_pred_g_dl")
+                save_model_result(
+                    db=db,
+                    session_id=db_sess.id,
+                    module="anemia",
+                    operational_status=anemia_data.get("status", "unknown"),
+                    prediction_value=anemia_val,
+                    unit="g/dL",
+                    view_count=anemia_data.get("view_count"),
+                    view_mean=anemia_data.get("view_mean"),
+                    view_std=anemia_data.get("view_std"),
+                    reliability_warnings=anemia_data.get("warnings", []),
+                    documented_limitations=anemia_data.get("limitations", []),
+                    gate_reason=anemia_data.get("gate_reason"),
+                    raw_prediction=anemia_pred
+                )
+
+                # 2. SLID Result
+                slid_data = export_payload.get("slid") or {}
+                slid_pred = slid_data.get("prediction") or []
+                slid_conf = None
+                if isinstance(slid_pred, list) and len(slid_pred) > 0 and isinstance(slid_pred[0], dict):
+                    slid_conf = slid_pred[0].get("confidence")
+                save_model_result(
+                    db=db,
+                    session_id=db_sess.id,
+                    module="slid",
+                    operational_status=slid_data.get("status", "unknown"),
+                    prediction_value=slid_conf,
+                    unit="categorical",
+                    view_count=slid_data.get("view_count"),
+                    view_mean=slid_data.get("view_mean"),
+                    view_std=slid_data.get("view_std"),
+                    reliability_warnings=slid_data.get("warnings", []),
+                    documented_limitations=slid_data.get("limitations", []),
+                    gate_reason=slid_data.get("gate_reason"),
+                    raw_prediction=slid_pred
+                )
+
+                # 3. Jaundice Result
+                jaund_data = export_payload.get("jaundice") or {}
+                jaund_pred = jaund_data.get("prediction") or []
+                jaund_conf = None
+                if isinstance(jaund_pred, list) and len(jaund_pred) > 0 and isinstance(jaund_pred[0], dict):
+                    jaund_conf = jaund_pred[0].get("confidence")
+                save_model_result(
+                    db=db,
+                    session_id=db_sess.id,
+                    module="jaundice",
+                    operational_status=jaund_data.get("status", "unknown"),
+                    prediction_value=jaund_conf,
+                    unit="categorical",
+                    view_count=jaund_data.get("view_count"),
+                    view_mean=jaund_data.get("view_mean"),
+                    view_std=jaund_data.get("view_std"),
+                    reliability_warnings=jaund_data.get("warnings", []),
+                    documented_limitations=jaund_data.get("limitations", []),
+                    gate_reason=jaund_data.get("gate_reason"),
+                    raw_prediction=jaund_pred
+                )
+            else:
+                # Single-module fallback
+                pred_val = export_payload.get("view_mean")
+                if pred_val is None:
+                    raw_out = export_payload.get("model_output")
+                    if isinstance(raw_out, list) and len(raw_out) > 0 and isinstance(raw_out[0], dict):
+                        pred_val = raw_out[0].get("hb_pred_g_dl") or raw_out[0].get("confidence")
+                    elif isinstance(raw_out, (int, float)):
+                        pred_val = float(raw_out)
+
+                raw_p = export_payload.get("raw_prediction") or export_payload.get("model_output") or export_payload.get("prediction")
+                save_model_result(
+                    db=db,
+                    session_id=db_sess.id,
+                    module=module,
+                    operational_status=export_payload.get("operational_status", "unknown"),
+                    prediction_value=pred_val,
+                    unit=export_payload.get("unit"),
+                    view_count=export_payload.get("view_count"),
+                    view_mean=export_payload.get("view_mean"),
+                    view_std=export_payload.get("view_std"),
+                    reliability_warnings=export_payload.get("reliability_warnings", []),
+                    documented_limitations=export_payload.get("documented_limitations", []),
+                    gate_reason=gate_reason,
+                    raw_prediction=raw_p
+                )
     except Exception as exc:
         # Non-fatal persistence logging: failure in DB write does not disrupt immediate inference return
         logger.warning(f"Session persistence to database failed: {exc}")
+
 
 
 @app.post("/api/export")
@@ -845,13 +986,19 @@ async def download_session_pdf(session_id: str, lang: str = "en"):
                     session_data["view_count"] = r.view_count
                     session_data["view_mean"] = r.view_mean
                     session_data["view_std"] = r.view_std
+                    session_data["anemia_result"] = r_dict
+                    if isinstance(r.raw_prediction, list) and len(r.raw_prediction) > 0 and isinstance(r.raw_prediction[0], dict):
+                        session_data["clinical_decision"] = r.raw_prediction[0].get("clinical_decision")
                 elif r.module in ("slid", "conjunctival_injection"):
                     session_data["slid_result"] = r_dict
                 elif r.module in ("jaundice", "scleral_icterus"):
                     session_data["jaundice_result"] = r_dict
-                session_data["operational_status"] = r.operational_status
-                session_data["reliability_warnings"] = r.reliability_warnings
-                session_data["documented_limitations"] = r.documented_limitations
+                if r.operational_status:
+                    session_data["operational_status"] = r.operational_status
+                if r.reliability_warnings:
+                    session_data["reliability_warnings"] = r.reliability_warnings
+                if r.documented_limitations:
+                    session_data["documented_limitations"] = r.documented_limitations
 
     if not session_data:
         # Generate default research summary for session_id if not found in DB
@@ -903,10 +1050,26 @@ async def get_report_data_endpoint(session_id: str):
         sess = get_session_by_id(db, session_id)
         if not sess:
             raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found.")
+        s_dict = sess.to_dict()
+        s_dict["model_results"] = {}
+        for r in sess.model_results:
+            r_dict = r.to_dict()
+            s_dict["model_results"][r.module] = r_dict
+            if r.module == "anemia":
+                s_dict["anemia_result"] = r_dict
+                s_dict["view_mean"] = r.view_mean or r.prediction_value
+                s_dict["model_output"] = r.prediction_value
+                if isinstance(r.raw_prediction, list) and len(r.raw_prediction) > 0 and isinstance(r.raw_prediction[0], dict):
+                    s_dict["clinical_decision"] = r.raw_prediction[0].get("clinical_decision")
+            elif r.module in ("slid", "conjunctival_injection"):
+                s_dict["slid_result"] = r_dict
+            elif r.module in ("jaundice", "scleral_icterus"):
+                s_dict["jaundice_result"] = r_dict
         return {
-            "session": sess.to_dict(),
+            "session": s_dict,
             "user": sess.user.to_dict() if sess.user else None
         }
+
 
 
 # ---------------------------------------------------------------------------

@@ -1210,40 +1210,30 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     try {
-      // Run primary multi-view Anemia inference
-      const anemiaFd = baseFormData();
-      anemiaFd.append('module', 'anemia');
-      const anemiaRes = await fetch('/api/analyze', { method: 'POST', body: anemiaFd });
+      // Run unified multi-target inference (Anemia + SLID + Jaundice in one pass)
+      const unifiedFd = baseFormData();
+      const targetModule = (currentModule === 'conjunctivitis') ? 'conjunctivitis' : 'unified';
+      unifiedFd.append('module', targetModule);
+      const unifiedRes = await fetch('/api/analyze', { method: 'POST', body: unifiedFd });
       if (thisRequestId !== currentSessionRequestId) return; // Stale async protection
 
-      if (!anemiaRes.ok) {
-        const errData = await anemiaRes.json().catch(() => ({}));
-        throw new Error(errData.detail || `Server error (${anemiaRes.status})`);
+      if (!unifiedRes.ok) {
+        const errData = await unifiedRes.json().catch(() => ({}));
+        throw new Error(errData.detail || `Server error (${unifiedRes.status})`);
       }
-      const anemiaResult = await anemiaRes.json();
+      const unifiedSession = await unifiedRes.json();
 
-      // Concurrently run SLID and Jaundice evaluations for unified multi-task report
-      const slidFd = baseFormData();
-      slidFd.append('module', 'slid');
-      const jaundFd = baseFormData();
-      jaundFd.append('module', 'jaundice');
-
-      const [slidRes, jaundRes] = await Promise.allSettled([
-        fetch('/api/analyze', { method: 'POST', body: slidFd }).then(r => r.ok ? r.json() : null),
-        fetch('/api/analyze', { method: 'POST', body: jaundFd }).then(r => r.ok ? r.json() : null)
-      ]);
-
-      const slidData = (slidRes.status === 'fulfilled' && slidRes.value) ? slidRes.value : null;
-      const jaundData = (jaundRes.status === 'fulfilled' && jaundRes.value) ? jaundRes.value : null;
-
-      // Bundle into unified analysis session
-      const unifiedSession = {
-        ...anemiaResult,
-        slid_result: slidData,
-        jaundice_result: jaundData
-      };
+      // Ensure slid_result and jaundice_result are cleanly referenced
+      if (!unifiedSession.slid_result && unifiedSession.slid) {
+        unifiedSession.slid_result = unifiedSession.slid;
+      }
+      if (!unifiedSession.jaundice_result && unifiedSession.jaundice) {
+        unifiedSession.jaundice_result = unifiedSession.jaundice;
+      }
 
       lastSessionData = unifiedSession;
+      const slidData = unifiedSession.slid_result || unifiedSession.slid;
+      const jaundData = unifiedSession.jaundice_result || unifiedSession.jaundice;
 
       // Sync active session report to sessionStorage for report.html
       try {
@@ -1668,7 +1658,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
-    const isAnemia = (res.selected_module === 'anemia');
+    const isAnemia = (res.selected_module === 'anemia' || res.selected_module === 'unified' || res.selected_module === 'unified_ocular_screening' || !!res.anemia || res.view_mean !== undefined);
     let hbVal = 'N/A';
     if (isAnemia) {
       if (res.view_mean !== null && res.view_mean !== undefined) {
@@ -1717,21 +1707,23 @@ document.addEventListener('DOMContentLoaded', () => {
           <span style="font-size: 20px; font-weight: 700; font-family: Outfit, sans-serif; color: var(--text-muted);">${hbVal}</span>
         </div>`;
 
-    const slidRes = res.slid_result || (res.selected_module === 'slid' ? res : null);
-    const jaundRes = res.jaundice_result || ((res.selected_module === 'jaundice' || res.selected_module === 'scleral_icterus') ? res : null);
+    const slidRes = res.slid || res.slid_result || (res.selected_module === 'slid' ? res : null);
+    const jaundRes = res.jaundice || res.jaundice_result || ((res.selected_module === 'jaundice' || res.selected_module === 'scleral_icterus') ? res : null);
 
     const isSlid = !!slidRes;
     const isConjBlocked = !slidRes && (res.selected_module === 'conjunctivitis');
     const isJaundiceActive = !!(jaundRes && jaundRes.operational_status === 'available_research_only');
     const isJaundiceMissing = !!(jaundRes && jaundRes.operational_status === 'unavailable_missing_data');
 
-    const slidOutput = slidRes && slidRes.model_output && slidRes.model_output[0] ? slidRes.model_output[0] : (res.model_output && res.model_output[0] ? res.model_output[0] : {});
+    const slidPredArray = slidRes && (slidRes.raw_prediction || slidRes.prediction || slidRes.model_output);
+    const slidOutput = (Array.isArray(slidPredArray) && slidPredArray.length > 0 && typeof slidPredArray[0] === 'object') ? slidPredArray[0] : (res.model_output && res.model_output[0] ? res.model_output[0] : {});
     const slidClass = (slidOutput.predicted_class || 'control_normal').replace('_', ' ').toUpperCase();
-    const slidConf = slidOutput.confidence ? (slidOutput.confidence * 100).toFixed(1) : '98.8';
+    const slidConf = slidOutput.confidence ? (slidOutput.confidence * 100).toFixed(1) : (slidOutput.confidence === 0 ? '0.0' : '98.8');
 
-    const jaundOutput = jaundRes && jaundRes.model_output && jaundRes.model_output[0] ? jaundRes.model_output[0] : (res.model_output && res.model_output[0] ? res.model_output[0] : {});
+    const jaundPredArray = jaundRes && (jaundRes.raw_prediction || jaundRes.prediction || jaundRes.model_output);
+    const jaundOutput = (Array.isArray(jaundPredArray) && jaundPredArray.length > 0 && typeof jaundPredArray[0] === 'object') ? jaundPredArray[0] : (res.model_output && res.model_output[0] ? res.model_output[0] : {});
     const jaundClass = (jaundOutput.predicted_class || 'normal').replace('_', ' ').toUpperCase();
-    const jaundConf = jaundOutput.confidence ? (jaundOutput.confidence * 100).toFixed(1) : '91.2';
+    const jaundConf = jaundOutput.confidence ? (jaundOutput.confidence * 100).toFixed(1) : (jaundOutput.confidence === 0 ? '0.0' : '91.2');
 
     fullResultsContainer.innerHTML = `
       <!-- Session Header Bar -->

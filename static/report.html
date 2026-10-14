@@ -945,7 +945,7 @@
         let conjRec = 'Normal conjunctival microvasculature. No acute hyperemic injection or erythema observed.';
 
         if (data.slid_result) {
-          const sOut = data.slid_result.model_output || data.slid_result.prediction || [];
+          const sOut = data.slid_result.raw_prediction || data.slid_result.model_output || data.slid_result.prediction || [];
           if (sOut.length > 0 && sOut[0]) {
             const predCls = (sOut[0].predicted_class || 'control_normal').toLowerCase();
             const conf = sOut[0].confidence ? (sOut[0].confidence * 100).toFixed(1) + '%' : '98.8%';
@@ -987,7 +987,7 @@
         let jaundRec = 'Sclera coloration inspected. Normal appearance without visible icteric staining.';
 
         if (data.jaundice_result) {
-          const jOut = data.jaundice_result.model_output || data.jaundice_result.prediction || [];
+          const jOut = data.jaundice_result.raw_prediction || data.jaundice_result.model_output || data.jaundice_result.prediction || [];
           if (jOut.length > 0 && jOut[0]) {
             const predCls = (jOut[0].predicted_class || 'normal').toLowerCase();
             const conf = jOut[0].confidence ? (jOut[0].confidence * 100).toFixed(1) + '%' : '91.2%';

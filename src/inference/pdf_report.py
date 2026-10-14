@@ -373,114 +373,128 @@ def build_two_page_pdf(
     clinical_dec = session_data.get("clinical_decision") or {}
 
     # Target A: Anemia / Continuous Hemoglobin Regression
-    anemia_res = session_data.get("anemia_result") or session_data
-    val = anemia_res.get("view_mean") if anemia_res.get("view_mean") is not None else anemia_res.get("model_output")
-    if isinstance(val, (int, float)):
+    anemia_res = session_data.get("anemia_result") or (session_data.get("model_results", {}).get("anemia") if isinstance(session_data.get("model_results"), dict) else None) or session_data
+    a_status = anemia_res.get("operational_status", session_data.get("operational_status"))
+    val = anemia_res.get("view_mean") if anemia_res.get("view_mean") is not None else (anemia_res.get("prediction_value") if anemia_res.get("prediction_value") is not None else anemia_res.get("model_output"))
+
+    if a_status == "blocked_domain_validation":
+        anemia_cell_text = (
+            f"<b>Status:</b> <font color='{warn_amber.hexval()}'><b>PREDICTIONS WITHHELD (SAFETY GATE)</b></font><br/>"
+            f"<b>Cause:</b> Camera-domain validation gate active for uncalibrated capture.<br/>"
+            f"<b>Safety Policy:</b> Non-diagnostic research regressor. Paired clinical reference testing required."
+        )
+    elif isinstance(val, (int, float)):
         hb_num = float(val)
         hb_display = f"{hb_num:.2f} g/dL"
+        std_val = anemia_res.get("view_std", view_std)
+        vc = anemia_res.get("view_count", view_count)
+        std_display = f"± {std_val:.2f} g/dL ({vc} views)" if (std_val is not None and vc > 1) else "Single-view"
+        ci_str = clinical_dec.get("confidence_interval_95", {}).get("display", "±1.50 g/dL")
+        default_stage = "Moderate Anemia" if hb_num < 11.0 else ("Mild Anemia" if hb_num < 12.0 else "Non-Anemic Baseline")
+        stage_str = clinical_dec.get("stage_label_hi" if lang == "hi" else "stage_label_en", default_stage)
+        anemia_cell_text = (
+            f"<b>Estimated Hb:</b> <font color='{primary_blue.hexval()}'><b>{hb_display}</b></font> &bull; <b>95% CI:</b> {ci_str}<br/>"
+            f"<b>Clinical Staging:</b> <b>{stage_str}</b><br/>"
+            f"<b>View Variance:</b> {std_display}<br/>"
+            f"<b>Reliability Note:</b> Model MAE ~1.50 g/dL. Laboratory CBC required for definitive diagnosis."
+        )
     elif isinstance(val, list) and len(val) > 0 and isinstance(val[0], dict) and "hb_pred_g_dl" in val[0]:
         hb_num = float(val[0]["hb_pred_g_dl"])
         hb_display = f"{hb_num:.2f} g/dL"
-    elif isinstance(model_output, (int, float)):
-        hb_num = float(model_output)
-        hb_display = f"{hb_num:.2f} g/dL"
+        std_val = anemia_res.get("view_std", view_std)
+        vc = anemia_res.get("view_count", view_count)
+        std_display = f"± {std_val:.2f} g/dL ({vc} views)" if (std_val is not None and vc > 1) else "Single-view"
+        ci_str = clinical_dec.get("confidence_interval_95", {}).get("display", "±1.50 g/dL")
+        default_stage = "Moderate Anemia" if hb_num < 11.0 else ("Mild Anemia" if hb_num < 12.0 else "Non-Anemic Baseline")
+        stage_str = clinical_dec.get("stage_label_hi" if lang == "hi" else "stage_label_en", default_stage)
+        anemia_cell_text = (
+            f"<b>Estimated Hb:</b> <font color='{primary_blue.hexval()}'><b>{hb_display}</b></font> &bull; <b>95% CI:</b> {ci_str}<br/>"
+            f"<b>Clinical Staging:</b> <b>{stage_str}</b><br/>"
+            f"<b>View Variance:</b> {std_display}<br/>"
+            f"<b>Reliability Note:</b> Model MAE ~1.50 g/dL. Laboratory CBC required for definitive diagnosis."
+        )
     else:
-        hb_num = 12.45
-        hb_display = f"{hb_num:.2f} g/dL"
-
-    std_val = anemia_res.get("view_std", view_std)
-    vc = anemia_res.get("view_count", view_count)
-    std_display = f"± {std_val:.2f} g/dL ({vc} views)" if (std_val is not None and vc > 1) else "Single-view"
-    ci_str = clinical_dec.get("confidence_interval_95", {}).get("display", "±1.50 g/dL")
-    default_stage = "Moderate Anemia" if hb_num < 11.0 else ("Mild Anemia" if hb_num < 12.0 else "Non-Anemic Baseline")
-    stage_str = clinical_dec.get("stage_label_hi" if lang == "hi" else "stage_label_en", default_stage)
-    anemia_cell_text = (
-        f"<b>Estimated Hb:</b> <font color='{primary_blue.hexval()}'><b>{hb_display}</b></font> &bull; <b>95% CI:</b> {ci_str}<br/>"
-        f"<b>Clinical Staging:</b> <b>{stage_str}</b><br/>"
-        f"<b>View Variance:</b> {std_display}<br/>"
-        f"<b>Reliability Note:</b> Model MAE ~1.50 g/dL. Laboratory CBC required for definitive diagnosis."
-    )
+        anemia_cell_text = (
+            f"<b>Status:</b> <font color='#64748b'><b>NOT EVALUATED</b></font><br/>"
+            f"<b>Finding:</b> Anemia hemoglobin model not evaluated for this session."
+        )
 
     # Target B: Conjunctival Injection / SLID Screening
     slid_res = session_data.get("slid_result") or (session_data.get("model_results", {}).get("slid") if isinstance(session_data.get("model_results"), dict) else None)
-    if slid_res:
-        s_out = slid_res.get("model_output") or slid_res.get("prediction") or []
-        if isinstance(s_out, list) and len(s_out) > 0 and isinstance(s_out[0], dict):
-            p_cls = s_out[0].get("predicted_class", "control_normal").replace("_", " ").title()
-            p_conf = s_out[0].get("confidence", 0.988)
-            slid_display = f"{p_cls} (Confidence: {p_conf*100:.1f}%)"
-        else:
-            slid_display = "Control Normal (Confidence: 98.8%)"
-        is_slid_active = True
-    elif selected_mod in ("slid", "conjunctival_injection"):
-        if isinstance(model_output, list) and len(model_output) > 0:
-            first_pred = model_output[0]
-            pred_cls = first_pred.get("predicted_class", "control_normal").replace("_", " ").title()
-            conf_val = first_pred.get("confidence", 0.988)
-            slid_display = f"{pred_cls} (Confidence: {conf_val*100:.1f}%)"
-        else:
-            slid_display = "Evaluated (Normal ocular surface baseline)"
-        is_slid_active = True
-    elif selected_mod == "conjunctivitis":
-        is_slid_active = False
-        slid_display = None
-    else:
-        # Default in unified screening session
-        slid_display = "Control Normal (Confidence: 98.8%)"
-        is_slid_active = True
+    if not slid_res and selected_mod in ("slid", "conjunctival_injection"):
+        slid_res = session_data
 
-    if is_slid_active:
-        conj_cell_content = (
-            f"<b>Status:</b> <font color='{pass_green.hexval()}'><b>ACTIVE RESEARCH SCREENING (SLID)</b></font><br/>"
-            f"<b>Model:</b> MobileNetV3-Small &bull; <b>Finding:</b> {slid_display}<br/>"
-            f"<b>Note:</b> Slit-lamp anterior photography screening only. Confounded Mendeley model remains strictly blocked."
-        )
-    else:
+    if slid_res:
+        s_status = slid_res.get("operational_status", "available_research_only")
+        if s_status == "blocked_domain_validation":
+            conj_cell_content = (
+                f"<b>Status:</b> <font color='{warn_amber.hexval()}'><b>PREDICTIONS WITHHELD (SAFETY GATE)</b></font><br/>"
+                f"<b>Cause:</b> Camera-domain validation gate active for uncalibrated capture.<br/>"
+                f"<b>Safety Policy:</b> Slit-lamp anterior photography required for hyperemia screening."
+            )
+        else:
+            s_out = slid_res.get("raw_prediction") or slid_res.get("model_output") or slid_res.get("prediction") or []
+            if isinstance(s_out, list) and len(s_out) > 0 and isinstance(s_out[0], dict):
+                p_cls = s_out[0].get("predicted_class", "control_normal").replace("_", " ").title()
+                p_conf = s_out[0].get("confidence")
+                conf_str = f" (Confidence: {p_conf*100:.1f}%)" if p_conf is not None else ""
+                slid_display = f"{p_cls}{conf_str}"
+            else:
+                slid_display = "Active Evaluation Complete"
+            conj_cell_content = (
+                f"<b>Status:</b> <font color='{pass_green.hexval()}'><b>ACTIVE RESEARCH SCREENING (SLID)</b></font><br/>"
+                f"<b>Model:</b> MobileNetV3-Small &bull; <b>Finding:</b> {slid_display}<br/>"
+                f"<b>Note:</b> Slit-lamp anterior photography screening only. Confounded Mendeley model remains strictly blocked."
+            )
+    elif selected_mod == "conjunctivitis":
         conj_cell_content = (
             f"<b>Status:</b> <font color='{warn_amber.hexval()}'><b>PREDICTIONS WITHHELD (SAFETY GATE)</b></font><br/>"
             f"<b>Empirical Cause:</b> Image width alone predicts 100% of labels in Mendeley dataset.<br/>"
             f"<b>Safety Policy:</b> Mendeley model output blocked. Use SLID clinical model for research screening."
         )
+    else:
+        conj_cell_content = (
+            f"<b>Status:</b> <font color='#64748b'><b>NOT EVALUATED</b></font><br/>"
+            f"<b>Finding:</b> Module not executed for this screening session."
+        )
 
     # Target C: Jaundice / Scleral Icterus Assessment
     jaund_res = session_data.get("jaundice_result") or (session_data.get("model_results", {}).get("jaundice") if isinstance(session_data.get("model_results"), dict) else None)
-    if jaund_res:
-        j_out = jaund_res.get("model_output") or jaund_res.get("prediction") or []
-        if isinstance(j_out, list) and len(j_out) > 0 and isinstance(j_out[0], dict):
-            j_cls = j_out[0].get("predicted_class", "normal").replace("_", " ").title()
-            j_conf = j_out[0].get("confidence", 0.912)
-            jaund_display = f"{j_cls} (Confidence: {j_conf*100:.1f}%)"
-        else:
-            jaund_display = "Normal (No visible icterus detected, 91.2% conf)"
-        is_jaund_active = True
-    elif selected_mod in ("jaundice", "scleral_icterus") and session_data.get("operational_status") == "available_research_only":
-        if isinstance(model_output, list) and len(model_output) > 0:
-            first_pred = model_output[0]
-            pred_cls = first_pred.get("predicted_class", "normal").replace("_", " ").title()
-            conf_val = first_pred.get("confidence", 0.912)
-            jaund_display = f"{pred_cls} (Confidence: {conf_val*100:.1f}%)"
-        else:
-            jaund_display = "Normal (No visible icterus detected)"
-        is_jaund_active = True
-    elif selected_mod in ("jaundice", "scleral_icterus") and session_data.get("operational_status") == "unavailable_missing_data":
-        is_jaund_active = False
-        jaund_display = None
-    else:
-        # Default in unified screening session
-        jaund_display = "Normal (No visible icterus detected, 91.2% conf)"
-        is_jaund_active = True
+    if not jaund_res and selected_mod in ("jaundice", "scleral_icterus", "icterus"):
+        jaund_res = session_data
 
-    if is_jaund_active:
-        jaund_cell_content = (
-            f"<b>Status:</b> <font color='{pass_green.hexval()}'><b>CATEGORICAL RESEARCH SCREENING (CC BY-NC 4.0)</b></font><br/>"
-            f"<b>Model:</b> MobileNetV3-Small &bull; <b>Finding:</b> {jaund_display}<br/>"
-            f"<b>Clinical Rule:</b> Numerical serum bilirubin UNAVAILABLE (no paired lab values in workspace)."
-        )
+    if jaund_res:
+        j_status = jaund_res.get("operational_status", "available_research_only")
+        if j_status == "blocked_domain_validation":
+            jaund_cell_content = (
+                f"<b>Status:</b> <font color='{warn_amber.hexval()}'><b>PREDICTIONS WITHHELD (SAFETY GATE)</b></font><br/>"
+                f"<b>Cause:</b> Camera-domain validation gate active for uncalibrated capture.<br/>"
+                f"<b>Safety Policy:</b> Scleral icterus screening requires calibrated macro ocular photography."
+            )
+        elif j_status == "unavailable_missing_data":
+            jaund_cell_content = (
+                f"<b>Status:</b> <font color='#64748b'><b>FEATURE OFFLINE (MISSING CLINICAL BILIRUBIN DATA)</b></font><br/>"
+                f"<b>Reason:</b> No paired ocular images with laboratory total serum bilirubin exist in workspace.<br/>"
+                f"<b>Integrity Standard:</b> In accordance with AGENTS.md rules, artificial scores or fabricated values are strictly prohibited."
+            )
+        else:
+            j_out = jaund_res.get("raw_prediction") or jaund_res.get("model_output") or jaund_res.get("prediction") or []
+            if isinstance(j_out, list) and len(j_out) > 0 and isinstance(j_out[0], dict):
+                j_cls = j_out[0].get("predicted_class", "normal").replace("_", " ").title()
+                j_conf = j_out[0].get("confidence")
+                conf_str = f" (Confidence: {j_conf*100:.1f}%)" if j_conf is not None else ""
+                jaund_display = f"{j_cls}{conf_str}"
+            else:
+                jaund_display = "Active Evaluation Complete"
+            jaund_cell_content = (
+                f"<b>Status:</b> <font color='{pass_green.hexval()}'><b>CATEGORICAL RESEARCH SCREENING (CC BY-NC 4.0)</b></font><br/>"
+                f"<b>Model:</b> MobileNetV3-Small &bull; <b>Finding:</b> {jaund_display}<br/>"
+                f"<b>Clinical Rule:</b> Numerical serum bilirubin UNAVAILABLE (no paired lab values in workspace)."
+            )
     else:
         jaund_cell_content = (
-            f"<b>Status:</b> <font color='#64748b'><b>FEATURE OFFLINE (MISSING CLINICAL BILIRUBIN DATA)</b></font><br/>"
-            f"<b>Reason:</b> No paired ocular images with laboratory total serum bilirubin measurements exist in workspace.<br/>"
-            f"<b>Integrity Standard:</b> In accordance with AGENTS.md rules, artificial scores or fabricated bilirubin outputs are strictly prohibited."
+            f"<b>Status:</b> <font color='#64748b'><b>NOT EVALUATED</b></font><br/>"
+            f"<b>Finding:</b> Module not executed for this screening session."
         )
 
     findings_data = [

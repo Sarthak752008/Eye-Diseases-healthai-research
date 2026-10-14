@@ -160,6 +160,7 @@ class ModelResult(Base):
     reliability_warnings = Column(JSON, nullable=True)
     documented_limitations = Column(JSON, nullable=True)
     gate_reason = Column(Text, nullable=True)
+    raw_prediction = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     # Relationship
@@ -176,6 +177,8 @@ class ModelResult(Base):
             "view_count": self.view_count,
             "view_mean": self.view_mean,
             "view_std": self.view_std,
+            "raw_prediction": self.raw_prediction,
+            "model_output": self.raw_prediction,
             "reliability_warnings": self.reliability_warnings or [],
             "documented_limitations": self.documented_limitations or [],
             "gate_reason": self.gate_reason,

@@ -371,3 +371,88 @@ def test_new_image_upload_refreshes_results(client):
     d2 = res2.json()
     assert d1['session_id'] != d2['session_id']
     assert d1['view_mean'] != d2['view_mean']
+
+
+def test_unified_multi_target_screening_endpoint_and_db(client):
+    """Verifies that POST /api/analyze with module='unified' runs all 3 models and stores all results."""
+    from src.database.session import SessionLocal, get_session_by_id
+    import pypdf
+
+    anemia_df = pd.read_csv(os.path.join(WORKSPACE_ROOT, 'data', 'manifests', 'anemia_manifest.csv'))
+    test_img_path = os.path.join(WORKSPACE_ROOT, anemia_df[anemia_df['split'] == 'test'].iloc[0]['relative_path'])
+    assert os.path.exists(test_img_path)
+
+    with open(test_img_path, 'rb') as f:
+        res = client.post(
+            '/api/analyze',
+            data={'module': 'unified', 'view_types': ['forniceal_palpebral']},
+            files=[('images', ('unified_test.jpg', f.read(), 'image/jpeg'))]
+        )
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data['selected_module'] == 'unified'
+    assert data['operational_status'] == 'available_research_only'
+    assert 'anemia' in data and data['anemia'] is not None
+    assert 'slid' in data and data['slid'] is not None
+    assert 'jaundice' in data and data['jaundice'] is not None
+
+    # Anemia result validation
+    assert isinstance(data['view_mean'], (int, float))
+    assert data['anemia']['prediction'][0]['hb_pred_g_dl'] is not None
+
+    # SLID result validation
+    slid_pred = data['slid']['prediction'][0]
+    assert slid_pred['predicted_class'] in ('control_normal', 'conjunctival_injection')
+    assert 0.0 <= slid_pred['confidence'] <= 1.0
+
+    # Jaundice result validation
+    jaund_pred = data['jaundice']['prediction'][0]
+    assert jaund_pred['predicted_class'] in ('normal', 'visibly_jaundiced')
+    assert 0.0 <= jaund_pred['confidence'] <= 1.0
+
+    # DB Persistence Verification
+    sid = data['session_id']
+    with SessionLocal() as db:
+        sess = get_session_by_id(db, sid)
+        assert sess is not None
+        assert sess.selected_module == 'unified'
+        modules_saved = {r.module: r for r in sess.model_results}
+        assert 'anemia' in modules_saved
+        assert 'slid' in modules_saved
+        assert 'jaundice' in modules_saved
+        assert modules_saved['anemia'].prediction_value is not None
+        assert modules_saved['slid'].raw_prediction is not None
+        assert modules_saved['jaundice'].raw_prediction is not None
+
+    # PDF Generation Verification
+    pdf_res = client.get(f'/api/reports/{sid}/pdf?lang=en')
+    assert pdf_res.status_code == 200
+    assert pdf_res.headers['content-type'] == 'application/pdf'
+    reader = pypdf.PdfReader(io.BytesIO(pdf_res.content))
+    assert len(reader.pages) == 2, f"PDF must be strictly 2 pages, got {len(reader.pages)}"
+
+
+def test_unseen_images_produce_distinct_unified_predictions(client):
+    """Verifies that different unseen ocular images yield distinct real predictions without stale state."""
+    anemia_df = pd.read_csv(os.path.join(WORKSPACE_ROOT, 'data', 'manifests', 'anemia_manifest.csv'))
+    p1 = os.path.join(WORKSPACE_ROOT, anemia_df[anemia_df['split'] == 'test'].iloc[1]['relative_path'])
+    p2 = os.path.join(WORKSPACE_ROOT, anemia_df[anemia_df['split'] == 'test'].iloc[15]['relative_path'])
+
+    with open(p1, 'rb') as f1:
+        res1 = client.post('/api/analyze', data={'module': 'unified'}, files=[('images', ('eye1.jpg', f1.read(), 'image/jpeg'))])
+    with open(p2, 'rb') as f2:
+        res2 = client.post('/api/analyze', data={'module': 'unified'}, files=[('images', ('eye2.jpg', f2.read(), 'image/jpeg'))])
+
+    assert res1.status_code == 200
+    assert res2.status_code == 200
+
+    d1 = res1.json()
+    d2 = res2.json()
+
+    # Session isolation
+    assert d1['session_id'] != d2['session_id']
+    # Anemia predictions must differ based on true image pixels
+    assert d1['view_mean'] != d2['view_mean']
+    # Confidences must be dynamic and distinct
+    assert d1['anemia']['prediction'][0]['hb_pred_g_dl'] != d2['anemia']['prediction'][0]['hb_pred_g_dl']

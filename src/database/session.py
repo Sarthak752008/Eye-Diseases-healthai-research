@@ -54,6 +54,7 @@ def init_db() -> None:
                     ("user_profiles", "gender", "VARCHAR(32) DEFAULT 'prefer_not_to_say'"),
                     ("user_profiles", "demographic_consent", "BOOLEAN DEFAULT 0"),
                     ("consent_records", "demographic_consent", "BOOLEAN DEFAULT 0"),
+                    ("model_results", "raw_prediction", "JSON DEFAULT NULL"),
                 ]:
                     try:
                         res = conn.execute(Base.metadata.tables[tbl].select().limit(0))
@@ -214,7 +215,8 @@ def save_model_result(
     view_std: Optional[float] = None,
     reliability_warnings: Optional[List[str]] = None,
     documented_limitations: Optional[List[str]] = None,
-    gate_reason: Optional[str] = None
+    gate_reason: Optional[str] = None,
+    raw_prediction: Optional[Any] = None
 ) -> ModelResult:
     """
     Records a structured model output or gated status for a session.
@@ -231,7 +233,8 @@ def save_model_result(
         view_std=view_std,
         reliability_warnings=reliability_warnings or [],
         documented_limitations=documented_limitations or [],
-        gate_reason=gate_reason
+        gate_reason=gate_reason,
+        raw_prediction=raw_prediction
     )
     db.add(res)
     db.commit()

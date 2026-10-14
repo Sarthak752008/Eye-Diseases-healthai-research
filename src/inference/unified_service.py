@@ -816,6 +816,83 @@ class EyeHealthInferenceService:
             error=None
         )
 
+    def predict_unified(
+        self,
+        images: Union[str, Image.Image, List[Union[str, Image.Image]]],
+        view_types: Optional[Union[str, List[str]]] = None,
+        capture_source: str = "upload",
+        experimental_override: bool = False,
+        gender: str = "prefer_not_to_say"
+    ) -> Dict[str, Any]:
+        """
+        Runs unified, multi-target ocular screening across all three trained models:
+        1. Model A: Anemia (Continuous Hb Regression, ResNet-50)
+        2. Model B: Conjunctival Injection / Hyperemia (SLID, MobileNetV3-Small)
+        3. Model C: Scleral Icterus (Diverse Jaundice, MobileNetV3-Small)
+        """
+        image_list = images if isinstance(images, list) else [images]
+        if len(image_list) == 0:
+            return {
+                "module": "unified",
+                "status": "error",
+                "error": "No images provided for unified screening.",
+                "anemia": None,
+                "slid": None,
+                "jaundice": None
+            }
+
+        anemia_res = self.predict_anemia(
+            image_list,
+            view_types=view_types,
+            capture_source=capture_source,
+            experimental_override=experimental_override,
+            gender=gender
+        )
+
+        slid_res = self.predict_conjunctival_injection(
+            image_list,
+            capture_source=capture_source,
+            experimental_override=experimental_override
+        )
+
+        jaund_res = self.predict_scleral_icterus(
+            image_list,
+            capture_source=capture_source,
+            experimental_override=experimental_override
+        )
+
+        if anemia_res.get("status") == "blocked_domain_validation" or slid_res.get("status") == "blocked_domain_validation":
+            overall_status = "blocked_domain_validation"
+        elif anemia_res.get("status") == "available_research_only":
+            overall_status = "available_research_only"
+        else:
+            overall_status = anemia_res.get("status", "unknown")
+
+        all_warnings = list(dict.fromkeys(
+            anemia_res.get("warnings", []) + slid_res.get("warnings", []) + jaund_res.get("warnings", [])
+        ))
+        all_limitations = list(dict.fromkeys(
+            anemia_res.get("limitations", []) + slid_res.get("limitations", []) + jaund_res.get("limitations", [])
+        ))
+
+        return {
+            "module": "unified",
+            "status": overall_status,
+            "input_quality": anemia_res.get("input_quality") or slid_res.get("input_quality") or jaund_res.get("input_quality"),
+            "prediction": anemia_res.get("prediction"),
+            "unit": "g/dL",
+            "view_count": anemia_res.get("view_count"),
+            "view_mean": anemia_res.get("view_mean"),
+            "view_std": anemia_res.get("view_std"),
+            "anemia": anemia_res,
+            "slid": slid_res,
+            "jaundice": jaund_res,
+            "warnings": all_warnings,
+            "limitations": all_limitations,
+            "disclaimer": "RESEARCH USE ONLY: Multi-target ocular screening prototype. Not certified for medical diagnosis or clinical use.",
+            "error": anemia_res.get("error") or slid_res.get("error") or jaund_res.get("error")
+        }
+
     def predict(
         self,
         module: str,
@@ -828,7 +905,34 @@ class EyeHealthInferenceService:
         Common routing gateway for inference requests.
         """
         mod = module.strip().lower()
-        if mod == 'anemia':
+        if mod in ('unified', 'all', 'multi', 'multi_target', 'unified_ocular_screening'):
+            if images is None:
+                return InferenceResult(
+                    module='unified',
+                    status='error',
+                    error="Images must be provided for unified ocular screening."
+                )
+            u_res = self.predict_unified(
+                images,
+                view_types=view_types,
+                capture_source=capture_source,
+                experimental_override=experimental_override
+            )
+            return InferenceResult(
+                module='unified',
+                status=u_res.get('status', 'unknown'),
+                input_quality=u_res.get('input_quality'),
+                prediction=u_res.get('prediction'),
+                unit=u_res.get('unit'),
+                view_count=u_res.get('view_count'),
+                view_mean=u_res.get('view_mean'),
+                view_std=u_res.get('view_std'),
+                warnings=u_res.get('warnings'),
+                limitations=u_res.get('limitations'),
+                disclaimer=u_res.get('disclaimer'),
+                error=u_res.get('error')
+            )
+        elif mod == 'anemia':
             if images is None:
                 return InferenceResult(
                     module='anemia',
@@ -867,7 +971,7 @@ class EyeHealthInferenceService:
             return InferenceResult(
                 module=module,
                 status="error",
-                error=f"Unknown module '{module}'. Supported modules: ['anemia', 'slid', 'conjunctivitis', 'jaundice']."
+                error=f"Unknown module '{module}'. Supported modules: ['unified', 'anemia', 'slid', 'conjunctivitis', 'jaundice']."
             )
 
 

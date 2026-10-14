@@ -72,10 +72,31 @@ def create_session_export(
             if (permitted and isinstance(inference_result.get('prediction'), list) and len(inference_result.get('prediction')) > 0 and isinstance(inference_result.get('prediction')[0], dict))
             else None
         ),
-        "error": inference_result.get('error')
+        "error": inference_result.get('error'),
+        "raw_prediction": inference_result.get('prediction')
     }
     
+    if module in ("unified", "all", "multi", "multi_target", "unified_ocular_screening"):
+        anemia_data = inference_result.get("anemia")
+        slid_data = inference_result.get("slid")
+        jaund_data = inference_result.get("jaundice")
+        export_payload["anemia"] = anemia_data
+        export_payload["slid"] = slid_data
+        export_payload["jaundice"] = jaund_data
+        export_payload["anemia_result"] = anemia_data
+        export_payload["slid_result"] = slid_data
+        export_payload["jaundice_result"] = jaund_data
+        export_payload["model_results"] = {
+            "anemia": anemia_data,
+            "slid": slid_data,
+            "jaundice": jaund_data
+        }
+        if anemia_data and isinstance(anemia_data.get("prediction"), list) and len(anemia_data["prediction"]) > 0:
+            export_payload["clinical_decision"] = anemia_data["prediction"][0].get("clinical_decision")
+            export_payload["chromatic_biomarkers"] = anemia_data["prediction"][0].get("chromatic")
+
     return export_payload
+
 
 
 def validate_session_export_schema(payload: Dict[str, Any]) -> bool:
