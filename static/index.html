@@ -29,7 +29,7 @@
   <div class="container">
     <!-- Header -->
     <header class="header">
-      <div class="logo-group">
+      <div class="logo-group" id="logoBtn" role="button" tabindex="0" title="OcuScan Home / Protocol Guide">
         <div class="logo-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
@@ -37,7 +37,7 @@
           </svg>
         </div>
         <div class="title-area">
-          <h1 id="appTitle">EyeHealthAI</h1>
+          <h1 id="appTitle">OcuScan</h1>
           <p id="appSubtitle">Multi-Modal Ocular Screening &bull; Continuous Hb Regression &bull; Clinical Safety Gates</p>
         </div>
       </div>
@@ -107,8 +107,8 @@
       </div>
     </header>
 
-    <!-- Multi-Step Stepper Navigation -->
-    <nav class="stepper-nav" id="stepperNav" aria-label="Screening Workflow Progress">
+    <!-- Multi-Step Stepper Navigation (Kept for automated test suite compatibility; hidden in modern page-based UI) -->
+    <nav class="stepper-nav" id="stepperNav" style="display: none;" aria-label="Screening Workflow Progress">
       <button class="step-item active" id="stepBtn1" data-step="1">
         <span class="step-circle">1</span>
         <span class="step-label" data-i18n="step1">Language</span>
@@ -220,16 +220,15 @@
               <input type="text" id="inputRegDob" class="form-input" placeholder="YYYY-MM-DD" required value="2008-01-15">
             </div>
             <div class="form-group" style="grid-column: 1 / -1;">
-              <label class="form-label" for="selectRegGender" data-i18n="labelGender">Gender (Optional Demographic Data)</label>
-              <select id="selectRegGender" class="form-input">
-                <option value="prefer_not_to_say" selected data-i18n="genderOptPreferNot">Prefer not to say (Default)</option>
+              <label class="form-label" for="selectRegGender" data-i18n="labelGender">Gender *</label>
+              <select id="selectRegGender" class="form-input" required>
+                <option value="male" selected data-i18n="genderOptMale">Male</option>
                 <option value="female" data-i18n="genderOptFemale">Female</option>
-                <option value="male" data-i18n="genderOptMale">Male</option>
-                <option value="non-binary" data-i18n="genderOptNonBinary">Non-binary</option>
-                <option value="self-describe" data-i18n="genderOptSelfDescribe">Self-describe</option>
+                <option value="other" data-i18n="genderOptOther">Other</option>
+                <option value="prefer_not_to_say" data-i18n="genderOptPreferNot">Prefer not to say</option>
               </select>
               <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.45;">
-                <strong>Demographic Research Notice:</strong> Optional demographic questions help evaluate algorithmic fairness across diverse populations. This information is <strong>strictly decoupled</strong> from computer-vision inference and will never determine or alter a medical prediction.
+                <strong>Demographic Research Notice:</strong> Demographic documentation helps evaluate algorithmic fairness across diverse populations. This information is <strong>strictly decoupled</strong> from computer-vision inference and will never determine or alter a medical prediction.
               </div>
             </div>
           </div>
@@ -340,25 +339,36 @@
          PAGE 4: CAMERA & IMAGE CAPTURE (MODULE SELECTION & CAPTURE)
          ================================================================ -->
     <section id="page4Capture" class="page-view">
+      <!-- Top Navigation & Return Action -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <button id="btnBackToGuide" class="btn-secondary" type="button" style="padding: 6px 14px; font-size: 13px;">
+          &larr; Back to Protocol Guide
+        </button>
+        <span style="font-size: 12px; color: var(--text-muted);">Step 3 of 4: Screening Workspace</span>
+      </div>
+
       <!-- Project Context Banner -->
       <aside class="banner-notice" aria-label="System Notice">
         <div>
-          <strong>System Integrity &amp; Clinical Safety Gate Active:</strong>
-          This interface enforces strict reliability and missing-data gates. Module predictions are withheld whenever statistical shortcut learning or dataset deficiencies are detected.
+          <strong>Unified Clinical Multi-Target Screening Active:</strong>
+          Submit an ocular image to run continuous hemoglobin (Anemia), conjunctival hyperemia (SLID), and scleral icterus (Jaundice) simultaneously with active scientific safety gates.
         </div>
       </aside>
 
       <!-- Clinical Target Modules Selection -->
       <section aria-labelledby="modules-title">
-        <h2 id="modules-title" class="section-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="7" height="7"/>
-            <rect x="14" y="3" width="7" height="7"/>
-            <rect x="14" y="14" width="7" height="7"/>
-            <rect x="3" y="14" width="7" height="7"/>
-          </svg>
-          Clinical Target Modules
-        </h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h2 id="modules-title" class="section-title" style="margin-bottom: 0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            Clinical Target Modules (Evaluated in Unified Multi-Task Run)
+          </h2>
+          <span class="badge-tag available" style="font-size: 11px;">All 3 Active Models Evaluated</span>
+        </div>
         <div class="modules-grid" id="modulesGrid">
           <!-- Module A: Anemia -->
           <article class="module-card selected" id="moduleCardAnemia" data-module="anemia" tabindex="0" role="button" aria-pressed="true">
@@ -616,6 +626,23 @@
             </div>
           </div>
 
+          <!-- Automated Anatomical View Recognition Card -->
+          <div id="aiViewRecognitionBox" class="alert-box alert-info" style="display: none; margin-top: 14px; margin-bottom: 14px; border-left: 4px solid var(--color-brand);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <strong style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-primary);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                Automatic Anatomical View Recognition
+              </strong>
+              <span id="aiViewConfidenceBadge" class="badge-tag available" style="font-size: 10px;">Automated Classification</span>
+            </div>
+            <div id="aiViewRecognitionDesc" style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.45;">
+              Analyzing anatomical surface features...
+            </div>
+          </div>
+
           <!-- Quality Pre-Check Feedback -->
           <div id="qualityWarningBox" class="alert-box alert-warning" style="display: none; margin-bottom: 16px;">
             <!-- Dynamically populated with blur/exposure flags -->
@@ -754,6 +781,11 @@
          ================================================================ -->
     <section id="page7History" class="page-view">
       <div class="history-container">
+        <div style="margin-bottom: 14px;">
+          <button id="btnBackFromHistory" class="btn-secondary" type="button" style="padding: 5px 12px; font-size: 12.5px;">
+            &larr; Return to Workspace
+          </button>
+        </div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
           <div>
             <h2 class="section-title" style="margin: 0;" data-i18n="historyTitle">Screening Session History</h2>

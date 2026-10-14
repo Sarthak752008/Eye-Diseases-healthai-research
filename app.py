@@ -835,12 +835,20 @@ async def download_session_pdf(session_id: str, lang: str = "en"):
             session_data = sess.to_dict()
             if sess.user:
                 user_data = sess.user.to_dict()
+            session_data["model_results"] = {}
             for r in sess.model_results:
-                session_data["model_output"] = r.prediction_value
-                session_data["unit"] = r.unit
-                session_data["view_count"] = r.view_count
-                session_data["view_mean"] = r.view_mean
-                session_data["view_std"] = r.view_std
+                r_dict = r.to_dict()
+                session_data["model_results"][r.module] = r_dict
+                if r.module == "anemia":
+                    session_data["model_output"] = r.prediction_value
+                    session_data["unit"] = r.unit
+                    session_data["view_count"] = r.view_count
+                    session_data["view_mean"] = r.view_mean
+                    session_data["view_std"] = r.view_std
+                elif r.module in ("slid", "conjunctival_injection"):
+                    session_data["slid_result"] = r_dict
+                elif r.module in ("jaundice", "scleral_icterus"):
+                    session_data["jaundice_result"] = r_dict
                 session_data["operational_status"] = r.operational_status
                 session_data["reliability_warnings"] = r.reliability_warnings
                 session_data["documented_limitations"] = r.documented_limitations
@@ -850,14 +858,24 @@ async def download_session_pdf(session_id: str, lang: str = "en"):
         session_data = {
             "session_id": session_id,
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-            "selected_module": "anemia",
+            "selected_module": "unified_ocular_screening",
             "capture_source": "upload",
             "operational_status": "available_research_only",
             "model_output": 12.8,
             "unit": "g/dL",
             "view_count": 2,
             "view_mean": 12.8,
-            "view_std": 0.45
+            "view_std": 0.45,
+            "slid_result": {
+                "module": "slid",
+                "operational_status": "available_research_only",
+                "model_output": [{"predicted_class": "control_normal", "confidence": 0.988}]
+            },
+            "jaundice_result": {
+                "module": "jaundice",
+                "operational_status": "available_research_only",
+                "model_output": [{"predicted_class": "normal", "confidence": 0.912}]
+            }
         }
 
     pdf_bytes = build_two_page_pdf(

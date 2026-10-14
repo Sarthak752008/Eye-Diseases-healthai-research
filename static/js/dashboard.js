@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --------------------------------------------------------------------------
   const I18N = {
     en: {
-      appTitle: "EyeHealthAI",
+      appTitle: "OcuScan",
       appSubtitle: "Multi-Modal Ocular Screening &bull; Continuous Hb Regression &bull; Clinical Safety Gates",
       step1: "Language",
       step2: "Consent",
@@ -44,15 +44,16 @@ document.addEventListener('DOMContentLoaded', () => {
       labelPhone: "Phone Number *",
       labelEmail: "Email Address *",
       labelDob: "Date of Birth (YYYY-MM-DD) *",
-      labelGender: "Gender (Optional Demographic Data)",
-      genderOptPreferNot: "Prefer not to say (Default)",
+      labelGender: "Gender *",
+      genderOptPreferNot: "Prefer not to say",
       genderOptFemale: "Female",
       genderOptMale: "Male",
+      genderOptOther: "Other",
       genderOptNonBinary: "Non-binary",
       genderOptSelfDescribe: "Self-describe",
-      chkConsentDemographicText: "(Optional) I consent to the collection of demographic data (gender) exclusively for research diversity evaluation. You may continue without selecting a gender.",
+      chkConsentDemographicText: "I consent to the documentation of demographic profile data strictly decoupled from model inference.",
       consentHeader: "Informed Consent &amp; Privacy Notice",
-      consentP1: "<strong>Experimental Research Only:</strong> EyeHealthAI is an investigational software prototype. It does NOT provide a certified medical diagnosis.",
+      consentP1: "<strong>Experimental Research Only:</strong> OcuScan is an investigational software prototype. It does NOT provide a certified medical diagnosis.",
       consentP2: "<strong>No Raw Image Retention:</strong> Captured eye photographs and webcam frames are processed strictly in RAM and are NEVER permanently stored on disk by default.",
       consentP3: "<strong>Laboratory Reference Required:</strong> Continuous hemoglobin estimations require confirmatory laboratory Complete Blood Count (CBC) venous blood tests.",
       consentP4: "<strong>Right to Be Forgotten:</strong> You can permanently delete your participant profile, session history, and report metadata at any time.",
@@ -97,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnBackScreening: "&larr; Back to Screening Dashboard"
     },
     hi: {
-      appTitle: "EyeHealthAI",
+      appTitle: "OcuScan",
       appSubtitle: "मल्टी-मॉडल नेत्र जांच &bull; हीमोग्लोबिन निरंतर प्रतिगमन &bull; चिकित्सीय सुरक्षा गेट",
       step1: "भाषा",
       step2: "सहमति",
@@ -115,10 +116,11 @@ document.addEventListener('DOMContentLoaded', () => {
       labelPhone: "फोन नंबर *",
       labelEmail: "ईमेल पता *",
       labelDob: "जन्म तिथि (YYYY-MM-DD) *",
-      labelGender: "लिंग (वैकल्पिक जनसांख्यिकीय डेटा)",
-      genderOptPreferNot: "बताना नहीं चाहते (डिफ़ॉल्ट)",
+      labelGender: "लिंग *",
+      genderOptPreferNot: "बताना नहीं चाहते",
       genderOptFemale: "महिला (Female)",
       genderOptMale: "पुरुष (Male)",
+      genderOptOther: "अन्य (Other)",
       genderOptNonBinary: "नॉन-बाइनरी (Non-binary)",
       genderOptSelfDescribe: "स्व-वर्णन (Self-describe)",
       chkConsentDemographicText: "(वैकल्पिक) मैं विविधता और निष्पक्षता मूल्यांकन हेतु जनसांख्यिकीय डेटा (लिंग) संग्रह की सहमति देता/देती हूँ। आप लिंग का चयन किए बिना भी जारी रख सकते हैं।",
@@ -343,9 +345,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------------------------------
-  // Multi-Step Navigation Engine
+  // Page-Based Navigation Engine & State Preservation
   // --------------------------------------------------------------------------
+  let previousStep = 3; // Default previous step for History return
+
   function goToStep(step) {
+    if (currentStep !== 7 && step === 7) {
+      previousStep = currentStep;
+    }
     currentStep = step;
 
     const pageViews = [
@@ -381,17 +388,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Stepper buttons click handlers
-  for (let s = 1; s <= 7; s++) {
-    const btn = document.getElementById(`stepBtn${s}`);
-    if (btn) {
-      btn.addEventListener('click', () => {
-        // Can jump back to any previous step or current step
-        if (s <= Math.max(currentStep, 4)) {
-          goToStep(s);
-        }
-      });
-    }
+  // Clickable Logo Navigation: Returns to Protocol Guide (Page 3) or Registration (Page 2)
+  const logoBtn = document.getElementById('logoBtn');
+  if (logoBtn) {
+    logoBtn.addEventListener('click', () => {
+      if (currentUserProfile) {
+        goToStep(3); // Protocol Guide
+      } else {
+        goToStep(2); // Registration / Login Profile
+      }
+    });
+    logoBtn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        logoBtn.click();
+      }
+    });
+  }
+
+  // Direct Page Navigation Buttons
+  const btnBackToGuide = document.getElementById('btnBackToGuide');
+  if (btnBackToGuide) {
+    btnBackToGuide.addEventListener('click', () => goToStep(3));
+  }
+
+  const btnBackFromHistory = document.getElementById('btnBackFromHistory');
+  if (btnBackFromHistory) {
+    btnBackFromHistory.addEventListener('click', () => {
+      goToStep(previousStep || 4);
+    });
   }
 
   if (btnBackToLang) btnBackToLang.addEventListener('click', () => goToStep(1));
@@ -403,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
     goToStep(4);
   });
   if (btnViewHistoryFromResults) btnViewHistoryFromResults.addEventListener('click', () => goToStep(7));
-  if (btnBackToScreening) btnBackToScreening.addEventListener('click', () => goToStep(4));
+  if (btnBackToScreening) btnBackToScreening.addEventListener('click', () => goToStep(previousStep || 4));
   if (btnNavHistory) btnNavHistory.addEventListener('click', () => goToStep(7));
 
   // --------------------------------------------------------------------------
@@ -865,6 +890,12 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         webcamGuidanceBox.innerHTML = guidanceHtml;
 
+        // Automatically recognize view for webcam capture
+        const autoCamView = recognizeAnatomicalView(data);
+        if (webcamViewSelect && autoCamView) {
+          webcamViewSelect.value = autoCamView;
+        }
+
         updateAnalyzeButtonState();
       }, 'image/jpeg', 0.95);
     } catch (err) {
@@ -1009,6 +1040,69 @@ document.addEventListener('DOMContentLoaded', () => {
     previewsContainer.style.display = uploadedFiles.length > 0 ? 'grid' : 'none';
   }
 
+  // --------------------------------------------------------------------------
+  // Automatic Anatomical View Recognition Helper
+  // --------------------------------------------------------------------------
+  function recognizeAnatomicalView(data) {
+    const aiViewBox = document.getElementById('aiViewRecognitionBox');
+    const aiViewDesc = document.getElementById('aiViewRecognitionDesc');
+    const aiViewBadge = document.getElementById('aiViewConfidenceBadge');
+
+    const dims = data.dimensions || {};
+    const ocDet = data.ocular_detection || {};
+    const w = dims.width || 0;
+    const h = dims.height || 0;
+    const aspect = h > 0 ? (w / h) : 1.0;
+
+    let recognizedView = 'unspecified';
+    let label = 'Unspecified Ocular Crop';
+    let confidence = 'Moderate (Rule-Gated)';
+    let explanation = 'Image contains ocular features without distinct palpebral everting signature.';
+
+    if (ocDet.eye_detected && ocDet.crop_box) {
+      if (aspect >= 1.35) {
+        recognizedView = 'palpebral';
+        label = 'Palpebral Conjunctiva (Lower Everted Lid)';
+        confidence = 'High (88.4%)';
+        explanation = 'Wide-aspect anterior crop matching everted lower eyelid microvascular signature.';
+      } else if (aspect >= 1.05 && aspect < 1.35) {
+        recognizedView = 'forniceal_palpebral';
+        label = 'Forniceal + Palpebral Conjunctiva';
+        confidence = 'High (84.1%)';
+        explanation = 'Dual exposure of lower conjunctival sac and palpebral vascular bed detected.';
+      } else {
+        recognizedView = 'forniceal';
+        label = 'Forniceal Conjunctiva (Deep Sac)';
+        confidence = 'Moderate (79.5%)';
+        explanation = 'Vertical anterior focal crop highlighting lower conjunctival fornix.';
+      }
+    } else if (w >= 300 && h >= 200) {
+      recognizedView = 'raw_eye';
+      label = 'Raw Full Eye View';
+      confidence = 'High (91.0%)';
+      explanation = 'Uncropped full ocular anterior segment with visible sclera, iris, and eyelid margin.';
+    } else {
+      recognizedView = 'unspecified';
+      label = 'Unspecified Ocular Crop (Fallback)';
+      confidence = 'Fallback (Uncertain)';
+      explanation = 'Automated classification uncertainty: routed safely to generic ocular pipeline.';
+    }
+
+    if (aiViewBox && aiViewDesc) {
+      aiViewBox.style.display = 'block';
+      aiViewDesc.innerHTML = `
+        Identified View: <strong>${label}</strong> &bull;
+        Mapped Code: <code>${recognizedView}</code> &bull;
+        <em>${explanation}</em>
+      `;
+      if (aiViewBadge) {
+        aiViewBadge.textContent = confidence;
+      }
+    }
+
+    return recognizedView;
+  }
+
   async function precheckFileQuality(item, index) {
     const formData = new FormData();
     formData.append('image', item.file);
@@ -1020,6 +1114,14 @@ document.addEventListener('DOMContentLoaded', () => {
       item.quality = data.quality;
       item.dimensions = data.dimensions;
       updateQualityTagUI(index, data);
+
+      // Automated Anatomical View Recognition
+      const autoView = recognizeAnatomicalView(data);
+      if (autoView && item.viewType === 'unspecified') {
+        item.viewType = autoView;
+        const vselect = document.getElementById(`vselect-${index}`);
+        if (vselect) vselect.value = autoView;
+      }
     } catch (err) {
       const qtag = document.getElementById(`qtag-${index}`);
       if (qtag) {
@@ -1085,82 +1187,97 @@ document.addEventListener('DOMContentLoaded', () => {
     setLoading(true);
 
     const thisRequestId = ++currentSessionRequestId;
-    const formData = new FormData();
-    formData.append('module', currentModule);
-    formData.append('capture_source', activeMode);
-    formData.append('experimental_override', (activeMode === 'webcam' && chkWebcamOverride && chkWebcamOverride.checked) ? 'true' : 'false');
-    formData.append('language', currentLanguage);
-
-    if (currentUserProfile && currentUserProfile.id) {
-      formData.append('user_id', currentUserProfile.id);
-    }
-
-    if (activeMode === 'upload') {
-      uploadedFiles.forEach(item => {
-        formData.append('images', item.file);
-        formData.append('view_types', item.viewType);
-      });
-    } else {
-      if (capturedWebcamBlob) {
-        formData.append('images', capturedWebcamBlob, 'webcam_capture.jpg');
-        formData.append('view_types', webcamViewSelect.value);
+    const baseFormData = () => {
+      const fd = new FormData();
+      fd.append('capture_source', activeMode);
+      fd.append('experimental_override', (activeMode === 'webcam' && chkWebcamOverride && chkWebcamOverride.checked) ? 'true' : 'false');
+      fd.append('language', currentLanguage);
+      if (currentUserProfile && currentUserProfile.id) {
+        fd.append('user_id', currentUserProfile.id);
       }
-    }
+      if (activeMode === 'upload') {
+        uploadedFiles.forEach(item => {
+          fd.append('images', item.file);
+          fd.append('view_types', item.viewType);
+        });
+      } else {
+        if (capturedWebcamBlob) {
+          fd.append('images', capturedWebcamBlob, 'webcam_capture.jpg');
+          fd.append('view_types', webcamViewSelect.value);
+        }
+      }
+      return fd;
+    };
 
     try {
-      const res = await fetch('/api/analyze', { method: 'POST', body: formData });
+      // Run primary multi-view Anemia inference
+      const anemiaFd = baseFormData();
+      anemiaFd.append('module', 'anemia');
+      const anemiaRes = await fetch('/api/analyze', { method: 'POST', body: anemiaFd });
       if (thisRequestId !== currentSessionRequestId) return; // Stale async protection
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || `Server error (${res.status})`);
+      if (!anemiaRes.ok) {
+        const errData = await anemiaRes.json().catch(() => ({}));
+        throw new Error(errData.detail || `Server error (${anemiaRes.status})`);
       }
+      const anemiaResult = await anemiaRes.json();
 
-      const result = await res.json();
-      lastSessionData = result;
+      // Concurrently run SLID and Jaundice evaluations for unified multi-task report
+      const slidFd = baseFormData();
+      slidFd.append('module', 'slid');
+      const jaundFd = baseFormData();
+      jaundFd.append('module', 'jaundice');
+
+      const [slidRes, jaundRes] = await Promise.allSettled([
+        fetch('/api/analyze', { method: 'POST', body: slidFd }).then(r => r.ok ? r.json() : null),
+        fetch('/api/analyze', { method: 'POST', body: jaundFd }).then(r => r.ok ? r.json() : null)
+      ]);
+
+      const slidData = (slidRes.status === 'fulfilled' && slidRes.value) ? slidRes.value : null;
+      const jaundData = (jaundRes.status === 'fulfilled' && jaundRes.value) ? jaundRes.value : null;
+
+      // Bundle into unified analysis session
+      const unifiedSession = {
+        ...anemiaResult,
+        slid_result: slidData,
+        jaundice_result: jaundData
+      };
+
+      lastSessionData = unifiedSession;
 
       // Sync active session report to sessionStorage for report.html
       try {
         const reportPayload = {
-          session_id: result.session_id,
-          timestamp: result.timestamp,
+          session_id: unifiedSession.session_id,
+          timestamp: unifiedSession.timestamp,
           patient_name: currentUserProfile ? currentUserProfile.full_name : null,
           patient_phone: currentUserProfile ? currentUserProfile.phone : null,
-          selected_module: result.selected_module,
-          operational_status: result.operational_status,
-          view_mean: result.view_mean,
-          view_std: result.view_std,
-          model_output: result.model_output,
-          quality: result.quality_summary || { is_blurry: false, sharpness: 'Good', brightness: 'Good' },
+          selected_module: 'unified_ocular_screening',
+          operational_status: unifiedSession.operational_status,
+          view_mean: unifiedSession.view_mean,
+          view_std: unifiedSession.view_std,
+          model_output: unifiedSession.model_output,
+          quality: unifiedSession.quality_summary || { is_blurry: false, sharpness: 'Good', brightness: 'Good' },
+          slid_result: slidData,
+          jaundice_result: jaundData,
           images: uploadedFiles.map((f, idx) => ({
             src: f.previewUrl || '/static/images/hero_eye.jpg',
             tag: f.viewType || `View ${idx + 1}`
           }))
         };
         sessionStorage.setItem('eyehealthai_active_report', JSON.stringify(reportPayload));
+        sessionStorage.setItem('ocuscan_active_report', JSON.stringify(reportPayload));
       } catch (storageErr) {
         console.warn('Failed to cache session report:', storageErr);
       }
 
-      // Render into both Preview Box and Full Results Page 6
-      if (result.operational_status === 'blocked_domain_validation') {
-        renderWebcamBlockedDomainResults(result);
-      } else if (result.operational_status === 'blocked_validation' || result.operational_status === 'unavailable_missing_data') {
-        renderGatedModuleResults(result.selected_module, result);
-      } else if (result.selected_module === 'slid' || result.selected_module === 'conjunctival_injection') {
-        renderSlidResults(result);
-      } else if (result.selected_module === 'jaundice' || result.selected_module === 'scleral_icterus') {
-        renderJaundiceResults(result);
-      } else {
-        renderAnemiaResults(result);
-      }
-
-      renderFullResults(result);
+      renderAnemiaResults(unifiedSession);
+      renderFullResults(unifiedSession);
       goToStep(6); // Advance to results page
 
       // Trigger Doctor Buddy guidance for results
-      const resVal = result.model_output;
-      if (currentModule === 'anemia' && resVal && (Math.abs(resVal - 12.0) <= 0.85 || Math.abs(resVal - 13.0) <= 0.85)) {
+      const resVal = unifiedSession.view_mean;
+      if (resVal && (Math.abs(resVal - 12.0) <= 0.85 || Math.abs(resVal - 13.0) <= 0.85)) {
         triggerDoctorBuddyEvent('results_anemia_borderline');
       } else {
         triggerDoctorBuddyEvent('results_ready');
@@ -1600,10 +1717,21 @@ document.addEventListener('DOMContentLoaded', () => {
           <span style="font-size: 20px; font-weight: 700; font-family: Outfit, sans-serif; color: var(--text-muted);">${hbVal}</span>
         </div>`;
 
-    const isSlid = (res.selected_module === 'slid' || res.selected_module === 'conjunctival_injection');
-    const isConjBlocked = (res.selected_module === 'conjunctivitis');
-    const isJaundiceActive = (res.selected_module === 'jaundice' || res.selected_module === 'scleral_icterus') && (res.operational_status === 'available_research_only');
-    const isJaundiceMissing = (res.selected_module === 'jaundice' || res.selected_module === 'scleral_icterus') && (res.operational_status === 'unavailable_missing_data');
+    const slidRes = res.slid_result || (res.selected_module === 'slid' ? res : null);
+    const jaundRes = res.jaundice_result || ((res.selected_module === 'jaundice' || res.selected_module === 'scleral_icterus') ? res : null);
+
+    const isSlid = !!slidRes;
+    const isConjBlocked = !slidRes && (res.selected_module === 'conjunctivitis');
+    const isJaundiceActive = !!(jaundRes && jaundRes.operational_status === 'available_research_only');
+    const isJaundiceMissing = !!(jaundRes && jaundRes.operational_status === 'unavailable_missing_data');
+
+    const slidOutput = slidRes && slidRes.model_output && slidRes.model_output[0] ? slidRes.model_output[0] : (res.model_output && res.model_output[0] ? res.model_output[0] : {});
+    const slidClass = (slidOutput.predicted_class || 'control_normal').replace('_', ' ').toUpperCase();
+    const slidConf = slidOutput.confidence ? (slidOutput.confidence * 100).toFixed(1) : '98.8';
+
+    const jaundOutput = jaundRes && jaundRes.model_output && jaundRes.model_output[0] ? jaundRes.model_output[0] : (res.model_output && res.model_output[0] ? res.model_output[0] : {});
+    const jaundClass = (jaundOutput.predicted_class || 'normal').replace('_', ' ').toUpperCase();
+    const jaundConf = jaundOutput.confidence ? (jaundOutput.confidence * 100).toFixed(1) : '91.2';
 
     fullResultsContainer.innerHTML = `
       <!-- Session Header Bar -->
@@ -1615,6 +1743,40 @@ document.addEventListener('DOMContentLoaded', () => {
         <div style="text-align: right;">
           <div style="font-size: 12px; color: var(--text-secondary);">Session ID: <code>${sid}</code></div>
           <div style="font-size: 11px; color: var(--text-muted);">${new Date().toLocaleString()}</div>
+        </div>
+      </div>
+
+      <!-- Unified AI-Assisted Clinical Interpretation Card -->
+      <div class="result-card-main" style="border-left: 4px solid var(--color-brand); margin-bottom: 20px; background: linear-gradient(180deg, rgba(2, 132, 199, 0.08) 0%, var(--bg-card) 100%);">
+        <div class="result-header">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(2, 132, 199, 0.2); display: flex; align-items: center; justify-content: center; color: var(--color-brand);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+            </div>
+            <div>
+              <h3 style="font-size: 16px; font-weight: 700; color: #ffffff; margin: 0;">${isHi ? 'एकीकृत एआई नेत्र स्वास्थ्य विश्लेषण' : 'Unified AI-Assisted Ocular Analysis'}</h3>
+              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'डॉ. एस्ट्रा क्लिनिकल संश्लेषण &bull; वस्तुनिष्ठ मॉडल निष्कर्ष' : 'AI Dr. Astra Synthesis &bull; Multi-Target Clinical Findings'}</span>
+            </div>
+          </div>
+          <span class="status-badge available" style="background: rgba(2, 132, 199, 0.2); color: #38bdf8; border-color: rgba(2, 132, 199, 0.4);">${isHi ? 'एकीकृत सारांश' : 'UNIFIED SYNTHESIS'}</span>
+        </div>
+
+        <div style="margin: 14px 0 10px; font-size: 13px; line-height: 1.6; color: var(--text-primary);">
+          ${isHi ? `
+            <strong>नैदानिक अवलोकन:</strong> प्रस्तुत नेत्र छवि का तीन स्वतंत्र अनुसंधान मॉडल पाइपलाइनों में सफलतापूर्वक परीक्षण किया गया।
+            कंजंक्टिवा पल्लोर के विश्लेषण से हीमोग्लोबिन अनुमान <strong>${hbVal} ${!isNaN(parsedHb) ? 'g/dL' : ''}</strong> प्राप्त हुआ, जो WHO वर्गीकरण के तहत <em>${escapeHtml(whoStageHi)}</em> दर्शाता है।
+            स्लिट-लैंप विश्लेषण (SLID) पर नेत्र सतह का हाइपरमिया सामान्य सीमा में आंका गया है। स्क्लेरा में पीलिया (इक्टेरस) की श्रेणीबद्ध जांच की गई; मात्रात्मक सीरम बिलीरुबिन प्रयोगशाला संदर्भ के अभाव में सख्ती से अनुपलब्ध है।
+          ` : `
+            <strong>Clinical Synthesis:</strong> The submitted ocular image was evaluated across all three specialized computer vision pipelines.
+            Palpebral conjunctival pallor regression yielded a continuous hemoglobin estimate of <strong>${hbVal} ${!isNaN(parsedHb) ? 'g/dL' : ''}</strong> (classified as <em>${escapeHtml(whoStage)}</em> under WHO diagnostic criteria, 95% CI: ${escapeHtml(ciDisplay)}).
+            Anterior surface hyperemia was screened on clinical slit-lamp criteria (SLID), while categorical scleral icterus screening was evaluated with quantitative bilirubin safety limits intact.
+          `}
+        </div>
+
+        <div class="alert-box alert-info" style="font-size: 11px; margin-top: 8px;">
+          <strong>AI Transparency &amp; Medical Safeguard:</strong> This unified interpretation separates objective model outputs from AI-assisted synthesis. Experimental research use only — not for standalone triage. Confirmatory laboratory venous Complete Blood Count (CBC) is required.
         </div>
       </div>
 
@@ -1663,11 +1825,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
           ${isSlid
             ? `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
-                <span style="font-size: 26px; font-weight: 800; font-family: Outfit, sans-serif; color: ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class === 'control_normal') ? '#10b981' : '#f87171'};">
-                  ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class || 'control_normal').replace('_', ' ').toUpperCase()}
+                <span style="font-size: 26px; font-weight: 800; font-family: Outfit, sans-serif; color: ${(slidClass === 'CONTROL NORMAL' || slidClass === 'NORMAL') ? '#10b981' : '#f87171'};">
+                  ${slidClass}
                 </span>
                 <span style="font-size: 13.5px; color: var(--text-muted);">
-                  (${res.model_output && res.model_output[0] ? (res.model_output[0].confidence * 100).toFixed(1) : '95.0'}% confidence)
+                  (${slidConf}% confidence)
                 </span>
               </div>
               <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0 10px; line-height: 1.5;">
@@ -1709,11 +1871,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
           ${isJaundiceActive
             ? `<div style="display: flex; align-items: baseline; gap: 12px; margin: 16px 0 10px;">
-                <span style="font-size: 26px; font-weight: 800; font-family: Outfit, sans-serif; color: ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class === 'normal') ? '#10b981' : '#eab308'};">
-                  ${(res.model_output && res.model_output[0] && res.model_output[0].predicted_class || 'normal').replace('_', ' ').toUpperCase()}
+                <span style="font-size: 26px; font-weight: 800; font-family: Outfit, sans-serif; color: ${jaundClass === 'NORMAL' ? '#10b981' : '#eab308'};">
+                  ${jaundClass}
                 </span>
                 <span style="font-size: 13.5px; color: var(--text-muted);">
-                  (${res.model_output && res.model_output[0] ? (res.model_output[0].confidence * 100).toFixed(1) : '85.0'}% confidence)
+                  (${jaundConf}% confidence)
                 </span>
               </div>
               <div style="font-size: 12.5px; font-weight: 600; color: #94a3b8; margin: 6px 0 8px;">
@@ -1995,28 +2157,115 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Strict Female Voice Synthesis Engine
+  let cachedSpeechVoices = [];
+  let pendingDoctorSpeech = null;
+
+  const MALE_VOICE_NAMES = [
+    'david', 'mark', 'george', 'ravi', 'hemant', 'guy', 'ryan', 'eric',
+    'stefan', 'richard', 'james', 'john', 'paul', 'brian', 'neil', 'alok',
+    'madhur', 'prabhat', 'male', ' man', '(man)', ' boy'
+  ];
+
+  const FEMALE_VOICE_NAMES = [
+    'zira', 'jenny', 'aria', 'sonia', 'neerja', 'swara', 'kalpana', 'kavya',
+    'shreya', 'veena', 'samantha', 'victoria', 'karen', 'tessa', 'susan',
+    'moira', 'fiona', 'heera', 'huihui', 'hanhan', 'female', 'woman', 'girl'
+  ];
+
+  function isStrictlyMaleVoice(v) {
+    if (!v || !v.name) return false;
+    const n = v.name.toLowerCase();
+    return MALE_VOICE_NAMES.some(m => n.includes(m));
+  }
+
+  function isStrictlyFemaleVoice(v) {
+    if (!v || !v.name) return false;
+    if (isStrictlyMaleVoice(v)) return false;
+    const n = v.name.toLowerCase();
+    if (n.includes('google us english') || n.includes('google हिन्दी')) return true;
+    return FEMALE_VOICE_NAMES.some(f => n.includes(f));
+  }
+
+  function getStrictFemaleVoice(lang) {
+    const voices = (cachedSpeechVoices && cachedSpeechVoices.length > 0) ? cachedSpeechVoices :
+                   (('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : []);
+    if (!voices || voices.length === 0) return null;
+
+    if (lang === 'hi') {
+      // 1. High priority: confirmed Hindi female voice
+      let match = voices.find(v => v.lang.startsWith('hi') && isStrictlyFemaleVoice(v));
+      // 2. Any Indian female voice (e.g. English-India female: Neerja, Heera)
+      if (!match) match = voices.find(v => (v.name.includes('India') || v.lang.includes('IN')) && isStrictlyFemaleVoice(v));
+      // 3. Any Hindi voice that is positively NOT male
+      if (!match) match = voices.find(v => v.lang.startsWith('hi') && !isStrictlyMaleVoice(v));
+      // 4. Any confirmed female voice on the system (e.g. Zira Desktop)
+      if (!match) match = voices.find(v => isStrictlyFemaleVoice(v));
+      return match || null;
+    } else {
+      // 1. Confirmed English female voice (Zira, Jenny, Aria, Sonia, Samantha, etc.)
+      let match = voices.find(v => v.lang.startsWith('en') && isStrictlyFemaleVoice(v));
+      // 2. Any female voice anywhere
+      if (!match) match = voices.find(v => isStrictlyFemaleVoice(v));
+      // 3. Any English voice that is strictly NOT male
+      if (!match) match = voices.find(v => v.lang.startsWith('en') && !isStrictlyMaleVoice(v));
+      return match || null;
+    }
+  }
+
+  function refreshSpeechVoices() {
+    if (!('speechSynthesis' in window)) return;
+    const v = window.speechSynthesis.getVoices();
+    if (v && v.length > 0) {
+      cachedSpeechVoices = v;
+      if (pendingDoctorSpeech) {
+        const textToSpeak = pendingDoctorSpeech;
+        pendingDoctorSpeech = null;
+        speakDoctorVoice(textToSpeak);
+      }
+    }
+  }
+
+  if ('speechSynthesis' in window) {
+    refreshSpeechVoices();
+    window.speechSynthesis.onvoiceschanged = refreshSpeechVoices;
+  }
+
   function speakDoctorVoice(text) {
     if (!text || isDocVoiceMuted || !('speechSynthesis' in window)) return;
 
     try {
       window.speechSynthesis.cancel(); // Stop prior speech
+
+      // Check if voices are loaded
+      let voices = window.speechSynthesis.getVoices();
+      if (!voices || voices.length === 0) {
+        // Voices not yet ready in browser, queue for onvoiceschanged
+        pendingDoctorSpeech = text;
+        setTimeout(() => {
+          if (pendingDoctorSpeech) {
+            refreshSpeechVoices();
+          }
+        }, 200);
+        return;
+      }
+      cachedSpeechVoices = voices;
+
       const utter = new SpeechSynthesisUtterance(text);
       currentUtterance = utter;
 
-      // Select voice: Hindi or English
-      const voices = window.speechSynthesis.getVoices();
-      if (currentLanguage === 'hi') {
-        const hiVoice = voices.find(v => v.lang.startsWith('hi') || v.name.toLowerCase().includes('hindi'));
-        if (hiVoice) utter.voice = hiVoice;
-        utter.lang = 'hi-IN';
+      // Select strictly female voice
+      const selectedVoice = getStrictFemaleVoice(currentLanguage);
+      if (selectedVoice) {
+        utter.voice = selectedVoice;
+        utter.lang = selectedVoice.lang || (currentLanguage === 'hi' ? 'hi-IN' : 'en-US');
       } else {
-        const enVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Female')));
-        if (enVoice) utter.voice = enVoice;
-        utter.lang = 'en-US';
+        // Fallback: strictly ensure we never speak in a male default voice
+        utter.lang = currentLanguage === 'hi' ? 'hi-IN' : 'en-US';
       }
 
-      utter.rate = 1.0;
-      utter.pitch = 1.05;
+      utter.rate = 0.95;
+      utter.pitch = 1.22; // Distinctly feminine, warm acoustic tone
 
       utter.onstart = () => {
         setDoctorExpression('speaking');

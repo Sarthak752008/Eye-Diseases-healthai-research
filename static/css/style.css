@@ -4,30 +4,31 @@
    ========================================================================== */
 
 :root {
-  --bg-primary: #0a0f1d;
-  --bg-secondary: #10182c;
-  --bg-card: rgba(18, 26, 47, 0.75);
-  --bg-card-hover: rgba(24, 35, 63, 0.85);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-active: rgba(99, 102, 241, 0.5);
+  /* OcuScan Charcoal / Blackish Dark Theme */
+  --bg-primary: #0b0c0e;
+  --bg-secondary: #121316;
+  --bg-card: #18191d;
+  --bg-card-hover: #22242a;
+  --border-subtle: #26282e;
+  --border-active: #0284c7;
   
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
   
-  --color-brand: #6366f1;
-  --color-brand-glow: rgba(99, 102, 241, 0.25);
+  --color-brand: #0284c7;
+  --color-brand-glow: rgba(2, 132, 199, 0.22);
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
-  --color-info: #06b6d4;
+  --color-info: #0ea5e9;
   
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
   
-  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-subtle);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--border-subtle);
   --shadow-glow: 0 0 25px var(--color-brand-glow);
   --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -37,41 +38,210 @@
   --bg-secondary: #f1f5f9;
   --bg-card: #ffffff;
   --bg-card-hover: #fafcfd;
-  --border-subtle: #e2e8f0;
+  --border-subtle: #cbd5e1;
   --border-active: #0284c7;
 
   --text-primary: #0f172a;
-  --text-secondary: #475569;
+  --text-secondary: #334155;
   --text-muted: #64748b;
 
   --color-brand: #0284c7;
   --color-brand-glow: rgba(2, 132, 199, 0.22);
-  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.06), 0 0 0 1px #e2e8f0;
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.06), 0 0 0 1px #cbd5e1;
 }
 
 [data-theme="light"] body {
   background-color: var(--bg-primary);
   background-image: 
-    radial-gradient(circle at 15% 15%, rgba(2, 132, 199, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.06) 0%, transparent 40%);
+    radial-gradient(circle at 15% 15%, rgba(2, 132, 199, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.04) 0%, transparent 40%);
+}
+
+[data-theme="light"] .title-area h1 {
+  background: linear-gradient(to right, #0f172a, #334155);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme="light"] .banner-notice {
+  background: #f1f5f9;
+  border-left: 4px solid var(--color-brand);
+  color: #1e293b;
+}
+
+[data-theme="light"] .banner-notice strong {
+  color: #0f172a;
+}
+
+[data-theme="light"] .module-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .module-card:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+[data-theme="light"] .module-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .module-sub {
+  color: #475569;
+}
+
+[data-theme="light"] .module-desc {
+  color: #334155;
+}
+
+[data-theme="light"] .alert-info {
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+  color: #0369a1;
+}
+
+[data-theme="light"] .alert-warning {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+[data-theme="light"] .alert-danger {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+[data-theme="light"] .result-card-main {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .result-card-main h3 {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .result-number,
+[data-theme="light"] .lang-hero-title,
+[data-theme="light"] .lang-choice-title,
+[data-theme="light"] .guide-step-title,
+[data-theme="light"] .analysis-status-msg,
+[data-theme="light"] .step-item.active,
+[data-theme="light"] .step-item,
+[data-theme="light"] .doctor-name-title {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .doctor-message-text {
+  color: #1e293b !important;
+}
+
+[data-theme="light"] .doctor-speech-bubble {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-theme="light"] .doctor-bubble-header {
+  border-bottom-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .doctor-input-area {
+  border-top-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .doctor-guidance-box {
+  background: #f0f9ff !important;
+  border-color: #bae6fd !important;
+}
+
+[data-theme="light"] .doctor-next-step-pill {
+  color: #0369a1 !important;
+  background: #e0f2fe !important;
+  border-color: #7dd3fc !important;
+}
+
+[data-theme="light"] .doctor-ask-input {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .doctor-ask-input:focus {
+  border-color: #0284c7 !important;
+}
+
+[data-theme="light"] .doc-chat-bubble.assistant {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .doc-suggestion-chip {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .doc-suggestion-chip:hover {
+  background: #e0f2fe !important;
+  border-color: #0284c7 !important;
+  color: #0284c7 !important;
+}
+
+[data-theme="light"] .btn-secondary {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .btn-secondary:hover {
+  background: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+}
+
+[data-theme="light"] .btn-mode {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .btn-mode.active {
+  background: #e0f2fe !important;
+  color: #0284c7 !important;
+  border-color: #0284c7 !important;
+}
+
+[data-theme="light"] .captured-card,
+[data-theme="light"] .lang-hero-card,
+[data-theme="light"] .lang-choice-card,
+[data-theme="light"] .guide-step-card,
+[data-theme="light"] .analysis-hero,
+[data-theme="light"] .history-container {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
 }
 
 [data-theme="light"] .form-input,
 [data-theme="light"] .view-select,
-[data-theme="light"] .stepper-nav,
-[data-theme="light"] .doctor-speech-bubble {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: #cbd5e1;
+[data-theme="light"] .stepper-nav {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
 }
 
-/* Theme Toggle Button */
+/* Theme Toggle Button - Sun icon in dark mode, Moon icon in light mode */
 .theme-toggle-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-sm);
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
@@ -87,22 +257,24 @@
 }
 
 .theme-toggle-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
 }
 
+/* In Dark mode: show Sun icon to switch to Light mode */
 .theme-icon-sun {
-  display: none;
+  display: block;
 }
 .theme-icon-moon {
-  display: block;
+  display: none;
 }
 
+/* In Light mode: show Moon icon to switch to Dark mode */
 [data-theme="light"] .theme-icon-sun {
-  display: block;
+  display: none;
 }
 [data-theme="light"] .theme-icon-moon {
-  display: none;
+  display: block;
 }
 
 * {
@@ -118,8 +290,8 @@ body {
   min-height: 100vh;
   line-height: 1.5;
   background-image: 
-    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.08) 0%, transparent 40%);
+    radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.015) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(2, 132, 199, 0.03) 0%, transparent 50%);
   background-attachment: fixed;
 }
 
@@ -145,17 +317,18 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
+  cursor: pointer;
 }
 
 .logo-icon {
   width: 44px;
   height: 44px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #6366f1, #06b6d4);
+  background: linear-gradient(135deg, #0284c7, #0369a1);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 20px rgba(2, 132, 199, 0.35);
 }
 
 .logo-icon svg {
@@ -2095,7 +2268,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 190px;
+  max-height: 260px;
   min-height: 40px;
   overflow-y: auto;
   padding-right: 4px;

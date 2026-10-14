@@ -269,7 +269,14 @@ async def chat(
     # Step 4: Build conversation contents for Gemini
     try:
         from src.config import settings
-        target_model = getattr(settings, "GEMINI_MODEL", "gemini-2.0-flash")
+        candidate_models = [
+            getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash"),
+            "gemini-flash-latest",
+            "gemini-3.8-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-1.5-flash",
+            "gemini-2.0-flash",
+        ]
         contents = []
 
         # Add conversation history if provided
@@ -290,21 +297,35 @@ async def chat(
             "parts": [{"text": sanitized_message}]
         })
 
-        response = client.models.generate_content(
-            model=target_model,
-            contents=contents,
-            config={
-                "system_instruction": _SYSTEM_INSTRUCTION,
-                "temperature": 0.3,
-                "max_output_tokens": 1024,
+        response = None
+        for target_model in candidate_models:
+            try:
+                response = client.models.generate_content(
+                    model=target_model,
+                    contents=contents,
+                    config={
+                        "system_instruction": _SYSTEM_INSTRUCTION,
+                        "temperature": 0.3,
+                        "max_output_tokens": 1024,
+                    }
+                )
+                if response and response.text:
+                    break
+            except Exception as e:
+                logger.debug(f"Copilot model candidate {target_model} failed: {e}")
+
+        if response and response.text:
+            return {
+                "response": response.text.strip(),
+                "mode": "gemini_api",
+                "sanitized": was_sanitized
             }
-        )
 
-        response_text = response.text if response.text else "I couldn't generate a response. Please try rephrasing your question."
-
+        # If all candidates failed, gracefully degrade to rich offline knowledge
+        offline_response = _get_offline_response(message)
         return {
-            "response": response_text,
-            "mode": "gemini_api",
+            "response": offline_response,
+            "mode": "offline",
             "sanitized": was_sanitized
         }
 

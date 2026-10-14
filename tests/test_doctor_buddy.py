@@ -164,3 +164,39 @@ class TestDoctorBuddyEndpoints:
         data = res.json()
         assert "message" in data
         assert len(data["message"]) > 0
+
+    def test_ask_endpoint_detailed_project_overview(self, client):
+        payload = {
+            "question": "Tell me about this project and how it works",
+            "language": "en",
+            "current_step": 1
+        }
+        res = client.post("/api/doctor-buddy/ask", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+        # Verify it provides the comprehensive architecture details rather than static step 1 welcome
+        assert "EyeHealthAI" in data["message"]
+        assert "Model A" in data["message"] or "Anemia" in data["message"]
+        assert len(data["speak_text"]) > 0
+
+    def test_ask_endpoint_conjunctivitis_rationale(self, client):
+        payload = {
+            "question": "Why is the conjunctivitis model blocked and what is SLID?",
+            "language": "en",
+            "current_step": 5
+        }
+        res = client.post("/api/doctor-buddy/ask", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+        assert "mendeley" in data["message"].lower() or "slid" in data["message"].lower()
+
+    def test_ask_endpoint_leakage_prevention(self, client):
+        payload = {
+            "question": "How does patient-level data splitting prevent leakage?",
+            "language": "en",
+            "current_step": 3
+        }
+        res = client.post("/api/doctor-buddy/ask", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+        assert "leakage" in data["message"].lower() or "split" in data["message"].lower()
