@@ -6,9 +6,12 @@ Loads environment variables with robust defaults for development and production.
 """
 
 import os
-from typing import List, Set
+from typing import List, Set, Optional
+from dotenv import load_dotenv
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+# Automatically load environment variables from root .env if present
+load_dotenv(os.path.join(WORKSPACE_ROOT, '.env'))
 
 class Settings:
     # Environment
@@ -63,7 +66,13 @@ class Settings:
     # Compute Device
     DEVICE: str = os.getenv("DEVICE", "cpu")
 
+    # OpenAI Assistant Configuration
+    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    OPENAI_MODEL_NAME: str = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-mini")
+    OPENAI_VISION_MODEL: str = os.getenv("OPENAI_VISION_MODEL", os.getenv("OPENAI_MODEL_NAME", "gpt-4o-mini"))
+
     # Gemini LLM Assistant Configuration
+    GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 settings = Settings()

@@ -93,7 +93,7 @@ class TestDoctorBuddyMedicalSafetyAndPII:
     def test_camera_question_routes_safely(self):
         import asyncio
         res = asyncio.run(ask_doctor_buddy_question("How do I grant camera permission in browser?", "en", 4))
-        assert res["mode"] in ("deterministic", "gemini_enriched")
+        assert res["mode"] in ("deterministic", "gemini_enriched", "openai_chat")
         assert "camera" in res["message"].lower() or "permission" in res["message"].lower()
 
 

@@ -456,3 +456,76 @@ def test_unseen_images_produce_distinct_unified_predictions(client):
     assert d1['view_mean'] != d2['view_mean']
     # Confidences must be dynamic and distinct
     assert d1['anemia']['prediction'][0]['hb_pred_g_dl'] != d2['anemia']['prediction'][0]['hb_pred_g_dl']
+
+
+def test_dynamic_report_consistency_and_provenance(client):
+    """Verifies input hashing, SQLite session consistency, and PDF report text integrity."""
+    import io
+    import pypdf
+    anemia_df = pd.read_csv(os.path.join(WORKSPACE_ROOT, 'data', 'manifests', 'anemia_manifest.csv'))
+    img_path = os.path.join(WORKSPACE_ROOT, anemia_df[anemia_df['split'] == 'test'].iloc[5]['relative_path'])
+
+    with open(img_path, 'rb') as f:
+        file_bytes = f.read()
+
+    res = client.post(
+        '/api/analyze',
+        data={'module': 'unified', 'view_types': ['forniceal_palpebral']},
+        files=[('images', ('provenance_eye.jpg', file_bytes, 'image/jpeg'))]
+    )
+
+    assert res.status_code == 200
+    data = res.json()
+    sid = data['session_id']
+    assert 'input_hashes' in data and len(data['input_hashes']) == 1
+    assert 'input_provenance' in data and len(data['input_provenance']) == 1
+    assert data['input_provenance'][0]['filename'] == 'provenance_eye.jpg'
+
+    # Check API session data endpoint
+    rpt_res = client.get(f'/api/reports/{sid}')
+    assert rpt_res.status_code == 200
+    rpt_data = rpt_res.json()
+    assert rpt_data['session']['session_id'] == sid
+    assert rpt_data['session']['view_mean'] == data['view_mean']
+    assert 'clinical_decision' in rpt_data['session']
+    assert rpt_data['session']['clinical_decision'] is not None
+
+    # Check PDF report content
+    pdf_res = client.get(f'/api/reports/{sid}/pdf?lang=en')
+    assert pdf_res.status_code == 200
+    reader = pypdf.PdfReader(io.BytesIO(pdf_res.content))
+    assert len(reader.pages) == 2
+
+    p1_text = reader.pages[0].extract_text()
+    p2_text = reader.pages[1].extract_text()
+
+    # Verify no broken report ID or session_unregistered
+    assert "REP-SESSION_" not in p1_text
+    assert "session_unregistered" not in p1_text
+    assert "Captured View #1" in p1_text
+    # Verify exact Hb is rendered on Page 2
+    hb_str = f"{float(data['view_mean']):.2f} g/dL"
+    assert hb_str in p2_text
+
+
+def test_scorecard_html_markup_has_no_obscuring_reticles(client):
+    """Verifies that static/report.html contains no hardcoded reticle overlays or static mock confidences."""
+    res = client.get('/report')
+    assert res.status_code == 200
+    html = res.text
+
+    # No obscuring yellow/green/blue reticle boxes
+    assert 'class="reticle-box"' not in html
+    assert '.reticle-box' not in html
+
+    # Scorecard header and elements exist
+    assert 'id="rptOverallScore"' in html
+    assert 'id="rptImagesGrid"' in html
+    assert 'id="cardScoreHb"' in html
+    assert 'id="cardScoreConj"' in html
+    assert 'id="cardScoreJaund"' in html
+    assert 'id="cardScoreQuality"' in html
+
+    # Ensure no static 98.8% or 91.2% hardcoded inside bullet list items
+    assert '<li>Confidence: 98.8% (MobileNetV3-Small)</li>' not in html
+    assert '<li>Confidence: 91.2% (MobileNetV3-Small)</li>' not in html

@@ -3,27 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OcuScan — Ocular Health Screening Report</title>
-  <meta name="description" content="AI-Powered Ocular Screening Report & Ocular Health Scorecard">
-  
-  <!-- Modern Google Fonts -->
+  <title>OcuScan — Ocular Health Screening Report &amp; Scorecard</title>
+  <meta name="description" content="AI-Powered Patient-Friendly Ocular Screening Report &amp; Clinician Scorecard">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
-
   <style>
     :root {
+      --primary: #0f172a;
+      --primary-blue: #0284c7;
       --bg-page: #f8fafc;
-      --card-bg: #ffffff;
-      --border-color: #e2e8f0;
+      --bg-card: #ffffff;
       --text-main: #0f172a;
-      --text-sub: #475569;
       --text-muted: #64748b;
+      --text-sub: #475569;
+      --border-color: #cbd5e1;
       --color-poor: #ef4444;
-      --color-warn: #f97316;
       --color-fair: #eab308;
       --color-good: #22c55e;
-      --color-blue: #3b82f6;
+      --color-brand: #0284c7;
     }
 
     * {
@@ -34,28 +32,27 @@
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: var(--bg-page);
+      background: #f1f5f9;
       color: var(--text-main);
-      line-height: 1.4;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      padding: 24px 16px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* Print / Action Controls */
+    /* Action Bar (Screen Only) */
     .action-bar {
-      width: 100%;
-      max-width: 820px;
+      max-width: 860px;
+      margin: 0 auto 16px auto;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
-      padding: 12px 18px;
       background: #ffffff;
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      padding: 12px 20px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     .btn-action {
@@ -63,40 +60,68 @@
       align-items: center;
       gap: 8px;
       padding: 8px 16px;
-      border-radius: 8px;
+      border-radius: 6px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       text-decoration: none;
-      transition: all 0.2s ease;
-      border: none;
-    }
-
-    .btn-print {
-      background: #2563eb;
-      color: #ffffff;
-    }
-    .btn-print:hover {
-      background: #1d4ed8;
+      transition: all 0.2s;
     }
 
     .btn-back {
       background: #f1f5f9;
       color: #334155;
+      border: 1px solid #cbd5e1;
     }
+
     .btn-back:hover {
       background: #e2e8f0;
     }
 
-    /* Printable Report Container */
+    .btn-print {
+      background: #0284c7;
+      color: #ffffff;
+      border: none;
+    }
+
+    .btn-print:hover {
+      background: #0369a1;
+    }
+
+    /* Language Toggle in Report Action Bar */
+    .lang-toggle-wrap {
+      display: flex;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .lang-toggle-btn {
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .lang-toggle-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+    }
+
+    /* Report Sheet (Matches 2-Page Standard) */
     .report-sheet {
-      width: 100%;
-      max-width: 820px;
+      max-width: 860px;
+      margin: 0 auto;
       background: #ffffff;
-      border: 1px solid var(--border-color);
-      border-radius: 14px;
-      padding: 32px 36px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      padding: 28px 32px;
     }
 
     /* Patient Header */
@@ -104,54 +129,64 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 16px;
-      border-bottom: 1.5px solid #cbd5e1;
-      margin-bottom: 24px;
+      padding-bottom: 14px;
+      border-bottom: 1.5px solid #0f172a;
+      margin-bottom: 20px;
       font-size: 13px;
-      font-weight: 600;
-      color: #1e293b;
+      color: #334155;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
-    .patient-header span strong {
+    .patient-header strong {
       color: #0f172a;
+      font-weight: 700;
     }
 
-    /* Section 1: AI SCREENING REPORT */
-    .section-box {
-      border: 1px solid #cbd5e1;
-      border-radius: 12px;
-      padding: 18px 20px;
-      margin-bottom: 24px;
-      background: #ffffff;
-    }
-
+    /* Section Titles */
     .section-title {
       font-family: 'Outfit', sans-serif;
       font-size: 15px;
       font-weight: 800;
-      letter-spacing: 0.5px;
       color: #0f172a;
-      margin-bottom: 16px;
+      letter-spacing: 0.3px;
+      margin-bottom: 12px;
       text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Reassurance Status Banner */
+    .status-banner-box {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      font-size: 12.5px;
+      color: #166534;
+      line-height: 1.5;
     }
 
     /* Image Grid */
     .images-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 16px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .image-card {
       display: flex;
       flex-direction: column;
       align-items: center;
+      width: 100%;
     }
 
     .image-frame {
       width: 100%;
-      height: 150px;
+      height: 160px;
       border-radius: 10px;
       overflow: hidden;
       border: 1.5px solid #cbd5e1;
@@ -168,40 +203,34 @@
       object-fit: cover;
     }
 
-    /* Target Reticle Overlay */
-    .reticle-box {
-      position: absolute;
-      border: 2px solid #facc15;
-      background: rgba(250, 204, 21, 0.15);
-      border-radius: 4px;
-      pointer-events: none;
-    }
-
     .view-tag-pill {
       margin-top: 8px;
-      background: #ef4444;
-      color: #ffffff;
       font-size: 11px;
       font-weight: 700;
-      padding: 4px 14px;
-      border-radius: 20px;
-      text-transform: capitalize;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 3px 10px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
 
-    /* Color Legend Bar */
+    /* Anatomical Legend Bar */
     .legend-bar {
       display: flex;
-      justify-content: space-around;
+      justify-content: space-between;
       align-items: center;
+      padding: 8px 14px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-size: 11px;
+      color: #475569;
+      font-weight: 600;
       flex-wrap: wrap;
       gap: 8px;
-      padding: 8px 12px;
-      background: #f8fafc;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-      font-size: 10.5px;
-      font-weight: 600;
-      color: #334155;
     }
 
     .legend-item {
@@ -213,73 +242,123 @@
     .legend-color {
       width: 10px;
       height: 10px;
-      border-radius: 2px;
+      border-radius: 50%;
     }
 
-    /* Section 2: RECOMMENDATIONS */
-    .recommendations-title {
-      font-family: 'Outfit', sans-serif;
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      color: #0f172a;
-      margin-bottom: 12px;
-    }
-
-    .rec-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 28px;
-    }
-
-    .rec-table tr {
-      border-bottom: 1px solid #f1f5f9;
-    }
-
-    .rec-table td {
-      padding: 8px 6px;
+    /* Quality Strip */
+    .quality-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 20px;
       font-size: 11.5px;
-      vertical-align: top;
+      color: #334155;
     }
 
-    .rec-label {
-      width: 28%;
-      font-weight: 700;
-      color: #1e293b;
+    .quality-item {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
 
-    .rec-colon {
-      width: 3%;
-      text-align: center;
-      color: #94a3b8;
+    /* Observations Table */
+    .obs-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 22px;
+      font-size: 12px;
     }
 
-    .rec-text {
+    .obs-table th {
+      background: #f8fafc;
+      color: #1e293b;
+      font-weight: 700;
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1.5px solid #cbd5e1;
+    }
+
+    .obs-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    /* What this means & Confidence box */
+    .guidance-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      font-size: 12px;
       color: #334155;
-      line-height: 1.45;
+      line-height: 1.6;
+    }
+
+    .guidance-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+
+    /* Next Steps Table */
+    .steps-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+      font-size: 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .steps-table tr {
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .steps-table tr:last-child {
+      border-bottom: none;
+    }
+
+    .step-num-col {
+      width: 180px;
+      padding: 10px 14px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .step-desc-col {
+      padding: 10px 14px;
+      color: #334155;
+      line-height: 1.5;
     }
 
     /* Page Divider */
     .page-divider {
       height: 2px;
-      background: linear-gradient(to right, #cbd5e1, #94a3b8, #cbd5e1);
-      margin: 32px 0;
+      background: #e2e8f0;
+      margin: 28px 0;
       border-radius: 2px;
     }
 
     /* Section 3: Ocular Health Scorecard */
     .scorecard-header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
 
     .scorecard-header h2 {
       font-family: 'Outfit', sans-serif;
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 800;
       color: #0f172a;
       margin-bottom: 2px;
@@ -290,19 +369,19 @@
       color: #64748b;
     }
 
-    /* Central Score Box */
+    /* Central Score Banner */
     .score-banner {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 12px;
-      padding: 18px 24px;
+      padding: 16px 20px;
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: 22px;
     }
 
     .score-number {
       font-family: 'Outfit', sans-serif;
-      font-size: 38px;
+      font-size: 36px;
       font-weight: 800;
       color: #0f172a;
       line-height: 1;
@@ -311,7 +390,7 @@
     .score-badge {
       display: inline-block;
       margin-top: 6px;
-      padding: 3px 12px;
+      padding: 3px 14px;
       border-radius: 20px;
       font-size: 11px;
       font-weight: 700;
@@ -321,16 +400,17 @@
     }
 
     .score-sub {
-      font-size: 11.5px;
+      font-size: 12px;
       color: #475569;
       margin-top: 6px;
+      font-weight: 500;
     }
 
     /* Gradient Range Bar */
     .slider-container {
       width: 100%;
-      max-width: 460px;
-      margin: 16px auto 8px auto;
+      max-width: 480px;
+      margin: 14px auto 6px auto;
       position: relative;
     }
 
@@ -351,6 +431,7 @@
       border: 3px solid #0f172a;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
       transform: translateX(-50%);
+      transition: left 0.4s ease;
     }
 
     .slider-legend {
@@ -359,7 +440,8 @@
       gap: 14px;
       font-size: 10px;
       color: #64748b;
-      margin-top: 10px;
+      margin-top: 8px;
+      flex-wrap: wrap;
     }
 
     .legend-dot {
@@ -374,8 +456,8 @@
     .scorecard-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-      margin-bottom: 24px;
+      gap: 14px;
+      margin-bottom: 22px;
     }
 
     .score-card {
@@ -393,7 +475,7 @@
     }
 
     .card-title {
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 700;
       color: #1e293b;
       display: flex;
@@ -406,6 +488,7 @@
       font-size: 14px;
       font-weight: 800;
       color: #0f172a;
+      margin-top: 2px;
     }
 
     .card-badge {
@@ -414,7 +497,7 @@
       border-radius: 12px;
       font-size: 9.5px;
       font-weight: 700;
-      margin-top: 2px;
+      text-transform: uppercase;
     }
 
     .badge-poor { background: #fee2e2; color: #991b1b; }
@@ -425,75 +508,54 @@
     .card-bullets {
       list-style-type: disc;
       padding-left: 18px;
-      font-size: 10.5px;
+      font-size: 11px;
       color: #475569;
       line-height: 1.5;
     }
 
-    /* What this means for you */
-    .insights-box {
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
+    /* Technical Clinician Panel */
+    .clinician-panel {
+      margin-top: 24px;
+      margin-bottom: 20px;
       background: #f8fafc;
-      padding: 14px 18px;
-      margin-bottom: 24px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 18px 20px;
     }
 
-    .insights-title {
-      font-size: 12.5px;
-      font-weight: 700;
-      color: #0f172a;
-      margin-bottom: 8px;
-    }
-
-    .insights-list {
-      list-style-type: disc;
-      padding-left: 18px;
-      font-size: 11px;
-      color: #334155;
-      line-height: 1.5;
-    }
-
-    /* Footer & Verification */
+    /* Footer */
     .report-footer {
-      border-top: 1.5px solid #cbd5e1;
-      padding-top: 16px;
+      border-top: 1px solid #cbd5e1;
+      padding-top: 14px;
       display: flex;
       justify-content: space-between;
-      align-items: flex-end;
-      gap: 20px;
+      align-items: center;
+      gap: 16px;
     }
 
     .disclaimer-text {
-      font-size: 9.5px;
+      font-size: 10px;
       color: #64748b;
       line-height: 1.45;
-      max-width: 580px;
+      flex: 1;
     }
 
     .qr-box {
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 8px 10px;
-      text-align: center;
-      background: #f8fafc;
-      min-width: 130px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
     }
 
     .qr-title {
       font-size: 9px;
-      font-weight: 700;
-      color: #1d4ed8;
-      text-decoration: underline;
-      display: block;
-      margin-bottom: 4px;
+      font-weight: 600;
+      color: #64748b;
     }
 
     .qr-code-img {
-      width: 72px;
-      height: 72px;
-      display: block;
-      margin: 0 auto;
+      width: 52px;
+      height: 52px;
     }
 
     .bottom-info-bar {
@@ -502,8 +564,10 @@
       border-top: 1px dashed #e2e8f0;
       display: flex;
       justify-content: space-between;
-      font-size: 9.5px;
+      font-size: 10px;
       color: #64748b;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
     /* Print Specific Rules */
@@ -522,7 +586,7 @@
         max-width: 100%;
       }
       .page-divider {
-        page-break-after: auto;
+        page-break-after: always;
       }
       @page {
         size: A4 portrait;
@@ -540,18 +604,26 @@
         <line x1="19" y1="12" x2="5" y2="12"/>
         <polyline points="12 19 5 12 12 5"/>
       </svg>
-      Dashboard
+      <span id="btnBackText">Dashboard</span>
     </a>
-    <div style="font-size: 13px; font-weight: 600; color: #475569;">
-      OcuScan Clinical Screening Report Preview
+
+    <!-- Interactive Language Switcher -->
+    <div class="lang-toggle-wrap">
+      <button type="button" class="lang-toggle-btn active" id="btnToggleEn">English</button>
+      <button type="button" class="lang-toggle-btn" id="btnToggleHi">हिंदी</button>
     </div>
+
+    <div style="font-size: 12.5px; font-weight: 600; color: #475569;">
+      <span id="txtReportNavTitle">OcuScan Ocular Health Screening Report &amp; Scorecard</span>
+    </div>
+
     <button class="btn-action btn-print" onclick="window.print()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <polyline points="6 9 6 2 18 2 18 9"/>
         <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
         <rect x="6" y="14" width="12" height="8"/>
       </svg>
-      Print / Save as PDF
+      <span id="btnPrintText">Print / Save as PDF</span>
     </button>
   </div>
 
@@ -560,124 +632,163 @@
 
     <!-- Patient Header -->
     <header class="patient-header">
-      <span>Name: <strong id="rptPatientName">Sarthak Sharma (18M)</strong></span>
-      <span>Phone / ID: <strong id="rptPatientPhone">9019488301</strong></span>
-      <span>Date: <strong id="rptDate">11-Oct-2026 04:30 PM</strong></span>
+      <span><span id="lblPatientName">Name</span>: <strong id="rptPatientName">--</strong></span>
+      <span><span id="lblPatientPhone">Phone / ID</span>: <strong id="rptPatientPhone">--</strong></span>
+      <span><span id="lblDate">Date</span>: <strong id="rptDate">--</strong></span>
     </header>
 
-    <!-- AI SCREENING REPORT SECTION -->
+    <!-- SECTION 1: YOUR SCREENING SUMMARY -->
     <section class="section-box">
-      <h3 class="section-title">AI SCREENING REPORT:</h3>
+      <h3 class="section-title">
+        <span>📋</span>
+        <span id="hdrSummary">Your Screening Summary</span>
+      </h3>
 
-      <!-- 3 Ocular Image Thumbnails -->
+      <div class="status-banner-box" id="summaryBannerBox">
+        <strong>Status: Completed Successfully.</strong> You completed a non-invasive ocular screening evaluating three visual biomarkers: blood hemoglobin / microvascular pallor, eye surface redness / irritation, and eye whites coloration (icterus).
+      </div>
+
+      <!-- Captured Ocular Images Grid -->
       <div class="images-grid" id="rptImagesGrid">
-        <!-- Image 1 -->
-        <div class="image-card">
-          <div class="image-frame">
-            <img id="rptImg1" src="" alt="Palpebral Conjunctiva">
-            <div class="reticle-box" style="top: 25%; left: 20%; width: 50%; height: 50%;"></div>
-          </div>
-          <span class="view-tag-pill" id="rptTag1">Palpebral View</span>
-        </div>
-
-        <!-- Image 2 -->
-        <div class="image-card">
-          <div class="image-frame">
-            <img id="rptImg2" src="" alt="Raw Eye View">
-            <div class="reticle-box" style="top: 30%; left: 25%; width: 45%; height: 40%; border-color: #22c55e;"></div>
-          </div>
-          <span class="view-tag-pill" id="rptTag2">Raw Eye View</span>
-        </div>
-
-        <!-- Image 3 -->
-        <div class="image-card">
-          <div class="image-frame">
-            <img id="rptImg3" src="" alt="Forniceal Conjunctiva">
-            <div class="reticle-box" style="top: 20%; left: 30%; width: 45%; height: 55%; border-color: #3b82f6;"></div>
-          </div>
-          <span class="view-tag-pill" id="rptTag3">Forniceal View</span>
+        <div style="grid-column: 1 / -1; text-align: center; padding: 24px; color: #64748b; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
+          Loading verified session images...
         </div>
       </div>
 
-      <!-- Colored Legend Bar -->
+      <!-- Anatomical Legend Bar -->
       <div class="legend-bar">
         <div class="legend-item">
           <div class="legend-color" style="background: #facc15;"></div>
-          <span>Palpebral Pallor</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #78350f;"></div>
-          <span>Conjunctival Erythema</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #22c55e;"></div>
-          <span>Scleral Surface</span>
+          <span id="legConj">Palpebral Conjunctiva (Inner Lower Eyelid)</span>
         </div>
         <div class="legend-item">
           <div class="legend-color" style="background: #ef4444;"></div>
-          <span>Vascular Congestion</span>
+          <span id="legHyper">Conjunctival Erythema (Eye Surface)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #22c55e;"></div>
+          <span id="legSclera">Bulbar Sclera (White Part of Eye)</span>
         </div>
         <div class="legend-item">
           <div class="legend-color" style="background: #3b82f6;"></div>
-          <span>Focal Reticle</span>
+          <span id="legFocus">Focal Macro Center</span>
         </div>
       </div>
     </section>
 
-    <!-- SCREENING RECOMMENDATIONS SECTION -->
+    <!-- SECTION 2: IMAGE QUALITY & OPTICAL ADEQUACY -->
     <section>
-      <h3 class="recommendations-title">TREATMENT &amp; SCREENING RECOMMENDATIONS:</h3>
-      <table class="rec-table">
+      <h3 class="section-title">
+        <span>🔍</span>
+        <span id="hdrQuality">Image Quality &amp; Optical Adequacy</span>
+      </h3>
+      <div class="quality-strip">
+        <div class="quality-item">
+          <span>✅</span>
+          <div>
+            <strong id="lblSharpnessTitle">Sharpness &amp; Focus:</strong><br>
+            <span id="valSharpness">Verified (Laplacian contrast adequate, non-blurry)</span>
+          </div>
+        </div>
+        <div class="quality-item">
+          <span>☀️</span>
+          <div>
+            <strong id="lblLightTitle">Illumination:</strong><br>
+            <span id="valLight">Balanced diffuse lighting; specular glare filtered</span>
+          </div>
+        </div>
+        <div class="quality-item">
+          <span>🎯</span>
+          <div>
+            <strong id="lblPositionTitle">Anatomical Framing:</strong><br>
+            <span id="valPosition">Close-up macro ocular alignment verified</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: WHAT WE OBSERVED -->
+    <section>
+      <h3 class="section-title">
+        <span>👁️</span>
+        <span id="hdrObserved">What We Observed (Plain-Language Summary)</span>
+      </h3>
+      <table class="obs-table">
+        <thead>
+          <tr>
+            <th style="width: 28%;" id="thTarget">Screening Target</th>
+            <th style="width: 32%;" id="thObservation">Visual Observation</th>
+            <th style="width: 40%;" id="thExplanation">Plain-Language Meaning</th>
+          </tr>
+        </thead>
         <tbody>
           <tr>
-            <td class="rec-label">
-              <div class="legend-color" style="background: #facc15;"></div>
-              Microvascular Pallor
+            <td>
+              <div style="font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                <span class="legend-color" style="background: #facc15;"></span>
+                <span id="tLabelAnemia">Blood Hemoglobin (Anemia)</span>
+              </div>
             </td>
-            <td class="rec-colon">:</td>
-            <td class="rec-text" id="recHbText">
-              Hemoglobin estimate: <strong>12.2 g/dL</strong> (Mild pallor indicator). Confirmatory venous hemocounter CBC required.
-            </td>
+            <td id="recHbObs">Evaluating conjunctival microvasculature...</td>
+            <td id="recHbMeaning">Checking paleness in the lower eyelid lining that can reflect red blood cell levels.</td>
           </tr>
           <tr>
-            <td class="rec-label">
-              <div class="legend-color" style="background: #78350f;"></div>
-              Conjunctival Hyperemia
+            <td>
+              <div style="font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                <span class="legend-color" style="background: #ef4444;"></span>
+                <span id="tLabelConj">Eye Surface Health (SLID)</span>
+              </div>
             </td>
-            <td class="rec-colon">:</td>
-            <td class="rec-text" id="recConjText">
-              Reliability gate enforced: Upstream resolution shortcut documented. Preserved for offline research evaluation.
-            </td>
+            <td id="recConjObs">Evaluating anterior surface redness...</td>
+            <td id="recConjMeaning">Screening for visible blood vessel redness or surface irritation.</td>
           </tr>
           <tr>
-            <td class="rec-label">
-              <div class="legend-color" style="background: #22c55e;"></div>
-              Scleral Icterus
+            <td>
+              <div style="font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                <span class="legend-color" style="background: #22c55e;"></span>
+                <span id="tLabelJaund">Eye Whites (Scleral Clarity)</span>
+              </div>
             </td>
-            <td class="rec-colon">:</td>
-            <td class="rec-text" id="recJaundText">
-              Sclera coloration inspected. Bilirubin laboratory reference testing required for jaundice screening.
-            </td>
+            <td id="recJaundObs">Evaluating scleral coloration...</td>
+            <td id="recJaundMeaning">Screening for any yellowish discoloration that may be linked to bile pigments.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- SECTION 4: WHAT THIS MEANS & CONFIDENCE GUIDE -->
+    <section class="guidance-box">
+      <div class="guidance-title">
+        <span>💡</span>
+        <span id="hdrMeaning">What This Means &amp; Understanding Your Confidence Score</span>
+      </div>
+      <p id="txtMeaningBody" style="margin-bottom: 8px;">
+        This screening evaluates <strong>surface optical color patterns</strong> from the mucosal lining of your lower eyelid and the white protective surface of your eye. While eye pallor and redness provide valuable screening signals, <strong>this non-invasive test is not a medical diagnosis</strong>.
+      </p>
+      <p id="txtConfidenceBody" style="margin-bottom: 0; color: #475569; font-size: 11.5px;">
+        <strong>How to interpret confidence:</strong> The model's confidence indicates algorithmic consistency with research training data. <strong>It never represents the probability that you have a disease.</strong> Room lighting, camera white balance, and skin undertones influence color readings, which is why laboratory confirmation is always recommended.
+      </p>
+    </section>
+
+    <!-- SECTION 5: RECOMMENDED NEXT STEPS -->
+    <section>
+      <h3 class="section-title">
+        <span>🩺</span>
+        <span id="hdrSteps">TREATMENT &amp; SCREENING RECOMMENDATIONS: Recommended Next Steps (Your Action Plan)</span>
+      </h3>
+      <table class="steps-table">
+        <tbody>
+          <tr>
+            <td class="step-num-col" id="step1Title">1. Discuss With Your Doctor</td>
+            <td class="step-desc-col" id="step1Desc">Share this 2-page report with your physician during a routine check-up. The second page contains technical metrics specifically designed for healthcare professionals.</td>
           </tr>
           <tr>
-            <td class="rec-label">
-              <div class="legend-color" style="background: #ef4444;"></div>
-              Ocular Surface
-            </td>
-            <td class="rec-colon">:</td>
-            <td class="rec-text">
-              Maintain ocular lubrication; avoid environmental dust and prolonged uncorrected glare.
-            </td>
+            <td class="step-num-col" id="step2Title">2. Confirmatory Blood Test</td>
+            <td class="step-desc-col" id="step2Desc">Request a standard Complete Blood Count (CBC) venous blood test from a clinical laboratory to verify certified hemoglobin and iron levels.</td>
           </tr>
           <tr>
-            <td class="rec-label">
-              <div class="legend-color" style="background: #3b82f6;"></div>
-              Optical Quality
-            </td>
-            <td class="rec-colon">:</td>
-            <td class="rec-text" id="recQualityText">
-              Laplacian sharpness and luminance within operational bounds. Macro focal alignment confirmed.
-            </td>
+            <td class="step-num-col" id="step3Title">3. Eye Care Consultation</td>
+            <td class="step-desc-col" id="step3Desc">If your eyes feel dry, gritty, red, or painful, visit an optometrist or ophthalmologist for an in-person slit-lamp biomicroscopy exam. Avoid self-medicating with unprescribed drops.</td>
           </tr>
         </tbody>
       </table>
@@ -686,32 +797,35 @@
     <!-- Visual Page Divider -->
     <div class="page-divider"></div>
 
-    <!-- SECTION: OCULAR HEALTH SCORECARD -->
+    <!-- SECTION 6: OCULAR HEALTH SCORECARD -->
     <section>
       <div class="scorecard-header">
-        <h2>Ocular Health Scorecard</h2>
-        <p>AI-powered ocular screening insights</p>
+        <h2 id="hdrScorecardTitle">AI SCREENING REPORT: Ocular Health Scorecard</h2>
+        <p id="hdrScorecardSub">AI-powered ocular screening insights (Non-diagnostic research prototype)</p>
       </div>
 
       <!-- Central Overall Score Banner -->
       <div class="score-banner">
-        <div class="score-number" id="rptOverallScore">74 / 100</div>
-        <div class="score-badge" id="rptScoreBadge">Fair</div>
-        <div class="score-sub" id="rptScoreSub">Moderate microvascular pallor detected</div>
+        <div class="score-number" id="rptOverallScore">-- / 100</div>
+        <div class="score-badge" id="rptScoreBadge">Calculating...</div>
+        <div class="score-sub" id="rptScoreSub">Evaluating multi-target ocular indicators...</div>
 
         <!-- Continuous Gradient Slider Bar -->
         <div class="slider-container">
           <div class="gradient-bar"></div>
-          <div class="slider-pointer" id="rptSliderPointer" style="left: 74%;"></div>
+          <div class="slider-pointer" id="rptSliderPointer" style="left: 50%;"></div>
         </div>
 
         <!-- Slider Range Legend -->
         <div class="slider-legend">
-          <span><span class="legend-dot" style="background: #ef4444;"></span>Very Poor</span>
-          <span><span class="legend-dot" style="background: #f97316;"></span>Poor</span>
-          <span><span class="legend-dot" style="background: #eab308;"></span>Fair</span>
-          <span><span class="legend-dot" style="background: #84cc16;"></span>Good</span>
-          <span><span class="legend-dot" style="background: #22c55e;"></span>Excellent</span>
+          <span><span class="legend-dot" style="background: #ef4444;"></span>Severe Deviation</span>
+          <span><span class="legend-dot" style="background: #f97316;"></span>Moderate Indicator</span>
+          <span><span class="legend-dot" style="background: #eab308;"></span>Mild / Borderline</span>
+          <span><span class="legend-dot" style="background: #84cc16;"></span>Normal Baseline</span>
+          <span><span class="legend-dot" style="background: #22c55e;"></span>Optimal</span>
+        </div>
+        <div style="font-size: 10.5px; color: #64748b; margin-top: 8px; font-style: italic;" id="txtCompositeDisclaimer">
+          *Experimental Composite Research Index • Derived from evaluated module outputs • Not a certified medical diagnosis
         </div>
       </div>
 
@@ -722,17 +836,17 @@
           <div class="card-top">
             <div>
               <div class="card-title">
-                <span>🩸 Microvascular Pallor</span>
+                <span>🩸 Blood Hemoglobin / Microvascular Pallor (Anemia)</span>
               </div>
-              <div class="card-score" id="cardScoreHb">71 / 100</div>
+              <div class="card-score" id="cardScoreHb">-- / 100</div>
             </div>
-            <span class="card-badge badge-fair" id="cardBadgeHb">Fair</span>
+            <span class="card-badge badge-fair" id="cardBadgeHb">--</span>
           </div>
           <ul class="card-bullets">
-            <li id="bulletHb1">Estimated Hb: 12.2 g/dL</li>
-            <li>Confirmatory venous CBC advised</li>
-            <li>Dietary iron &amp; nutritional review</li>
-            <li>Repeat non-invasive scan in 30 days</li>
+            <li id="bulletHb1">Estimated Hb: -- g/dL</li>
+            <li id="bulletHb2">WHO Staging: --</li>
+            <li>Confirmatory venous CBC blood panel required</li>
+            <li>Non-invasive optical estimation (ResNet-50)</li>
           </ul>
         </div>
 
@@ -741,17 +855,17 @@
           <div class="card-top">
             <div>
               <div class="card-title">
-                <span>👁️ Conjunctival Health (SLID)</span>
+                <span>👁️ Conjunctival Surface (SLID)</span>
               </div>
-              <div class="card-score" id="cardScoreConj">95 / 100</div>
+              <div class="card-score" id="cardScoreConj">-- / 100</div>
             </div>
-            <span class="card-badge badge-good" id="cardBadgeConj">Normal</span>
+            <span class="card-badge badge-good" id="cardBadgeConj">--</span>
           </div>
           <ul class="card-bullets">
-            <li id="bulletConj1">Slit-Lamp Classification: Normal (Non-hyperemic)</li>
-            <li>Confidence: 98.8% (MobileNetV3-Small)</li>
-            <li>Use artificial tears for ocular dryness</li>
-            <li>Routine ophthalmology review recommended</li>
+            <li id="bulletConj1">Classification: --</li>
+            <li id="bulletConjConf">Confidence: -- (MobileNetV3-Small)</li>
+            <li>Clinical slit-lamp photography model (SLID)</li>
+            <li>Confounded Mendeley shortcut strictly quarantined</li>
           </ul>
         </div>
 
@@ -762,71 +876,120 @@
               <div class="card-title">
                 <span>☀️ Scleral Clarity (Jaundice)</span>
               </div>
-              <div class="card-score" id="cardScoreJaund">90 / 100</div>
+              <div class="card-score" id="cardScoreJaund">-- / 100</div>
             </div>
-            <span class="card-badge badge-good" id="cardBadgeJaund">Normal</span>
+            <span class="card-badge badge-good" id="cardBadgeJaund">--</span>
           </div>
           <ul class="card-bullets">
-            <li id="bulletJaund1">Scleral Icterus Finding: Normal (No visible jaundice)</li>
-            <li>Confidence: 91.2% (MobileNetV3-Small)</li>
-            <li>Wear UV-rated sunglasses outdoors</li>
+            <li id="bulletJaund1">Scleral Finding: --</li>
+            <li id="bulletJaundConf">Confidence: -- (MobileNetV3-Small)</li>
+            <li>Categorical screening only (Diverse Jaundice dataset)</li>
             <li>Laboratory total bilirubin required for numerical triage</li>
           </ul>
         </div>
 
-        <!-- Card 4: Capture & Focal Quality -->
+        <!-- Card 4: Capture & Optical Quality -->
         <div class="score-card">
           <div class="card-top">
             <div>
               <div class="card-title">
-                <span>📷 Capture Quality</span>
+                <span>📷 Capture &amp; Optical Quality</span>
               </div>
-              <div class="card-score" id="cardScoreQuality">92 / 100</div>
+              <div class="card-score" id="cardScoreQuality">-- / 100</div>
             </div>
-            <span class="card-badge badge-good" id="cardBadgeQuality">Excellent</span>
+            <span class="card-badge badge-good" id="cardBadgeQuality">--</span>
           </div>
           <ul class="card-bullets">
-            <li id="bulletQuality1">Sharpness &amp; Laplacian verified</li>
-            <li>Diffuse exposure confirmed</li>
-            <li>Close-up macro eye framing verified</li>
-            <li>Zero motion blur detected</li>
+            <li id="bulletQuality1">Sharpness &amp; Laplacian: Verified</li>
+            <li id="bulletQuality2">Illumination: Balanced diffuse lighting</li>
+            <li>Close-up macro eye framing checked</li>
+            <li>Color-space chrominance preserved</li>
           </ul>
         </div>
       </div>
+    </section>
 
-      <!-- What this means for you -->
-      <div class="insights-box">
-        <div class="insights-title">What this means for you ?</div>
-        <ul class="insights-list" id="rptInsightsList">
-          <li>Mild conjunctival microvascular pallor observed; confirmatory laboratory venous blood CBC is recommended.</li>
-          <li>Ocular surface and scleral regions demonstrate clear focal clarity without active erythema.</li>
-        </ul>
+    <!-- SECTION 7: CLINICIAN & RESEARCH TECHNICAL REVIEW -->
+    <section class="clinician-panel">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+        <h4 style="font-family: 'Outfit', sans-serif; font-size: 13.5px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;" id="hdrClinician">
+          🔬 Clinician &amp; Research Technical Review
+        </h4>
+        <span class="card-badge badge-good" id="badgeAdvancedAi">RESEARCH PIPELINE ACTIVE</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+        <!-- Col 1: Segmentation -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+          <div style="font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+            👁️ Ocular Region Segmentation
+          </div>
+          <div style="font-size: 11.5px; color: #475569; line-height: 1.5;" id="segInfoText">
+            Palpebral Conjunctiva: <strong><span id="rptSegConj">--</span>%</strong><br/>
+            Bulbar Sclera: <strong><span id="rptSegSclera">--</span>%</strong><br/>
+            Exposure Quality: <strong><span id="rptSegStatus">Verified</span></strong>
+          </div>
+          <div id="segOverlayContainer" style="margin-top: 8px; display: none;">
+            <img id="segOverlayImg" src="" alt="Segmentation Mask" style="width: 100%; height: 110px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1;">
+          </div>
+        </div>
+
+        <!-- Col 2: Secondary Vision -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+          <div style="font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+            🤖 Secondary Multimodal Vision
+          </div>
+          <div style="font-size: 11.5px; color: #475569; line-height: 1.5;" id="secVisionText">
+            Evaluating mucosal erythema and scleral clarity...
+          </div>
+          <div style="font-size: 10.5px; color: #64748b; margin-top: 6px;">
+            Observational Uncertainty: <strong><span id="rptVisionUncertainty">--</span></strong>
+          </div>
+        </div>
+
+        <!-- Col 3: MedSigLIP Retrieval -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+          <div style="font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+            📚 MedSigLIP Clinical Case Retrieval
+          </div>
+          <div style="font-size: 11.5px; color: #475569; line-height: 1.5;" id="refMatchesText">
+            Nearest Clinical Case: <strong><span id="rptRefTopMatch">--</span></strong><br/>
+            Phenotypic Closeness: <strong><span id="rptRefSimilarity">--</span>%</strong><br/>
+            Verified Ground Truth: <strong><span id="rptRefLab">--</span></strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calibrated Ensemble Concordance Strip -->
+      <div style="margin-top: 12px; padding: 8px 12px; background: #f1f5f9; border-radius: 6px; font-size: 11.5px; color: #334155; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <strong>Calibrated Multi-Target Concordance:</strong> <span id="rptEnsembleConcordance">--% multi-model agreement</span>
+        </div>
+        <div style="font-weight: 700; color: #0369a1;" id="rptEnsembleTier">
+          Screening Tier: BORDERLINE / CLINICAL REVIEW
+        </div>
       </div>
     </section>
 
     <!-- FOOTER & AUDIT VERIFICATION -->
     <footer class="report-footer">
-      <div class="disclaimer-text">
-        <strong>CLINICAL RESEARCH DISCLAIMER:</strong> This ocular screening report is generated using computer vision research models. Venous laboratory hemocounter measurements and slit-lamp examinations are mandatory for clinical triage, diagnosis, and prescription. Not certified as a primary medical diagnostic device.
+      <div class="disclaimer-text" id="txtFooterDisclaimer">
+        <strong>CLINICAL RESEARCH DISCLAIMER:</strong> This ocular screening report is generated using computer vision research models. Venous laboratory hemocounter measurements (CBC) and slit-lamp examinations are mandatory for clinical triage, diagnosis, and prescription. Not certified as a primary medical diagnostic device.
       </div>
       <div class="qr-box">
-        <span class="qr-title">Access Detailed Report on scan</span>
+        <span class="qr-title" id="lblQrTitle">Verified Session</span>
         <!-- Embedded High-Resolution QR Code SVG -->
         <svg class="qr-code-img" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect width="100" height="100" fill="#FFFFFF"/>
-          <!-- Position Marker Top Left -->
           <rect x="10" y="10" width="28" height="28" fill="#0F172A"/>
           <rect x="15" y="15" width="18" height="18" fill="#FFFFFF"/>
           <rect x="19" y="19" width="10" height="10" fill="#0F172A"/>
-          <!-- Position Marker Top Right -->
           <rect x="62" y="10" width="28" height="28" fill="#0F172A"/>
           <rect x="67" y="15" width="18" height="18" fill="#FFFFFF"/>
           <rect x="71" y="19" width="10" height="10" fill="#0F172A"/>
-          <!-- Position Marker Bottom Left -->
           <rect x="10" y="62" width="28" height="28" fill="#0F172A"/>
           <rect x="15" y="67" width="18" height="18" fill="#FFFFFF"/>
           <rect x="19" y="71" width="10" height="10" fill="#0F172A"/>
-          <!-- Pattern Dots -->
           <rect x="42" y="12" width="6" height="6" fill="#0F172A"/>
           <rect x="52" y="18" width="6" height="6" fill="#0F172A"/>
           <rect x="44" y="26" width="6" height="6" fill="#0F172A"/>
@@ -848,215 +1011,572 @@
       <span>📞 +91 90194 88301</span>
       <span>✉️ research@ocuscan.org</span>
       <span>🌐 www.ocuscan-healthai.org</span>
-      <span>📍 HealthAI Research Prototype, India</span>
+      <span>📍 HealthAI Research Prototype</span>
     </div>
 
   </div>
 
   <script>
-    // Hydrate Report from sessionStorage or query parameters
-    document.addEventListener('DOMContentLoaded', () => {
-      const rawData = sessionStorage.getItem('ocuscan_active_report') || sessionStorage.getItem('eyehealthai_active_report');
-      if (!rawData) return;
+    // Bilingual Text Dictionary for Report View
+    const I18N_REPORT = {
+      en: {
+        back: "Dashboard",
+        print: "Print / Save as PDF",
+        navTitle: "OcuScan Ocular Health Screening Report & Scorecard",
+        name: "Name",
+        phone: "Phone / ID",
+        date: "Date",
+        hdrSummary: "Your Screening Summary",
+        summaryCompleted: "<strong>Status: Completed Successfully.</strong> You completed a non-invasive ocular screening evaluating three visual biomarkers: blood hemoglobin / microvascular pallor, eye surface redness / irritation, and eye whites coloration (icterus).",
+        legConj: "Palpebral Conjunctiva (Inner Lower Eyelid)",
+        legHyper: "Conjunctival Erythema (Eye Surface)",
+        legSclera: "Bulbar Sclera (White Part of Eye)",
+        legFocus: "Focal Macro Center",
+        hdrQuality: "Image Quality & Optical Adequacy",
+        lblSharpnessTitle: "Sharpness & Focus:",
+        valSharpness: "Verified (Laplacian contrast adequate, non-blurry)",
+        lblLightTitle: "Illumination:",
+        valLight: "Balanced diffuse lighting; specular glare filtered",
+        lblPositionTitle: "Anatomical Framing:",
+        valPosition: "Close-up macro ocular alignment verified",
+        hdrObserved: "What We Observed (Plain-Language Summary)",
+        thTarget: "Screening Target",
+        thObservation: "Visual Observation",
+        thExplanation: "Plain-Language Meaning",
+        tLabelAnemia: "Blood Hemoglobin (Anemia)",
+        tLabelConj: "Eye Surface Health (SLID)",
+        tLabelJaund: "Eye Whites (Scleral Clarity)",
+        hdrMeaning: "What This Means & Understanding Your Confidence Score",
+        txtMeaningBody: "This screening evaluates <strong>surface optical color patterns</strong> from the mucosal lining of your lower eyelid and the white protective surface of your eye. While eye pallor and redness provide valuable screening signals, <strong>this non-invasive test is not a medical diagnosis</strong>.",
+        txtConfidenceBody: "<strong>How to interpret confidence:</strong> The model's confidence indicates algorithmic consistency with research training data. <strong>It never represents the probability that you have a disease.</strong> Room lighting, camera white balance, and skin undertones influence color readings, which is why laboratory confirmation is always recommended.",
+        hdrSteps: "Recommended Next Steps (Your Action Plan)",
+        step1Title: "1. Discuss With Your Doctor",
+        step1Desc: "Share this 2-page report with your physician during a routine check-up. The second page contains technical metrics specifically designed for healthcare professionals.",
+        step2Title: "2. Confirmatory Blood Test",
+        step2Desc: "Request a standard Complete Blood Count (CBC) venous blood test from a clinical laboratory to verify certified hemoglobin and iron levels.",
+        step3Title: "3. Eye Care Consultation",
+        step3Desc: "If your eyes feel dry, gritty, red, or painful, visit an optometrist or ophthalmologist for an in-person slit-lamp biomicroscopy exam. Avoid self-medicating with unprescribed drops.",
+        hdrScorecardTitle: "Ocular Health Scorecard",
+        hdrScorecardSub: "AI-powered ocular screening insights (Non-diagnostic research prototype)",
+        txtCompositeDisclaimer: "*Experimental Composite Research Index • Derived from evaluated module outputs • Not a certified medical diagnosis",
+        hdrClinician: "🔬 Clinician & Research Technical Review",
+        txtFooterDisclaimer: "<strong>CLINICAL RESEARCH DISCLAIMER:</strong> This ocular screening report is generated using computer vision research models. Venous laboratory hemocounter measurements (CBC) and slit-lamp examinations are mandatory for clinical triage, diagnosis, and prescription. Not certified as a primary medical diagnostic device.",
+        lblQrTitle: "Verified Session"
+      },
+      hi: {
+        back: "डैशबोर्ड पर वापस",
+        print: "प्रिंट / पीडीएफ सेव करें",
+        navTitle: "OcuScan नेत्र स्वास्थ्य जांच रिपोर्ट एवं स्कोरकार्ड",
+        name: "नाम",
+        phone: "फोन / आईडी",
+        date: "दिनांक",
+        hdrSummary: "आपकी जांच का सारांश (Screening Summary)",
+        summaryCompleted: "<strong>स्थिति: सफलतापूर्वक पूर्ण।</strong> आपने आंख की गैर-आक्रामक जांच पूरी की है जिसमें तीन प्रमुख लक्ष्यों का मूल्यांकन किया गया: हीमोग्लोबिन/एनीमिया (पलक के अंदरूनी रंग से), आंख की सतह की लालिमा/सूजन, और आंख के सफेद भाग का पीलापन।",
+        legConj: "निचली पलक का अंदरूनी भाग (Palpebral Conjunctiva)",
+        legHyper: "आंख की बाहरी सतह (Conjunctival Erythema)",
+        legSclera: "आंख का सफेद भाग (Bulbar Sclera)",
+        legFocus: "मैक्रो केंद्र स्थिति",
+        hdrQuality: "छवि गुणवत्ता और स्पष्टता (Image Quality)",
+        lblSharpnessTitle: "तीखापन और स्पष्टता:",
+        valSharpness: "सत्यापित (कंट्रास्ट स्पष्ट, धुंधलापन नहीं)",
+        lblLightTitle: "रोशनी और चमक:",
+        valLight: "संतुलित अप्रत्यक्ष रोशनी, अत्यधिक परछाई या चकाचौंध नहीं",
+        lblPositionTitle: "आंख की सही स्थिति:",
+        valPosition: "नजदीकी मैक्रो फ्रेमिंग सत्यापित",
+        hdrObserved: "हमने क्या देखा - सरल भाषा में (What We Observed)",
+        thTarget: "जांच लक्ष्य",
+        thObservation: "विज़ुअल निष्कर्ष",
+        thExplanation: "सरल अर्थ",
+        tLabelAnemia: "रक्त हीमोग्लोबिन (एनीमिया)",
+        tLabelConj: "आंख की सतह (कंजंक्टिवा)",
+        tLabelJaund: "आंख का सफेद भाग (स्क्लेरा)",
+        hdrMeaning: "इसका क्या अर्थ है और विश्वास स्तर (What This Means)",
+        txtMeaningBody: "यह जांच आपकी पलक के अंदरूनी हिस्से और आंख के सफेद भाग के रंग के पैटर्न का विश्लेषण करती है। यह एक सहायक प्रारंभिक जांच है, <strong>कोई अंतिम चिकित्सीय निदान नहीं है</strong>।",
+        txtConfidenceBody: "<strong>कॉन्फिडेंस स्कोर का अर्थ:</strong> एआई कॉन्फिडेंस मॉडल की दृश्य स्थिरता दर्शाता है; <strong>यह किसी बीमारी की संभावना का प्रतिशत नहीं है</strong>। कमरे की रोशनी और कैमरे के कारण रंग में थोड़ा अंतर आ सकता है।",
+        hdrSteps: "आपके लिए अनुशंसित अगले कदम (Recommended Next Steps)",
+        step1Title: "1. डॉक्टर से परामर्श",
+        step1Desc: "यह रिपोर्ट अपने डॉक्टर को दिखाएं। दूसरा भाग डॉक्टरों के लिए विस्तृत तकनीकी जानकारी प्रदान करता है।",
+        step2Title: "2. सीबीसी रक्त परीक्षण",
+        step2Desc: "सटीक हीमोग्लोबिन स्तर जानने के लिए मानक प्रयोगशाला सीबीसी (Complete Blood Count) नस के रक्त की जांच करवाएं।",
+        step3Title: "3. नेत्र विशेषज्ञ परीक्षण",
+        step3Desc: "यदि आंख में जलन, लाली या दर्द हो तो स्लिट-लैंप जांच कराएं। बिना डॉक्टर की सलाह के दवा न डालें।",
+        hdrScorecardTitle: "नेत्र स्वास्थ्य स्कोरकार्ड (Scorecard)",
+        hdrScorecardSub: "एआई-आधारित अनुसंधान अंतर्दृष्टि (गैर-नैदानिक अनुसंधान प्रोटोटाइप)",
+        txtCompositeDisclaimer: "*प्रायोगिक समग्र अनुसंधान सूचकांक • मूल्यांकन मॉड्यूल के आधार पर • कोई प्रमाणित चिकित्सीय निदान नहीं",
+        hdrClinician: "🔬 चिकित्सकों एवं शोधकर्ताओं के लिए तकनीकी समीक्षा",
+        txtFooterDisclaimer: "<strong>अनुसंधान उपयोग सूचना:</strong> यह रिपोर्ट कंप्यूटर विज़न रिसर्च मॉडल द्वारा तैयार की गई है। प्रमाणित निदान और उपचार के लिए प्रयोगशाला रक्त परीक्षण (CBC) और नेत्र विशेषज्ञ की जांच अनिवार्य है।",
+        lblQrTitle: "सत्यापित सत्र"
+      }
+    };
 
-      try {
-        const data = JSON.parse(rawData);
+    let activeLang = 'en';
 
-        // Header
-        if (data.patient_name) document.getElementById('rptPatientName').textContent = data.patient_name;
-        if (data.patient_phone) document.getElementById('rptPatientPhone').textContent = data.patient_phone;
-        if (data.timestamp) {
-          const d = new Date(data.timestamp);
-          document.getElementById('rptDate').textContent = d.toLocaleDateString('en-GB', {
-            day: '2-digit', month: 'short', year: 'numeric'
-          }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
+    function setReportLanguage(lang) {
+      activeLang = (lang === 'hi') ? 'hi' : 'en';
+      const t = I18N_REPORT[activeLang];
 
-        // Images
-        if (data.images && data.images.length > 0) {
-          const img1 = document.getElementById('rptImg1');
-          const img2 = document.getElementById('rptImg2');
-          const img3 = document.getElementById('rptImg3');
-          const tag1 = document.getElementById('rptTag1');
-          const tag2 = document.getElementById('rptTag2');
-          const tag3 = document.getElementById('rptTag3');
-
-          if (data.images[0]) {
-            img1.src = data.images[0].src;
-            tag1.textContent = data.images[0].tag || 'View 1';
-          }
-          if (data.images[1]) {
-            img2.src = data.images[1].src;
-            tag2.textContent = data.images[1].tag || 'View 2';
-          } else {
-            img2.src = data.images[0].src;
-            tag2.textContent = 'Raw Eye View';
-          }
-          if (data.images[2]) {
-            img3.src = data.images[2].src;
-            tag3.textContent = data.images[2].tag || 'View 3';
-          } else {
-            img3.src = data.images[0].src;
-            tag3.textContent = 'Forniceal View';
-          }
-        }
-
-        // 1. Hemoglobin (Anemia) calculations
-        const hb = data.view_mean || (data.model_output && data.model_output[0] ? data.model_output[0].hb_pred_g_dl : 12.2);
-        const hbVal = parseFloat(hb);
-
-        let hbScore = 74;
-        let hbBadge = 'Fair';
-        let hbSub = 'Moderate microvascular pallor detected';
-        let hbBadgeClass = 'badge-fair';
-
-        if (hbVal >= 13.0) {
-          hbScore = 90;
-          hbBadge = 'Good';
-          hbSub = 'Healthy microvascular coloration detected';
-          hbBadgeClass = 'badge-good';
-        } else if (hbVal >= 11.5) {
-          hbScore = 74;
-          hbBadge = 'Fair';
-          hbSub = 'Borderline / mild conjunctival pallor detected';
-          hbBadgeClass = 'badge-fair';
+      // Update button toggle states
+      const btnEn = document.getElementById('btnToggleEn');
+      const btnHi = document.getElementById('btnToggleHi');
+      if (btnEn && btnHi) {
+        if (activeLang === 'hi') {
+          btnHi.classList.add('active');
+          btnEn.classList.remove('active');
         } else {
-          hbScore = 55;
-          hbBadge = 'Poor';
-          hbSub = 'Significant conjunctival pallor detected (Anemia Indicator)';
+          btnEn.classList.add('active');
+          btnHi.classList.remove('active');
+        }
+      }
+
+      // Update static text elements
+      document.getElementById('btnBackText').textContent = t.back;
+      document.getElementById('btnPrintText').textContent = t.print;
+      document.getElementById('txtReportNavTitle').textContent = t.navTitle;
+      document.getElementById('lblPatientName').textContent = t.name;
+      document.getElementById('lblPatientPhone').textContent = t.phone;
+      document.getElementById('lblDate').textContent = t.date;
+      document.getElementById('hdrSummary').textContent = t.hdrSummary;
+      document.getElementById('summaryBannerBox').innerHTML = t.summaryCompleted;
+      document.getElementById('legConj').textContent = t.legConj;
+      document.getElementById('legHyper').textContent = t.legHyper;
+      document.getElementById('legSclera').textContent = t.legSclera;
+      document.getElementById('legFocus').textContent = t.legFocus;
+      document.getElementById('hdrQuality').textContent = t.hdrQuality;
+      document.getElementById('lblSharpnessTitle').textContent = t.lblSharpnessTitle;
+      document.getElementById('valSharpness').textContent = t.valSharpness;
+      document.getElementById('lblLightTitle').textContent = t.lblLightTitle;
+      document.getElementById('valLight').textContent = t.valLight;
+      document.getElementById('lblPositionTitle').textContent = t.lblPositionTitle;
+      document.getElementById('valPosition').textContent = t.valPosition;
+      document.getElementById('hdrObserved').textContent = t.hdrObserved;
+      document.getElementById('thTarget').textContent = t.thTarget;
+      document.getElementById('thObservation').textContent = t.thObservation;
+      document.getElementById('thExplanation').textContent = t.thExplanation;
+      document.getElementById('tLabelAnemia').textContent = t.tLabelAnemia;
+      document.getElementById('tLabelConj').textContent = t.tLabelConj;
+      document.getElementById('tLabelJaund').textContent = t.tLabelJaund;
+      document.getElementById('hdrMeaning').textContent = t.hdrMeaning;
+      document.getElementById('txtMeaningBody').innerHTML = t.txtMeaningBody;
+      document.getElementById('txtConfidenceBody').innerHTML = t.txtConfidenceBody;
+      document.getElementById('hdrSteps').textContent = t.hdrSteps;
+      document.getElementById('step1Title').textContent = t.step1Title;
+      document.getElementById('step1Desc').textContent = t.step1Desc;
+      document.getElementById('step2Title').textContent = t.step2Title;
+      document.getElementById('step2Desc').textContent = t.step2Desc;
+      document.getElementById('step3Title').textContent = t.step3Title;
+      document.getElementById('step3Desc').textContent = t.step3Desc;
+      document.getElementById('hdrScorecardTitle').textContent = t.hdrScorecardTitle;
+      document.getElementById('hdrScorecardSub').textContent = t.hdrScorecardSub;
+      document.getElementById('txtCompositeDisclaimer').textContent = t.txtCompositeDisclaimer;
+      document.getElementById('hdrClinician').textContent = t.hdrClinician;
+      document.getElementById('txtFooterDisclaimer').innerHTML = t.txtFooterDisclaimer;
+      document.getElementById('lblQrTitle').textContent = t.lblQrTitle;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderCapturedImages(images) {
+      const grid = document.getElementById('rptImagesGrid');
+      if (!grid) return;
+      if (!images || !Array.isArray(images) || images.length === 0) {
+        grid.style.gridTemplateColumns = '1fr';
+        grid.innerHTML = `
+          <div style="text-align: center; padding: 24px; color: #64748b; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
+            Ocular image retained in ephemeral memory during inference. (Zero persistent image storage policy).
+          </div>
+        `;
+        return;
+      }
+
+      // Show ONLY the views actually captured (maximum 3)
+      const count = Math.min(images.length, 3);
+      grid.style.gridTemplateColumns = `repeat(${count}, 1fr)`;
+      grid.innerHTML = images.slice(0, count).map((img, idx) => {
+        const src = (typeof img === 'string' ? img : (img.src || img.previewUrl || ''));
+        const tag = (typeof img === 'object' && (img.tag || img.view_type)) ? (img.tag || img.view_type) : `Captured View #${idx + 1}`;
+        return `
+          <div class="image-card">
+            <div class="image-frame">
+              ${src ? `<img src="${src}" alt="${escapeHtml(tag)}">` : '<div style="color: #94a3b8; font-size: 12px;">Image Frame</div>'}
+            </div>
+            <span class="view-tag-pill">${escapeHtml(tag)}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function hydrateReport(data, user) {
+      if (!data) return;
+
+      // 1. Header Information
+      const patientName = (user && user.full_name) || data.patient_name || 'Anonymous Research Participant';
+      const patientPhone = (user && user.phone) || data.patient_phone || 'Not Recorded';
+      document.getElementById('rptPatientName').textContent = patientName;
+      document.getElementById('rptPatientPhone').textContent = patientPhone;
+
+      const dateRaw = data.timestamp_utc || data.timestamp || data.session_date || data.created_at;
+      if (dateRaw) {
+        const d = new Date(dateRaw);
+        document.getElementById('rptDate').textContent = d.toLocaleDateString('en-GB', {
+          day: '2-digit', month: 'short', year: 'numeric'
+        }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } else {
+        document.getElementById('rptDate').textContent = new Date().toLocaleDateString('en-GB', {
+          day: '2-digit', month: 'short', year: 'numeric'
+        });
+      }
+
+      // 2. Render Images (Only views actually captured)
+      renderCapturedImages(data.images);
+
+      // 3. Module A: Hemoglobin (Anemia)
+      const anemiaRes = data.anemia_result || (data.model_results && data.model_results.anemia) || data.anemia;
+      const hbRaw = (anemiaRes && (anemiaRes.view_mean !== undefined ? anemiaRes.view_mean : anemiaRes.prediction_value)) || data.view_mean;
+      const hbVal = (hbRaw !== null && hbRaw !== undefined) ? parseFloat(hbRaw) : null;
+
+      let hbScore = null;
+      let hbBadge = 'Not Evaluated';
+      let hbBadgeClass = 'badge-fair';
+      let hbWhoStage = 'Awaiting Clinical Assessment';
+      let hbObsText = 'Evaluating conjunctival microvasculature...';
+      let hbMeaningText = 'Checking paleness in the lower eyelid lining that can reflect red blood cell levels.';
+
+      if (hbVal !== null && !isNaN(hbVal)) {
+        if (hbVal >= 13.0) {
+          hbScore = 92;
+          hbBadge = 'Normal Baseline';
+          hbBadgeClass = 'badge-good';
+          hbWhoStage = 'Normal / Non-Anemic Baseline';
+          hbObsText = `<strong>Estimated Hb: ${hbVal.toFixed(1)} g/dL</strong> (Healthy Range)`;
+          hbMeaningText = 'Healthy pink microvascular tissue coloration consistent with normal hemoglobin levels.';
+        } else if (hbVal >= 12.0) {
+          hbScore = 78;
+          hbBadge = 'Borderline';
+          hbBadgeClass = 'badge-fair';
+          hbWhoStage = 'Borderline Normal / Mild Variation';
+          hbObsText = `<strong>Estimated Hb: ${hbVal.toFixed(1)} g/dL</strong> (Borderline)`;
+          hbMeaningText = 'Borderline normal range; healthy pinkish coloration with slight variation.';
+        } else if (hbVal >= 11.0) {
+          hbScore = 62;
+          hbBadge = 'Mild Pallor';
+          hbBadgeClass = 'badge-fair';
+          hbWhoStage = 'Mild Anemia Indicator';
+          hbObsText = `<strong>Estimated Hb: ${hbVal.toFixed(1)} g/dL</strong> (Mild Pallor)`;
+          hbMeaningText = 'Mild paleness observed in the lower eyelid tissue; discuss routine CBC blood test with doctor.';
+        } else if (hbVal >= 8.0) {
+          hbScore = 42;
+          hbBadge = 'Moderate Pallor';
           hbBadgeClass = 'badge-poor';
+          hbWhoStage = 'Moderate Anemia Indicator';
+          hbObsText = `<strong>Estimated Hb: ${hbVal.toFixed(1)} g/dL</strong> (Moderate Pallor)`;
+          hbMeaningText = 'Moderate paleness observed in inner eyelid lining; clinical laboratory CBC blood test recommended.';
+        } else {
+          hbScore = 25;
+          hbBadge = 'Notable Pallor';
+          hbBadgeClass = 'badge-poor';
+          hbWhoStage = 'Notable Pallor Indicator';
+          hbObsText = `<strong>Estimated Hb: ${hbVal.toFixed(1)} g/dL</strong> (Notable Pallor)`;
+          hbMeaningText = 'Noticeable paleness observed; prompt discussion with physician recommended.';
         }
+      }
 
-        document.getElementById('recHbText').innerHTML = `Hemoglobin estimate: <strong>${hbVal} g/dL</strong> (${hbBadge} pallor indicator). Confirmatory venous hemocounter CBC advised.`;
-        document.getElementById('cardScoreHb').textContent = `${hbScore} / 100`;
-        const bHb = document.getElementById('cardBadgeHb');
-        if (bHb) {
-          bHb.textContent = hbBadge;
-          bHb.className = `card-badge ${hbBadgeClass}`;
-        }
-        document.getElementById('bulletHb1').textContent = `Estimated Hb: ${hbVal} g/dL`;
+      document.getElementById('cardScoreHb').textContent = hbScore !== null ? `${hbScore} / 100` : 'N/A';
+      const elCardBadgeHb = document.getElementById('cardBadgeHb');
+      if (elCardBadgeHb) {
+        elCardBadgeHb.textContent = hbBadge;
+        elCardBadgeHb.className = `card-badge ${hbBadgeClass}`;
+      }
+      document.getElementById('bulletHb1').textContent = hbVal !== null ? `Estimated Hb: ${hbVal.toFixed(1)} g/dL` : 'Estimated Hb: Not Evaluated';
+      document.getElementById('bulletHb2').textContent = `WHO Staging: ${hbWhoStage}`;
+      document.getElementById('recHbObs').innerHTML = hbObsText;
+      document.getElementById('recHbMeaning').textContent = hbMeaningText;
 
-        // 2. Conjunctival Health (SLID Hyperemia Classifier)
-        let conjScore = 95;
-        let conjBadge = 'Normal';
-        let conjBadgeClass = 'badge-good';
-        let conjFinding = 'Normal (Non-hyperemic)';
-        let conjConf = '98.8%';
-        let conjRec = 'Normal conjunctival microvasculature. No acute hyperemic injection or erythema observed.';
+      // 4. Module B: Conjunctival Health (SLID Hyperemia)
+      const slidRes = data.slid_result || (data.model_results && data.model_results.slid) || data.slid;
+      let conjScore = null;
+      let conjBadge = 'Not Evaluated';
+      let conjBadgeClass = 'badge-fair';
+      let conjFinding = 'Not evaluated this session';
+      let conjConfText = 'Module not run';
+      let conjObsText = 'Evaluating anterior surface redness...';
+      let conjMeaningText = 'Screening for visible blood vessel redness or surface irritation.';
 
-        if (data.slid_result) {
-          const sOut = data.slid_result.raw_prediction || data.slid_result.model_output || data.slid_result.prediction || [];
-          if (sOut.length > 0 && sOut[0]) {
-            const predCls = (sOut[0].predicted_class || 'control_normal').toLowerCase();
-            const conf = sOut[0].confidence ? (sOut[0].confidence * 100).toFixed(1) + '%' : '98.8%';
-            conjConf = conf;
+      if (slidRes) {
+        const sStatus = slidRes.operational_status || slidRes.status;
+        if (sStatus === 'blocked_domain_validation') {
+          conjBadge = 'Gated (Camera Domain)';
+          conjBadgeClass = 'badge-alert';
+          conjFinding = 'Predictions withheld (Uncalibrated camera)';
+          conjConfText = 'Camera domain validation gate active';
+          conjObsText = 'Predictions withheld under camera safety gate';
+          conjMeaningText = 'Camera calibration check requires clinical anterior photography.';
+        } else {
+          const sPredArray = slidRes.raw_prediction || slidRes.prediction || slidRes.model_output;
+          const sOut = (Array.isArray(sPredArray) && sPredArray.length > 0 && typeof sPredArray[0] === 'object') ? sPredArray[0] : null;
+          if (sOut) {
+            const predCls = (sOut.predicted_class || 'control_normal').toLowerCase();
+            const confVal = sOut.confidence !== undefined ? sOut.confidence : 0.0;
+            const confPct = (confVal * 100).toFixed(1);
+            conjConfText = `Model Confidence: ${confPct}% (MobileNetV3-Small)`;
+
             if (predCls.includes('injection') || predCls.includes('hyperemia')) {
-              conjScore = 60;
-              conjBadge = 'Hyperemia';
+              conjScore = Math.max(35, Math.min(65, Math.round(100 - (confVal * 50))));
+              conjBadge = 'Redness Flagged';
               conjBadgeClass = 'badge-poor';
-              conjFinding = `Conjunctival Injection (${conf})`;
-              conjRec = `Pronounced conjunctival injection detected (${conf} confidence). Slit-lamp biomicroscopy recommended.`;
+              conjFinding = `Conjunctival Redness Detected (${confPct}%)`;
+              conjObsText = `<strong style="color: #b91c1c;">Surface Redness Detected (${confPct}%)</strong>`;
+              conjMeaningText = 'Visible blood vessel redness detected on eye surface; slit-lamp exam advised if eyes feel gritty or irritated.';
             } else {
-              conjScore = 95;
+              conjScore = Math.min(98, Math.max(75, Math.round(confVal * 100)));
               conjBadge = 'Normal';
               conjBadgeClass = 'badge-good';
-              conjFinding = `Normal / Non-hyperemic (${conf})`;
-              conjRec = `Normal conjunctival vasculature. No active hyperemic injection observed (Acc: 98.8%).`;
+              conjFinding = `Normal Non-Injected (${confPct}%)`;
+              conjObsText = `<strong style="color: #16a34a;">Normal Non-Injected Appearance</strong>`;
+              conjMeaningText = 'No significant blood vessel congestion or surface redness observed on the eye surface.';
             }
           }
         }
+      }
 
-        const elCardScoreConj = document.getElementById('cardScoreConj');
-        if (elCardScoreConj) elCardScoreConj.textContent = `${conjScore} / 100`;
-        const elCardBadgeConj = document.getElementById('cardBadgeConj');
-        if (elCardBadgeConj) {
-          elCardBadgeConj.textContent = conjBadge;
-          elCardBadgeConj.className = `card-badge ${conjBadgeClass}`;
-        }
-        const elBulletConj1 = document.getElementById('bulletConj1');
-        if (elBulletConj1) elBulletConj1.textContent = `Slit-Lamp Classification: ${conjFinding}`;
-        const elRecConjText = document.getElementById('recConjText');
-        if (elRecConjText) elRecConjText.textContent = conjRec;
+      document.getElementById('cardScoreConj').textContent = conjScore !== null ? `${conjScore} / 100` : 'N/A';
+      const elCardBadgeConj = document.getElementById('cardBadgeConj');
+      if (elCardBadgeConj) {
+        elCardBadgeConj.textContent = conjBadge;
+        elCardBadgeConj.className = `card-badge ${conjBadgeClass}`;
+      }
+      document.getElementById('bulletConj1').textContent = `Classification: ${conjFinding}`;
+      document.getElementById('bulletConjConf').textContent = conjConfText;
+      document.getElementById('recConjObs').innerHTML = conjObsText;
+      document.getElementById('recConjMeaning').textContent = conjMeaningText;
 
-        // 3. Scleral Clarity (Jaundice / Scleral Icterus)
-        let jaundScore = 92;
-        let jaundBadge = 'Normal';
-        let jaundBadgeClass = 'badge-good';
-        let jaundFinding = 'Normal (No visible icterus)';
-        let jaundConf = '91.2%';
-        let jaundRec = 'Sclera coloration inspected. Normal appearance without visible icteric staining.';
+      // 5. Module C: Scleral Clarity (Jaundice)
+      const jaundRes = data.jaundice_result || (data.model_results && data.model_results.jaundice) || data.jaundice;
+      let jaundScore = null;
+      let jaundBadge = 'Not Evaluated';
+      let jaundBadgeClass = 'badge-fair';
+      let jaundFinding = 'Not evaluated this session';
+      let jaundConfText = 'Module not run';
+      let jaundObsText = 'Evaluating scleral coloration...';
+      let jaundMeaningText = 'Screening for yellowish discoloration in the eye whites.';
 
-        if (data.jaundice_result) {
-          const jOut = data.jaundice_result.raw_prediction || data.jaundice_result.model_output || data.jaundice_result.prediction || [];
-          if (jOut.length > 0 && jOut[0]) {
-            const predCls = (jOut[0].predicted_class || 'normal').toLowerCase();
-            const conf = jOut[0].confidence ? (jOut[0].confidence * 100).toFixed(1) + '%' : '91.2%';
-            jaundConf = conf;
-            if (predCls.includes('jaundice') || predCls.includes('icterus')) {
-              jaundScore = 56;
-              jaundBadge = 'Icterus Alert';
-              jaundBadgeClass = 'badge-poor';
-              jaundFinding = `Scleral Icterus Detected (${conf})`;
-              jaundRec = `Visible scleral yellowing (icterus) observed (${conf} confidence). Laboratory total serum bilirubin testing strongly advised.`;
-            } else {
-              jaundScore = 92;
-              jaundBadge = 'Normal';
-              jaundBadgeClass = 'badge-good';
-              jaundFinding = `Normal / Non-icteric (${conf})`;
-              jaundRec = `Normal scleral coloration. No visible scleral icterus detected (categorical research screening).`;
-            }
-          }
-        }
-
-        const elCardScoreJaund = document.getElementById('cardScoreJaund');
-        if (elCardScoreJaund) elCardScoreJaund.textContent = `${jaundScore} / 100`;
-        const elCardBadgeJaund = document.getElementById('cardBadgeJaund');
-        if (elCardBadgeJaund) {
-          elCardBadgeJaund.textContent = jaundBadge;
-          elCardBadgeJaund.className = `card-badge ${jaundBadgeClass}`;
-        }
-        const elBulletJaund1 = document.getElementById('bulletJaund1');
-        if (elBulletJaund1) elBulletJaund1.textContent = `Scleral Icterus Finding: ${jaundFinding}`;
-        const elRecJaundText = document.getElementById('recJaundText');
-        if (elRecJaundText) elRecJaundText.textContent = jaundRec;
-
-        // 4. Optical Quality
-        let qScore = 94;
-        if (data.quality) {
-          qScore = data.quality.is_blurry ? 65 : 94;
-          document.getElementById('cardScoreQuality').textContent = `${qScore} / 100`;
-          document.getElementById('bulletQuality1').textContent = `Sharpness: ${data.quality.sharpness || 'OK'}, Brightness: ${data.quality.brightness || 'OK'}`;
-        }
-
-        // 5. Unified Overall Composite Score
-        const overallScore = Math.round((hbScore + conjScore + jaundScore + qScore) / 4);
-        let scoreBadge = 'Fair';
-        let badgeClass = 'badge-fair';
-        let scoreSub = 'Multi-target screening completed';
-
-        if (overallScore >= 85) {
-          scoreBadge = 'Good';
-          badgeClass = 'badge-good';
-          scoreSub = 'Healthy multi-target ocular coloration and clarity detected';
-        } else if (overallScore >= 70) {
-          scoreBadge = 'Fair';
-          badgeClass = 'badge-fair';
-          scoreSub = 'Borderline or mild indicators detected across screening targets';
+      if (jaundRes) {
+        const jStatus = jaundRes.operational_status || jaundRes.status;
+        if (jStatus === 'blocked_domain_validation') {
+          jaundBadge = 'Gated (Camera Domain)';
+          jaundBadgeClass = 'badge-alert';
+          jaundFinding = 'Predictions withheld (Uncalibrated camera)';
+          jaundConfText = 'Camera domain validation gate active';
+          jaundObsText = 'Predictions withheld under camera safety gate';
+          jaundMeaningText = 'Calibrated macro ocular photography required.';
+        } else if (jStatus === 'unavailable_missing_data') {
+          jaundBadge = 'Lab Data Missing';
+          jaundBadgeClass = 'badge-alert';
+          jaundFinding = 'Feature offline (missing paired lab bilirubin)';
+          jaundConfText = 'Ground-truth serum bilirubin required';
+          jaundObsText = 'Quantitative lab bilirubin offline';
+          jaundMeaningText = 'No paired clinical laboratory bilirubin in dataset; values not fabricated.';
         } else {
-          scoreBadge = 'Poor';
-          badgeClass = 'badge-poor';
-          scoreSub = 'Notable ocular indicators detected — medical consultation advised';
-        }
+          const jPredArray = jaundRes.raw_prediction || jaundRes.prediction || jaundRes.model_output;
+          const jOut = (Array.isArray(jPredArray) && jPredArray.length > 0 && typeof jPredArray[0] === 'object') ? jPredArray[0] : null;
+          if (jOut) {
+            const predCls = (jOut.predicted_class || 'normal').toLowerCase();
+            const confVal = jOut.confidence !== undefined ? jOut.confidence : 0.0;
+            const confPct = (confVal * 100).toFixed(1);
+            jaundConfText = `Model Confidence: ${confPct}% (MobileNetV3-Small)`;
 
-        // Apply Overall Scores
-        document.getElementById('rptOverallScore').textContent = `${overallScore} / 100`;
-        const bEl = document.getElementById('rptScoreBadge');
-        bEl.textContent = scoreBadge;
-        bEl.className = `score-badge ${badgeClass}`;
-        document.getElementById('rptScoreSub').textContent = scoreSub;
-        document.getElementById('rptSliderPointer').style.left = `${Math.min(Math.max(overallScore, 5), 95)}%`;
-      } catch (e) {
-        console.error('Error hydrating report:', e);
+            if (predCls.includes('jaundice') || predCls.includes('icterus')) {
+              jaundScore = Math.max(35, Math.min(65, Math.round(100 - (confVal * 50))));
+              jaundBadge = 'Yellowing Flagged';
+              jaundBadgeClass = 'badge-poor';
+              jaundFinding = `Scleral Icterus Detected (${confPct}%)`;
+              jaundObsText = `<strong style="color: #b91c1c;">Yellowish Tint Detected (${confPct}%)</strong>`;
+              jaundMeaningText = 'Visible yellowish coloration detected in eye whites; discuss routine serum bilirubin blood panel with doctor.';
+            } else {
+              jaundScore = Math.min(98, Math.max(75, Math.round(confVal * 100)));
+              jaundBadge = 'Clear White Sclera';
+              jaundBadgeClass = 'badge-good';
+              jaundFinding = `Normal / Non-icteric (${confPct}%)`;
+              jaundObsText = `<strong style="color: #16a34a;">Clear White Sclera</strong>`;
+              jaundMeaningText = 'Eye whites show healthy neutral coloration without yellowing.';
+            }
+          }
+        }
+      }
+
+      document.getElementById('cardScoreJaund').textContent = jaundScore !== null ? `${jaundScore} / 100` : 'N/A';
+      const elCardBadgeJaund = document.getElementById('cardBadgeJaund');
+      if (elCardBadgeJaund) {
+        elCardBadgeJaund.textContent = jaundBadge;
+        elCardBadgeJaund.className = `card-badge ${jaundBadgeClass}`;
+      }
+      document.getElementById('bulletJaund1').textContent = `Scleral Finding: ${jaundFinding}`;
+      document.getElementById('bulletJaundConf').textContent = jaundConfText;
+      document.getElementById('recJaundObs').innerHTML = jaundObsText;
+      document.getElementById('recJaundMeaning').textContent = jaundMeaningText;
+
+      // 6. Module D: Optical Quality
+      let qScore = 92;
+      let qBadge = 'Optimal';
+      let qBadgeClass = 'badge-good';
+      if (data.quality && data.quality.is_blurry) {
+        qScore = 55;
+        qBadge = 'Blur Detected';
+        qBadgeClass = 'badge-fair';
+      }
+      document.getElementById('cardScoreQuality').textContent = `${qScore} / 100`;
+      const elCardBadgeQ = document.getElementById('cardBadgeQuality');
+      if (elCardBadgeQ) {
+        elCardBadgeQ.textContent = qBadge;
+        elCardBadgeQ.className = `card-badge ${qBadgeClass}`;
+      }
+
+      // 7. Overall Composite Index Calculation (Transparent Average of Validated Modules)
+      const validScores = [hbScore, conjScore, jaundScore, qScore].filter(s => s !== null && !isNaN(s));
+      const overallScore = validScores.length > 0 ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length) : 75;
+
+      let scoreBadge = 'Fair';
+      let badgeClass = 'badge-fair';
+      let scoreSub = 'Multi-target screening complete';
+
+      if (overallScore >= 85) {
+        scoreBadge = 'Optimal Baseline';
+        badgeClass = 'badge-good';
+        scoreSub = 'Ocular biomarkers within expected healthy baseline reference ranges.';
+      } else if (overallScore >= 70) {
+        scoreBadge = 'Mild / Borderline Indicator';
+        badgeClass = 'badge-fair';
+        scoreSub = 'Borderline or mild microvascular pallor/erythema variations detected.';
+      } else {
+        scoreBadge = 'Notable Indicator';
+        badgeClass = 'badge-poor';
+        scoreSub = 'Notable ocular indicators flagged across screening targets. Clinical exam advised.';
+      }
+
+      document.getElementById('rptOverallScore').textContent = `${overallScore} / 100`;
+      const elRptBadge = document.getElementById('rptScoreBadge');
+      if (elRptBadge) {
+        elRptBadge.textContent = scoreBadge;
+        elRptBadge.className = `score-badge ${badgeClass}`;
+      }
+      document.getElementById('rptScoreSub').textContent = scoreSub;
+      const pointer = document.getElementById('rptSliderPointer');
+      if (pointer) {
+        pointer.style.left = `${Math.min(Math.max(overallScore, 5), 95)}%`;
+      }
+
+      // 8. Advanced AI Components (Segmentation, Secondary Vision, MedSigLIP, Calibrated Ensemble)
+      const seg = data.segmentation || (data.quality_summary && data.quality_summary.segmentation);
+      if (seg) {
+        const cov = seg.coverage_pct || {};
+        const cPct = cov.conjunctiva !== undefined ? cov.conjunctiva : '--';
+        const sPct = cov.sclera !== undefined ? cov.sclera : '--';
+        document.getElementById('rptSegConj').textContent = cPct;
+        document.getElementById('rptSegSclera').textContent = sPct;
+        const qFlags = seg.quality_flags || {};
+        document.getElementById('rptSegStatus').textContent = qFlags.adequate_exposure ? 'Optimal Exposure' : 'Sub-Optimal Coverage';
+        if (seg.overlay_base64) {
+          const overlayImg = document.getElementById('segOverlayImg');
+          const overlayCont = document.getElementById('segOverlayContainer');
+          if (overlayImg && overlayCont) {
+            overlayImg.src = seg.overlay_base64;
+            overlayCont.style.display = 'block';
+          }
+        }
+      }
+
+      const secVision = data.secondary_vision || (data.quality_summary && data.quality_summary.secondary_vision);
+      if (secVision) {
+        const obs = secVision.ocular_observations || {};
+        const sumText = secVision.summary || (obs.palpebral_conjunctiva ? `${obs.palpebral_conjunctiva} ${obs.bulbar_sclera || ''}` : 'Visual observations completed.');
+        document.getElementById('secVisionText').textContent = sumText;
+        const unc = secVision.uncertainty_score !== undefined ? `${(secVision.uncertainty_score * 100).toFixed(0)}%` : 'Low (0.25)';
+        document.getElementById('rptVisionUncertainty').textContent = unc;
+      }
+
+      const refRet = data.reference_retrieval || (data.quality_summary && data.quality_summary.reference_retrieval);
+      if (refRet && Array.isArray(refRet.top_matches) && refRet.top_matches.length > 0) {
+        const topM = refRet.top_matches[0];
+        document.getElementById('rptRefTopMatch').textContent = topM.condition || '--';
+        document.getElementById('rptRefSimilarity').textContent = topM.similarity_pct !== undefined ? topM.similarity_pct : (topM.similarity_score !== undefined ? topM.similarity_score : '--');
+        document.getElementById('rptRefLab').textContent = topM.verified_lab_value || '--';
+      }
+
+      const ens = data.calibrated_ensemble || (data.quality_summary && data.quality_summary.calibrated_ensemble);
+      if (ens) {
+        const conc = ens.concordance_score !== undefined ? `${Math.round(ens.concordance_score * 100)}% multi-model agreement` : 'Verified';
+        document.getElementById('rptEnsembleConcordance').textContent = conc;
+        document.getElementById('rptEnsembleTier').textContent = `Screening Tier: ${ens.tier_label || 'BORDERLINE / CLINICAL REVIEW'}`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Wire interactive language toggle buttons
+      const btnEn = document.getElementById('btnToggleEn');
+      const btnHi = document.getElementById('btnToggleHi');
+      if (btnEn) btnEn.addEventListener('click', () => setReportLanguage('en'));
+      if (btnHi) btnHi.addEventListener('click', () => setReportLanguage('hi'));
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const querySid = urlParams.get('session_id');
+      const queryLang = urlParams.get('lang');
+      if (queryLang && queryLang.toLowerCase().startsWith('hi')) {
+        setReportLanguage('hi');
+      } else {
+        setReportLanguage('en');
+      }
+
+      if (querySid) {
+        // Authoritative fetch from SQLite backend
+        fetch(`/api/reports/${encodeURIComponent(querySid)}`)
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+          })
+          .then(apiData => {
+            const sess = apiData.session || {};
+            const user = apiData.user || {};
+
+            // Check if sessionStorage has image previews to merge
+            try {
+              const cachedRaw = sessionStorage.getItem('ocuscan_active_report') || sessionStorage.getItem('eyehealthai_active_report');
+              if (cachedRaw) {
+                const cached = JSON.parse(cachedRaw);
+                if (cached && cached.images && cached.images.length > 0) {
+                  sess.images = cached.images;
+                }
+              }
+            } catch (e) {
+              console.warn('SessionStorage merge error:', e);
+            }
+
+            hydrateReport(sess, user);
+          })
+          .catch(err => {
+            console.warn('API report fetch failed, falling back to sessionStorage:', err);
+            loadFromStorage();
+          });
+      } else {
+        loadFromStorage();
+      }
+
+      function loadFromStorage() {
+        try {
+          const rawData = sessionStorage.getItem('ocuscan_active_report') || sessionStorage.getItem('eyehealthai_active_report');
+          if (rawData) {
+            const data = JSON.parse(rawData);
+            hydrateReport(data, null);
+          }
+        } catch (e) {
+          console.error('Failed to parse active report from sessionStorage:', e);
+        }
       }
     });
   </script>

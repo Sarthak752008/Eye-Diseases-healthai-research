@@ -367,11 +367,12 @@ async def ask_doctor_buddy_question(
     question: str,
     language: str = "en",
     current_step: int = 1,
+    session_id: Optional[str] = None,
     history: Optional[List[dict]] = None
 ) -> Dict[str, Any]:
     """
-    Processes a user-asked question through Gemini LLM if available,
-    with complete PII/medical-advice safety filtering and deterministic fallback.
+    Processes a user-asked question through OpenAI / Gemini LLM if available,
+    with complete PII/medical-advice safety filtering and deterministic session-grounded fallback.
     """
     from src.inference.copilot import sanitize_input, is_blocked_topic, _get_gemini_client, _SYSTEM_INSTRUCTION
     from src.config import settings
@@ -401,16 +402,116 @@ async def ask_doctor_buddy_question(
 
     # Step 2: Sanitize input
     sanitized_q = sanitize_input(question)
+    q_low = sanitized_q.lower()
 
-    # Step 3: Try Gemini API with candidate fallback chain
+    # Step 3: Fetch active session context if session_id is provided
+    session_context_str = ""
+    session_info = {}
+    if session_id:
+        try:
+            from src.database.database import SessionLocal
+            from src.database.crud import get_session_by_id
+            with SessionLocal() as db:
+                db_s = get_session_by_id(db, session_id)
+                if db_s:
+                    q_sum = db_s.quality_summary or {}
+                    session_info["session_id"] = db_s.id
+                    session_info["quality_summary"] = q_sum
+                    session_info["results"] = {}
+                    for r in db_s.model_results:
+                        session_info["results"][r.module] = {
+                            "status": r.operational_status,
+                            "prediction_value": r.prediction_value,
+                            "unit": r.unit
+                        }
+                    # Build contextual string for LLM or rule engine
+                    res_parts = []
+                    for m, d in session_info["results"].items():
+                        res_parts.append(f"{m.upper()}: status={d['status']}, value={d['prediction_value']} {d.get('unit','')}")
+                    seg_cov = q_sum.get("segmentation", {}).get("coverage_pct", {})
+                    sec_vis = q_sum.get("secondary_vision", {}).get("summary", "")
+                    cal_ens = q_sum.get("calibrated_ensemble", {}).get("tier_label", "")
+                    session_context_str = (
+                        f"ACTIVE SCREENING SESSION CONTEXT (Session ID: {db_s.id}):\n"
+                        f"- Module Outputs: {'; '.join(res_parts)}\n"
+                        f"- Segmentation Coverage: Conjunctiva={seg_cov.get('conjunctiva', 'N/A')}%, Sclera={seg_cov.get('sclera', 'N/A')}%\n"
+                        f"- Calibrated Screening Tier: {cal_ens}\n"
+                        f"- Secondary AI Visual Findings: {sec_vis}\n"
+                    )
+        except Exception as e:
+            logger.debug(f"Failed to fetch session context for Doctor Buddy: {e}")
+
+    # Step 4: Try OpenAI Chat API (Official SDK, configurable model, grounded session context)
+    openai_key = os.getenv("OPENAI_API_KEY") or getattr(settings, "OPENAI_API_KEY", None)
+    if openai_key and len(openai_key.strip()) > 5:
+        try:
+            import openai
+            o_client = openai.OpenAI(api_key=openai_key.strip(), timeout=15.0)
+            o_model = os.getenv("OPENAI_MODEL_NAME") or getattr(settings, "OPENAI_MODEL_NAME", "gpt-4o-mini")
+
+            system_instruction = (
+                f"{_SYSTEM_INSTRUCTION}\n\n"
+                f"You are AI Dr. Astra, the expert ocular health research guide and companion for the EyeHealthAI (OcuScan) clinical screening framework. "
+                f"When asked about this project or how it works, always refer to EyeHealthAI and explain its three independent clinical models: Model A (ResNet-50 Anemia), Model B (MobileNetV3 SLID hyperemia), and Model C (MobileNetV3 Scleral Icterus). "
+                f"Respond in {'Hindi (Devanagari script)' if clean_lang == 'hi' else 'English'}. "
+                f"Ground your answer strictly in the patient's verified screening session findings below. "
+                f"Explain medical concepts in compassionate, simple language. "
+                f"Never fabricate diseases, laboratory hemoglobin or bilirubin numbers, confidence percentages, or diagnostic claims. "
+                f"Always emphasize that this is investigational screening and advise consulting a physician with a confirmatory CBC blood test.\n\n"
+                f"{session_context_str}"
+            )
+
+            messages = [{"role": "system", "content": system_instruction}]
+
+            # Contextual multi-turn follow-up history (last 4 turns)
+            if history and isinstance(history, list):
+                for h in history[-4:]:
+                    r = "user" if h.get("role") == "user" else "assistant"
+                    t = sanitize_input(str(h.get("content", "")))
+                    if t:
+                        messages.append({"role": r, "content": t})
+
+            messages.append({"role": "user", "content": sanitized_q})
+
+            chat_resp = o_client.chat.completions.create(
+                model=o_model,
+                messages=messages,
+                max_tokens=600,
+                temperature=0.3
+            )
+
+            resp_text = chat_resp.choices[0].message.content or ""
+            if resp_text.strip():
+                # Provide contextual follow-up chips
+                follow_ups = [
+                    "What should I discuss with my doctor?",
+                    "Why is a laboratory CBC blood test needed?"
+                ] if clean_lang != "hi" else [
+                    "मुझे अपने डॉक्टर से क्या पूछना चाहिए?",
+                    "सीबीसी रक्त परीक्षण क्यों आवश्यक है?"
+                ]
+
+                return {
+                    "message": resp_text.strip(),
+                    "speak_text": re.sub(r'[*#_`]', '', resp_text)[:180],
+                    "expression": "speaking",
+                    "severity": "info",
+                    "suggested_next_step": "Share this screening report with your doctor.",
+                    "mode": "openai_chat",
+                    "provider": "openai",
+                    "model": o_model,
+                    "follow_up_suggestions": follow_ups
+                }
+        except Exception as e:
+            logger.warning(f"OpenAI Doctor Buddy chat candidate encountered an error ({e}). Attempting fallback...")
+
+    # Step 5: Try Gemini API if OpenAI is unavailable
     client = _get_gemini_client()
     candidate_models = [
         getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash"),
         "gemini-flash-latest",
-        "gemini-3.8-flash",
         "gemini-2.5-flash-lite",
         "gemini-1.5-flash",
-        "gemini-2.0-flash",
     ]
 
     if client:
@@ -419,7 +520,8 @@ async def ask_doctor_buddy_question(
             f"You are AI Dr. Astra, an expert ocular health guide and research companion. "
             f"The user is at Step {current_step} of the screening workflow. "
             f"Respond in {'Hindi (Devanagari script)' if clean_lang == 'hi' else 'English'}. "
-            f"Keep answers clear, highly informative, structured with markdown, and strictly within safety boundaries."
+            f"Keep answers clear, highly informative, structured with markdown, and strictly within safety boundaries.\n"
+            f"{session_context_str}"
         )
         contents = []
         if history and isinstance(history, list):
@@ -452,10 +554,270 @@ async def ask_doctor_buddy_question(
                         "mode": "gemini_enriched"
                     }
             except Exception as e:
-                logger.debug(f"Gemini model {target_model} candidate failed: {e}")
+                logger.debug(f"Gemini candidate {target_model} failed: {e}")
 
-    # Step 4: Comprehensive Clinical & Technical Knowledge Engine (Deterministic Fallback)
-    q_low = sanitized_q.lower()
+    # -------------------------------------------------------------------------
+    # Patient-Centric Question Handlers (Session-Grounded & Plain Language)
+    # -------------------------------------------------------------------------
+
+    # 1. "What does my result mean?"
+    if any(k in q_low for k in ["what does my result mean", "result mean", "meaning of my result", "what do these results mean",
+                                "explain my result", "what does this mean", "मेरे परिणाम का क्या मतलब", "परिणाम का अर्थ", "रिजल्ट का मतलब"]):
+        hb_val_str = "N/A"
+        hb_num = None
+        tier_str = "Screening In Progress"
+        slid_status = "Normal"
+        jaund_status = "Normal"
+        if session_info and session_info.get("results"):
+            res_dict = session_info["results"]
+            anemia_res = res_dict.get("anemia", {})
+            hb_val = anemia_res.get("prediction_value")
+            try:
+                hb_num = float(hb_val) if hb_val is not None else None
+                hb_val_str = f"{hb_num:.2f} g/dL"
+            except (ValueError, TypeError):
+                pass
+            slid_status = res_dict.get("slid", {}).get("status", "Normal")
+            jaund_status = res_dict.get("jaundice", {}).get("status", "Normal")
+            cal = session_info.get("quality_summary", {}).get("calibrated_ensemble", {})
+            tier_str = cal.get("tier_label", "BORDERLINE / CLINICAL REVIEW")
+
+        if clean_lang == "hi":
+            if hb_num is not None:
+                if hb_num < 11.0:
+                    hb_meaning = f"आपके हीमोग्लोबिन का अनुमान **{hb_val_str}** है। यह निचली पलक की रक्त वाहिकाओं में हल्का या मध्यम पीलापन (pallor) दर्शाता है, जो संभावित एनीमिया का संकेत हो सकता है।"
+                else:
+                    hb_meaning = f"आपके हीमोग्लोबिन का अनुमान **{hb_val_str}** है, जो सामान्य स्वस्थ संदर्भ सीमा के भीतर है। पलक की रक्त वाहिकाओं में पर्याप्त लालिमा देखी गई है।"
+            else:
+                hb_meaning = "आपके हीमोग्लोबिन की जांच का मूल्यांकन चल रहा है या परिणाम उपलब्ध नहीं है।"
+
+            return {
+                "message": (
+                    f"### आपके परिणामों का सरल अर्थ (Screening Summary)\n\n"
+                    f"1. 🩸 **रक्त हीमोग्लोबिन (Hb)**: {hb_meaning}\n"
+                    f"2. 👁️ **आंख की सतह (कंजंक्टिवा)**: स्थिति **{slid_status}**। यह देखा गया कि क्या आंख की सतह पर कोई असामान्य लालिमा या सूजन है।\n"
+                    f"3. ☀️ **आंख का सफेद भाग (स्क्लेरा)**: स्थिति **{jaund_status}**। आंख के सफेद भाग में किसी पीलेपन (पीलिया/इक्टेरस) की जांच की गई।\n"
+                    f"4. 📊 **समग्र स्क्रीनिंग श्रेणी**: **{tier_str}**।\n\n"
+                    f"💡 **यह क्या साबित नहीं कर सकता**: यह जांच केवल फोटो के रंगों का गैर-आक्रामक अनुमान है। यह कोई अंतिम डॉक्टरी निदान नहीं है। कमरे की रोशनी और कैमरे के कारण रंगों में थोड़ा अंतर आ सकता है।"
+                ),
+                "speak_text": f"आपके परिणामों का अर्थ: हीमोग्लोबिन अनुमान {hb_val_str} है। यह केवल एक गैर-आक्रामक जांच है, अंतिम निदान हेतु डॉक्टर से परामर्श करें।",
+                "expression": "speaking",
+                "severity": "info",
+                "suggested_next_step": "डॉक्टर से सीबीसी रक्त परीक्षण पर चर्चा करें।",
+                "mode": "patient_guidance_meaning"
+            }
+        else:
+            if hb_num is not None:
+                if hb_num < 8.0:
+                    hb_meaning = f"Estimated at **{hb_val_str}** (noticeable pallor in the microvascular vessels of your inner eyelid, suggesting possible lower red blood cell levels)."
+                elif hb_num < 11.0:
+                    hb_meaning = f"Estimated at **{hb_val_str}** (mild-to-moderate pallor observed in the inner eyelid lining, which can be associated with mild anemia)."
+                elif hb_num < 12.0:
+                    hb_meaning = f"Estimated at **{hb_val_str}** (borderline normal range; healthy pinkish coloration with slight variation)."
+                else:
+                    hb_meaning = f"Estimated at **{hb_val_str}** (healthy baseline microvascular coloration with good vascular perfusion)."
+            else:
+                hb_meaning = "Hemoglobin estimation awaiting completed scan or not recorded."
+
+            return {
+                "message": (
+                    f"### What Your Screening Results Mean (In Simple Terms)\n\n"
+                    f"1. 🩸 **Blood Hemoglobin**: {hb_meaning}\n"
+                    f"2. 👁️ **Eye Surface Health**: Status is **{slid_status}**. We screened the surface of your eye for signs of visible redness or irritation.\n"
+                    f"3. ☀️ **Eye Whites (Sclera)**: Status is **{jaund_status}**. We screened for yellowish coloration that could be linked to bile pigments.\n"
+                    f"4. 📊 **Overall Screening Category**: **{tier_str}**.\n\n"
+                    f"💡 **Important Context & Diagnostic Boundaries**:\n"
+                    f"- This screening estimates **surface optical coloration**, not internal blood cells directly.\n"
+                    f"- It is an early research check, but **cannot definitively diagnose or rule out any condition**.\n"
+                    f"- Ambient lighting, camera sensors, and individual eyelid characteristics influence readings, which is why clinical laboratory confirmation is always recommended."
+                ),
+                "speak_text": f"Your estimated hemoglobin is {hb_val_str}. This non-invasive screening reflects surface eyelid coloration and should be confirmed with a standard blood test.",
+                "expression": "speaking",
+                "severity": "info",
+                "suggested_next_step": "Schedule a routine visit with your physician to discuss these findings.",
+                "mode": "patient_guidance_meaning"
+            }
+
+    # 2. "Why do I need another test?"
+    if any(k in q_low for k in ["why do i need another test", "why another test", "why need another test", "why do i need a cbc",
+                                "why cbc test", "why blood test", "why confirmatory", "दूसरा टेस्ट", "दूसरे टेस्ट", "रक्त परीक्षण क्यों", "सीबीसी क्यों", "अन्य टेस्ट", "पुष्टि की जरूरत", "परीक्षण की आवश्यकता"]):
+        if clean_lang == "hi":
+            return {
+                "message": (
+                    "### आपको दूसरा परीक्षण (जैसे सीबीसी रक्त जांच) क्यों करवाना चाहिए?\n\n"
+                    "1. **सतह बनाम आंतरिक रक्त**: EyeHealthAI केवल आपकी पलक और आंख की सतह पर रोशनी के परावर्तन और रंग का विश्लेषण करता है। यह रक्त वाहिकाओं के अंदर जाकर कोशिकाओं को सीधे नहीं गिन सकता।\n"
+                    "2. **नैदानिक सटीकता (Gold Standard)**: एक प्रयोगशाला सीबीसी (Complete Blood Count) नस से रक्त लेकर माइक्रोस्कोप और हेमोकाउंटर से हीमोग्लोबिन की ±0.1 g/dL तक सटीक माप करता है, जबकि कैमरा अनुमान ±1.5 g/dL तक भिन्न हो सकता है।\n"
+                    "3. **रोशनी और कैमरे का प्रभाव**: कमरे की रोशनी, स्क्रीन ब्राइटनेस और फोन/वेबकैम के रंग सेंसर फोटो के रंग को थोड़ा बदल सकते हैं।\n"
+                    "4. **आपकी सुरक्षा सर्वोपरि**: कोई भी डॉक्टर केवल फोटो देखकर दवा या आयरन की खुराक शुरू नहीं करता; प्रयोगशाला रिपोर्ट से सही और सुरक्षित इलाज सुनिश्चित होता है।"
+                ),
+                "speak_text": "कंप्यूटर विज़न केवल आंख की सतह का रंग देखता है। सटीक मात्रा और सुरक्षित उपचार के लिए लैब सीबीसी रक्त परीक्षण आवश्यक होता है।",
+                "expression": "thoughtful",
+                "severity": "info",
+                "suggested_next_step": "नियमित स्वास्थ्य जांच के दौरान डॉक्टर से सीबीसी टेस्ट का अनुरोध करें।",
+                "mode": "patient_guidance_why_test"
+            }
+        else:
+            return {
+                "message": (
+                    "### Why a Follow-up Laboratory Test is Recommended\n\n"
+                    "1. 🔬 **Surface Optical Patterns vs. Internal Blood Cells**:\n"
+                    "   EyeHealthAI analyzes light reflecting off the mucosal surface of your eyelid and eye whites. While tissue redness strongly correlates with hemoglobin, camera sensors cannot directly count blood cells inside your bloodstream.\n\n"
+                    "2. ⚖️ **Certified Laboratory Precision (Gold Standard)**:\n"
+                    "   A standard Complete Blood Count (CBC) uses a small venous blood sample analyzed by clinical laboratory hemocounters with high precision (accurate to ±0.1 g/dL, whereas non-invasive optical screening has an expected uncertainty of ±1.5 g/dL).\n\n"
+                    "3. 💡 **Lighting and Device Variations**:\n"
+                    "   Ambient room lighting, camera white balance, and skin undertones can subtly alter photograph colors. A laboratory blood panel is completely immune to external optical conditions.\n\n"
+                    "4. 🛡️ **Patient Safety and Actionable Care**:\n"
+                    "   Medical guidelines require verified laboratory results before a physician recommends treatments, dietary changes, or iron supplementation."
+                ),
+                "speak_text": "A standard laboratory blood test measures red blood cells directly inside your blood, ensuring precise and safe clinical care.",
+                "expression": "thoughtful",
+                "severity": "info",
+                "suggested_next_step": "Bring your screening report to your next medical appointment.",
+                "mode": "patient_guidance_why_test"
+            }
+
+    # 3. "Which results still need confirmation?"
+    if any(k in q_low for k in ["which results still need confirmation", "which result needs confirmation", "what needs confirmation",
+                                "unconfirmed", "need confirmation", "which needs checking", "किन परिणामों की पुष्टि", "पुष्टि आवश्यक", "पुष्टि की जानी बाकी", "पुष्टि चाहिए", "जांच की पुष्टि", "पुष्टि"]):
+        if clean_lang == "hi":
+            return {
+                "message": (
+                    "### किन परिणामों की डॉक्टरी पुष्टि आवश्यक है?\n\n"
+                    "सभी एआई-आधारित गैर-आक्रामक परिणाम अनुसंधान अनुमान हैं और निम्नलिखित पुष्टियों की आवश्यकता होती है:\n\n"
+                    "- 🩸 **हीमोग्लोबिन / एनीमिया**: इसे एक प्रमाणित नस के रक्त परीक्षण (**Complete Blood Count - CBC**) द्वारा पुष्टि की आवश्यकता है।\n"
+                    "- 👁️ **आंख की लालिमा (कंजंक्टिवाइटिस)**: यदि आंख में खुजली, जलन, दर्द या पानी आ रहा हो, तो एक नेत्र विशेषज्ञ द्वारा **स्लिट-लैंप बायोमाइक्रोस्कोपी** परीक्षण आवश्यक है।\n"
+                    "- ☀️ **पीलिया / स्क्लेरा का पीलापन**: यदि आंख के सफेद हिस्से में पीलापन दिखे, तो डॉक्टर से **लिवर फंक्शन टेस्ट (LFT / Serum Bilirubin)** की सलाह लें।\n"
+                    "- 📷 **कैमरा गुणवत्ता सीमाएं**: सामान्य वेबकैम तस्वीरों की तुलना में अस्पताल के क्लिनिकल कैमरे अधिक संवेदनशील होते हैं।"
+                ),
+                "speak_text": "हीमोग्लोबिन के लिए सीबीसी रक्त परीक्षण, और आंख की लालिमा के लिए नेत्र विशेषज्ञ की जांच आवश्यक पुष्टि कदम हैं।",
+                "expression": "speaking",
+                "severity": "info",
+                "suggested_next_step": "अपनी 2-पेज पीडीएफ रिपोर्ट डाउनलोड कर डॉक्टर को दिखाएं।",
+                "mode": "patient_guidance_confirmation"
+            }
+        else:
+            return {
+                "message": (
+                    "### Which Results Need Medical Confirmation?\n\n"
+                    "Because this is an experimental non-invasive screening tool, **all three screening targets require standard medical verification** before making any health decisions:\n\n"
+                    "1. 🩸 **Hemoglobin & Anemia Estimation**:\n"
+                    "   - *Needs*: A standard venous **Complete Blood Count (CBC)** blood test.\n"
+                    "   - *Why*: Direct measurement of red blood cell count, hematocrit, and hemoglobin concentration.\n\n"
+                    "2. 👁️ **Eye Surface Redness & Irritation (Conjunctivitis)**:\n"
+                    "   - *Needs*: An in-person **slit-lamp examination** by an optometrist or ophthalmologist if redness, itching, discharge, or discomfort is present.\n"
+                    "   - *Why*: Differentiates dry eyes, allergies, bacterial, or viral conjunctivitis.\n\n"
+                    "3. ☀️ **Scleral Yellowness (Jaundice)**:\n"
+                    "   - *Needs*: A routine **Serum Bilirubin (Total & Direct)** blood panel.\n"
+                    "   - *Why*: Our model screens visual yellowness categorically; only a laboratory blood test provides true clinical bilirubin concentrations."
+                ),
+                "speak_text": "All three targets benefit from confirmation: a CBC blood test for hemoglobin, an eye exam for redness, and a bilirubin panel for yellowing.",
+                "expression": "speaking",
+                "severity": "info",
+                "suggested_next_step": "Consult your primary care physician or eye specialist.",
+                "mode": "patient_guidance_confirmation"
+            }
+
+    # 4. "What should I discuss with my doctor?"
+    if any(k in q_low for k in ["what should i discuss with my doctor", "discuss with my doctor", "talk to my doctor",
+                                "what to ask doctor", "what should i ask my doctor", "questions for doctor", "ask doctor",
+                                "डॉक्टर से क्या पूछूं", "डॉक्टर से क्या बात करें", "डॉक्टर को क्या बताएं", "डॉक्टर से क्या चर्चा", "डॉक्टर से चर्चा"]):
+        hb_mention = ""
+        if session_info and session_info.get("results"):
+            hb_val = session_info["results"].get("anemia", {}).get("prediction_value")
+            if hb_val:
+                hb_mention = f" (specifically mentioning the estimated {hb_val} g/dL from your screening)"
+
+        if clean_lang == "hi":
+            return {
+                "message": (
+                    "### डॉक्टर से परामर्श के लिए व्यावहारिक चेकलिस्ट\n\n"
+                    "जब आप अपने डॉक्टर से मिलें, तो आप निम्नलिखित प्रश्न पूछ सकते हैं:\n\n"
+                    "1. 📋 **स्क्रीनिंग रिपोर्ट दिखाएं**: 'डॉक्टर साहब, मैंने एक शोध-आधारित नेत्र जांच करवाई है जिसमें यह रिपोर्ट मिली है।'\n"
+                    "2. 🩸 **सीबीसी टेस्ट का अनुरोध**: 'क्या आप मेरे हीमोग्लोबिन और आयरन के स्तर की पुष्टि के लिए एक साधारण सीबीसी (CBC) रक्त परीक्षण लिख सकते हैं?'\n"
+                    "3. 🩺 **अपने लक्षण बताएं**: यदि आपको हाल ही में थकान, चक्कर, सिरदर्द, सांस फूलना या ठंड लगना महसूस हुआ हो, तो डॉक्टर को अवश्य बताएं।\n"
+                    "4. 👁️ **आंखों के आराम की सलाह**: यदि आपकी आंखें सूखी, थकी या लाल महसूस होती हैं, तो स्क्रीन उपयोग और लूब्रिकेंट आई-ड्रॉप्स के बारे में पूछें। बिना पर्ची के कोई भी औषधीय ड्रॉप न डालें।"
+                ),
+                "speak_text": "डॉक्टर को अपनी रिपोर्ट दिखाएं, सीबीसी रक्त परीक्षण का अनुरोध करें, और थकान या कमजोरी जैसे किसी भी लक्षण की चर्चा करें।",
+                "expression": "happy",
+                "severity": "info",
+                "suggested_next_step": "रिपोर्ट को प्रिंट करें या अपने फोन में सेव करके डॉक्टर को दिखाएं।",
+                "mode": "patient_guidance_doctor_questions"
+            }
+        else:
+            return {
+                "message": (
+                    "### What to Discuss With Your Healthcare Provider\n\n"
+                    "Here is a friendly, structured checklist you can take to your appointment:\n\n"
+                    f"1. 📄 **Share Your Screening Report**:\n"
+                    f"   Hand your doctor the 2-Page PDF (especially **Page 2: Clinician & Research Review**, which contains the technical model details and confidence intervals).\n\n"
+                    f"2. 🩸 **Request a Confirmatory Blood Test**:\n"
+                    f"   *\"I recently participated in a non-invasive eye screening that estimated my hemoglobin{hb_mention}. Could we order a routine Complete Blood Count (CBC) to verify my blood levels?\"*\n\n"
+                    f"3. 💬 **Mention Any Everyday Symptoms**:\n"
+                    f"   Be sure to tell your doctor if you have experienced unusual tiredness, cold hands/feet, shortness of breath on stairs, or dizzy spells.\n\n"
+                    f"4. 👁️ **Discuss Eye Comfort & Screen Habits**:\n"
+                    f"   If your eyes frequently feel dry, gritty, or strained, ask your doctor or optometrist about appropriate eye rest habits or lubricating drops. Never use medicated steroid drops without a prescription."
+                ),
+                "speak_text": "Take your 2-page report to your doctor, ask about a routine CBC blood test, and discuss any tiredness or eye fatigue you may feel.",
+                "expression": "happy",
+                "severity": "info",
+                "suggested_next_step": "Download your official 2-Page PDF report to bring to your appointment.",
+                "mode": "patient_guidance_doctor_questions"
+            }
+
+    # Knowledge Base: Active Session Findings & Detailed Model Observations
+    if any(k in q_low for k in ["what did each", "observe", "findings", "disagree", "confidence mean", "quality sufficient",
+                                "uncertain", "what test", "what additional", "test is needed", "segmentation", "reference match",
+                                "क्या देखा", "मॉडल ने क्या", "कॉन्फिडेंस", "क्वालिटी", "कौनसा टेस्ट"]):
+        # If session_info is available, generate grounded explanation of the active session
+        if session_info and session_info.get("results"):
+            res_dict = session_info["results"]
+            anemia_res = res_dict.get("anemia", {})
+            slid_res = res_dict.get("slid", {})
+            jaund_res = res_dict.get("jaundice", {})
+            q_sum = session_info.get("quality_summary", {})
+            seg = q_sum.get("segmentation", {})
+            cov = seg.get("coverage_pct", {})
+            cal = q_sum.get("calibrated_ensemble", {})
+
+            hb_str = f"{anemia_res.get('prediction_value', 'N/A')} g/dL" if anemia_res.get("prediction_value") else "Unavailable"
+            slid_str = f"Status: {slid_res.get('status', 'N/A')}"
+            jaund_str = f"Status: {jaund_res.get('status', 'N/A')}"
+
+            if clean_lang == "hi":
+                return {
+                    "message": (
+                        f"### आपके सक्रिय स्क्रीनिंग सत्र के परिणाम (Session: {session_info.get('session_id', 'Active')[:12]})\n\n"
+                        f"1. **मॉडल ए (एनीमिया)**: अनुमानित हीमोग्लोबिन **{hb_str}** (निचली पलक के रंग और एरिथेमा इंडेक्स से)।\n"
+                        f"2. **मॉडल बी (कंजंक्टिवाइटिस)**: स्लिट-लैंप मोबाइलनेट **{slid_str}**।\n"
+                        f"3. **मॉडल सी (पीलिया / स्क्लेरा)**: स्क्लेरल इक्टेरस **{jaund_str}**।\n"
+                        f"4. **एआई सेगमेंटेशन कवरेज**: कंजेक्टिवा **{cov.get('conjunctiva', 'N/A')}%**, स्क्लेरा **{cov.get('sclera', 'N/A')}%**।\n"
+                        f"5. **कैलिब्रेटेड एन्सेम्बल टीयर**: **{cal.get('tier_label', 'Borderline Review')}**।\n\n"
+                        f"⚠️ **पुष्टि हेतु आवश्यक परीक्षण**: गैर-आक्रामक विज़ुअल अनुमान की पुष्टि के लिए मानक सीबीसी (CBC) रक्त परीक्षण और कुल सीरम बिलीरुबिन लैब टेस्ट आवश्यक है।"
+                    ),
+                    "speak_text": f"आपके सत्र में हीमोग्लोबिन {hb_str} अनुमानित हुआ है। चिकित्सीय पुष्टि हेतु सीबीसी रक्त परीक्षण आवश्यक है।",
+                    "expression": "speaking",
+                    "severity": "info",
+                    "suggested_next_step": "विस्तृत 2-पृष्ठों की पीडीएफ रिपोर्ट डाउनलोड करें।",
+                    "mode": "deterministic_session_grounded"
+                }
+            else:
+                return {
+                    "message": (
+                        f"### Active Session Clinical Screening Findings (Session: {session_info.get('session_id', 'Active')[:12]})\n\n"
+                        f"- **Model A (Anemia Regressor)**: Predicted Hemoglobin **{hb_str}** derived from palpebral conjunctiva pallor and Erythema Index.\n"
+                        f"- **Model B (SLID Conjunctivitis)**: {slid_str} (evaluated for anterior ocular surface vascular injection).\n"
+                        f"- **Model C (Scleral Icterus)**: {jaund_str} (evaluated for scleral yellowness index).\n"
+                        f"- **Ocular Segmentation**: Successfully localized **{cov.get('conjunctiva', 'N/A')}%** palpebral conjunctiva and **{cov.get('sclera', 'N/A')}%** exposed sclera.\n"
+                        f"- **Calibrated Ensemble Tier**: **{cal.get('tier_label', 'BORDERLINE / CLINICAL REVIEW')}**.\n\n"
+                        f"🔍 **Why Models May Report Different Findings**: Each model inspects an entirely independent anatomical region with specialized chromatic loss functions. For example, severe anemia affects mucosal microvasculature without altering scleral yellowness.\n\n"
+                        f"🔬 **Recommended Confirmatory Tests**: Standard venous CBC blood count with automated differential and serum total/direct bilirubin."
+                    ),
+                    "speak_text": f"In your active session, estimated hemoglobin is {hb_str}. Clinical confirmation requires standard venous blood testing.",
+                    "expression": "speaking",
+                    "severity": "info",
+                    "suggested_next_step": "Review the full findings and download the clinical PDF report.",
+                    "mode": "deterministic_session_grounded"
+                }
 
     # Knowledge Base: Project Overview & How it works
     if any(k in q_low for k in ["what is this project", "project overview", "how does it work", "about this project",

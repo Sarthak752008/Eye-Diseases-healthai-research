@@ -80,6 +80,12 @@ def create_session_export(
         anemia_data = inference_result.get("anemia")
         slid_data = inference_result.get("slid")
         jaund_data = inference_result.get("jaundice")
+        if anemia_data and "operational_status" not in anemia_data:
+            anemia_data["operational_status"] = anemia_data.get("status", "available_research_only")
+        if slid_data and "operational_status" not in slid_data:
+            slid_data["operational_status"] = slid_data.get("status", "available_research_only")
+        if jaund_data and "operational_status" not in jaund_data:
+            jaund_data["operational_status"] = jaund_data.get("status", "available_research_only")
         export_payload["anemia"] = anemia_data
         export_payload["slid"] = slid_data
         export_payload["jaundice"] = jaund_data
@@ -91,6 +97,10 @@ def create_session_export(
             "slid": slid_data,
             "jaundice": jaund_data
         }
+        export_payload["segmentation"] = inference_result.get("segmentation")
+        export_payload["secondary_vision"] = inference_result.get("secondary_vision")
+        export_payload["reference_retrieval"] = inference_result.get("reference_retrieval")
+        export_payload["calibrated_ensemble"] = inference_result.get("calibrated_ensemble")
         if anemia_data and isinstance(anemia_data.get("prediction"), list) and len(anemia_data["prediction"]) > 0:
             export_payload["clinical_decision"] = anemia_data["prediction"][0].get("clinical_decision")
             export_payload["chromatic_biomarkers"] = anemia_data["prediction"][0].get("chromatic")

@@ -81,7 +81,8 @@ class InferenceResult(dict):
         warnings: Optional[List[str]] = None,
         limitations: Optional[List[str]] = None,
         disclaimer: Optional[str] = None,
-        error: Optional[str] = None
+        error: Optional[str] = None,
+        **kwargs
     ):
         super().__init__(
             module=module,
@@ -96,7 +97,8 @@ class InferenceResult(dict):
             warnings=warnings or [],
             limitations=limitations or [],
             disclaimer=disclaimer or "RESEARCH USE ONLY: Experimental system. Not for medical diagnosis or clinical use.",
-            error=error
+            error=error,
+            **kwargs
         )
 
 
@@ -875,6 +877,70 @@ class EyeHealthInferenceService:
             anemia_res.get("limitations", []) + slid_res.get("limitations", []) + jaund_res.get("limitations", [])
         ))
 
+        # -------------------------------------------------------------
+        # Advanced AI Integration: Segmentation, Secondary Vision,
+        # Reference Retrieval, and Calibrated Multi-Target Fusion
+        # -------------------------------------------------------------
+        first_prep = self._prepare_image_input(image_list[0])
+        first_pil_img = first_prep.get("image")
+        first_quality = first_prep.get("quality") or {}
+
+        # 1. Ocular Region Segmentation
+        seg_data = None
+        if first_pil_img is not None:
+            try:
+                from src.segmentation import get_ocular_segmenter
+                seg_obj = get_ocular_segmenter().segment(first_pil_img)
+                seg_data = seg_obj.to_dict(include_masks=False)
+            except Exception as e:
+                seg_data = {"status": "error", "error": str(e), "coverage_pct": {}, "quality_flags": {}}
+
+        # 2. Secondary Visual Analysis (OpenAI Responses / Deterministic Fallback)
+        secondary_vision_data = None
+        chrom_data = None
+        if anemia_res.get("prediction") and len(anemia_res["prediction"]) > 0:
+            chrom_data = anemia_res["prediction"][0].get("chromatic")
+
+        if first_pil_img is not None:
+            try:
+                from src.inference.secondary_vision import get_secondary_vision_service
+                secondary_vision_data = get_secondary_vision_service().analyze_image(
+                    first_pil_img,
+                    chromatic_features=chrom_data,
+                    segmentation_info=seg_data
+                )
+            except Exception as e:
+                secondary_vision_data = {"status": "error", "error": str(e)}
+
+        # 3. MedSigLIP-Style Reference Case Retrieval
+        ref_retrieval_data = None
+        if first_pil_img is not None:
+            try:
+                from src.inference.reference_retrieval import get_reference_retrieval_service
+                ref_retrieval_data = get_reference_retrieval_service(device=self.device).query(
+                    first_pil_img,
+                    chromatic_features=chrom_data,
+                    top_k=3
+                )
+            except Exception as e:
+                ref_retrieval_data = {"status": "error", "error": str(e), "top_matches": []}
+
+        # 4. Calibrated Multi-Modal Ensemble Fusion
+        calibrated_ensemble_data = None
+        try:
+            from src.inference.calibrated_ensemble import get_calibrated_ensemble
+            calibrated_ensemble_data = get_calibrated_ensemble().evaluate_fusion(
+                anemia_result=anemia_res,
+                slid_result=slid_res,
+                jaundice_result=jaund_res,
+                segmentation_result=seg_data,
+                chromatic_features=chrom_data,
+                quality_info=first_quality,
+                secondary_vision=secondary_vision_data
+            )
+        except Exception as e:
+            calibrated_ensemble_data = {"status": "error", "error": str(e)}
+
         return {
             "module": "unified",
             "status": overall_status,
@@ -887,6 +953,10 @@ class EyeHealthInferenceService:
             "anemia": anemia_res,
             "slid": slid_res,
             "jaundice": jaund_res,
+            "segmentation": seg_data,
+            "secondary_vision": secondary_vision_data,
+            "reference_retrieval": ref_retrieval_data,
+            "calibrated_ensemble": calibrated_ensemble_data,
             "warnings": all_warnings,
             "limitations": all_limitations,
             "disclaimer": "RESEARCH USE ONLY: Multi-target ocular screening prototype. Not certified for medical diagnosis or clinical use.",
@@ -918,20 +988,7 @@ class EyeHealthInferenceService:
                 capture_source=capture_source,
                 experimental_override=experimental_override
             )
-            return InferenceResult(
-                module='unified',
-                status=u_res.get('status', 'unknown'),
-                input_quality=u_res.get('input_quality'),
-                prediction=u_res.get('prediction'),
-                unit=u_res.get('unit'),
-                view_count=u_res.get('view_count'),
-                view_mean=u_res.get('view_mean'),
-                view_std=u_res.get('view_std'),
-                warnings=u_res.get('warnings'),
-                limitations=u_res.get('limitations'),
-                disclaimer=u_res.get('disclaimer'),
-                error=u_res.get('error')
-            )
+            return InferenceResult(**u_res)
         elif mod == 'anemia':
             if images is None:
                 return InferenceResult(

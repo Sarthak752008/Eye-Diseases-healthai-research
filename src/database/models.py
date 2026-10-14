@@ -128,10 +128,13 @@ class ScreeningSession(Base):
     reports = relationship("ReportMetadata", back_populates="session", cascade="all, delete-orphan")
 
     def to_dict(self) -> Dict[str, Any]:
+        ts = self.session_date.isoformat() if self.session_date else (self.created_at.isoformat() if self.created_at else None)
         return {
             "id": self.id,
+            "session_id": self.id,
             "user_id": self.user_id,
-            "session_date": self.session_date.isoformat() if self.session_date else None,
+            "session_date": ts,
+            "timestamp_utc": ts,
             "language": self.language,
             "selected_module": self.selected_module,
             "capture_source": self.capture_source,

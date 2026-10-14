@@ -15,6 +15,7 @@ import os
 import sys
 import io
 import json
+import hashlib
 import logging
 from typing import List, Optional
 from pydantic import BaseModel, Field
@@ -55,18 +56,31 @@ from src.database import (
 )
 from src.inference.pdf_report import build_two_page_pdf
 
+from contextlib import asynccontextmanager
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initializes database schema and pre-warms deep learning models to eliminate inference cold-start latency."""
+    init_db()
+    try:
+        service = get_inference_service()
+        service._get_anemia_model()
+        service._get_slid_model()
+        service._get_jaundice_model()
+        logger.info("EyeHealthAI inference engines pre-warmed into memory successfully.")
+    except Exception as e:
+        logger.warning(f"Inference engine pre-warming warning: {e}")
+    yield
 
 app = FastAPI(
     title="EyeHealthAI Research Dashboard API",
     description="Multi-modal ocular computer vision screening pipeline with reliability-gated integration.",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
-@app.on_event("startup")
-def on_startup():
-    """Initializes database schema upon application startup."""
-    init_db()
 
 # Security Headers Middleware
 @app.middleware("http")
@@ -587,13 +601,18 @@ async def analyze_ocular_images(
 
         pil_images = []
         filenames = []
+        image_hashes = []
         for idx, f in enumerate(images):
-            filenames.append(f.filename or f"image_{idx}")
+            fname = f.filename or f"image_{idx}.jpg"
+            filenames.append(fname)
             content = await f.read()
             validate_uploaded_image(f, content)
+            img_h = hashlib.sha256(content).hexdigest()
+            image_hashes.append(img_h)
+            logger.info(f"Ingested image #{idx+1} ({fname}): SHA-256={img_h}, Size={len(content)} bytes")
             rgb_img = safe_decode_bytes(content)
             if rgb_img is None:
-                raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({f.filename}). Corrupt file bytes.")
+                raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({fname}). Corrupt file bytes.")
             pil_images.append(rgb_img)
 
         v_types = view_types if view_types else ['unspecified'] * len(pil_images)
@@ -634,6 +653,11 @@ async def analyze_ocular_images(
             checkpoint_id="Unified_MultiTarget_ResNet50_MobileNetV3",
             capture_source=clean_source
         )
+
+        export_payload["input_hashes"] = image_hashes
+        export_payload["input_provenance"] = [
+            {"filename": fn, "sha256": h} for fn, h in zip(filenames, image_hashes)
+        ]
 
         _persist_db_session(
             export_payload,
@@ -720,6 +744,14 @@ def _persist_db_session(export_payload: dict, module: str, capture_source: str, 
     try:
         with SessionLocal() as db:
             valid_user_id = user_id if (user_id and get_user_by_id(db, user_id)) else None
+            q_sum = {
+                "status": "processed",
+                "segmentation": export_payload.get("segmentation"),
+                "secondary_vision": export_payload.get("secondary_vision"),
+                "reference_retrieval": export_payload.get("reference_retrieval"),
+                "calibrated_ensemble": export_payload.get("calibrated_ensemble"),
+                "input_provenance": export_payload.get("input_provenance")
+            }
             db_sess = create_session(
                 db=db,
                 selected_module=module,
@@ -727,7 +759,7 @@ def _persist_db_session(export_payload: dict, module: str, capture_source: str, 
                 user_id=valid_user_id,
                 language=language or "en",
                 view_types=view_types,
-                quality_summary={"status": "processed"},
+                quality_summary=q_sum,
                 session_id=export_payload["session_id"]
             )
 
@@ -974,6 +1006,14 @@ async def download_session_pdf(session_id: str, lang: str = "en"):
         sess = get_session_by_id(db, session_id)
         if sess:
             session_data = sess.to_dict()
+            session_data["session_id"] = sess.id
+            ts_str = sess.session_date.isoformat() if sess.session_date else (sess.created_at.isoformat() if sess.created_at else None)
+            session_data["timestamp_utc"] = ts_str
+            session_data["session_date"] = ts_str
+            session_data["selected_module"] = sess.selected_module
+            session_data["capture_source"] = sess.capture_source or "upload"
+            session_data["view_types"] = sess.view_types or []
+            session_data["quality_summary"] = sess.quality_summary or {}
             if sess.user:
                 user_data = sess.user.to_dict()
             session_data["model_results"] = {}
@@ -982,9 +1022,9 @@ async def download_session_pdf(session_id: str, lang: str = "en"):
                 session_data["model_results"][r.module] = r_dict
                 if r.module == "anemia":
                     session_data["model_output"] = r.prediction_value
-                    session_data["unit"] = r.unit
-                    session_data["view_count"] = r.view_count
-                    session_data["view_mean"] = r.view_mean
+                    session_data["unit"] = r.unit or "g/dL"
+                    session_data["view_count"] = r.view_count or 1
+                    session_data["view_mean"] = r.view_mean or r.prediction_value
                     session_data["view_std"] = r.view_std
                     session_data["anemia_result"] = r_dict
                     if isinstance(r.raw_prediction, list) and len(r.raw_prediction) > 0 and isinstance(r.raw_prediction[0], dict):
@@ -1000,28 +1040,48 @@ async def download_session_pdf(session_id: str, lang: str = "en"):
                 if r.documented_limitations:
                     session_data["documented_limitations"] = r.documented_limitations
 
+            # Ensure dynamic clinical decision is calculated if not present
+            if session_data.get("view_mean") is not None and not session_data.get("clinical_decision"):
+                try:
+                    from src.inference.clinical_analytics import compute_clinical_decision
+                    ugen = (user_data.get("gender") if user_data else "prefer_not_to_say") or "prefer_not_to_say"
+                    session_data["clinical_decision"] = compute_clinical_decision(
+                        hb_val=float(session_data["view_mean"]),
+                        gender=ugen
+                    )
+                except Exception as c_err:
+                    logger.warning(f"Failed to compute clinical decision for session {sess.id}: {c_err}")
+
+            q_sum = sess.quality_summary or {}
+            session_data["segmentation"] = q_sum.get("segmentation")
+            session_data["secondary_vision"] = q_sum.get("secondary_vision")
+            session_data["reference_retrieval"] = q_sum.get("reference_retrieval")
+            session_data["calibrated_ensemble"] = q_sum.get("calibrated_ensemble")
+            session_data["input_provenance"] = q_sum.get("input_provenance")
+
     if not session_data:
-        # Generate default research summary for session_id if not found in DB
+        # Support test fixtures / unpersisted research session requests without fabricating medical metrics
+        clean_sid = session_id.replace("session_", "").replace("ses_", "").replace("usr_", "").upper()
         session_data = {
             "session_id": session_id,
+            "id": session_id,
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-            "selected_module": "unified_ocular_screening",
+            "selected_module": "unified",
             "capture_source": "upload",
             "operational_status": "available_research_only",
-            "model_output": 12.8,
-            "unit": "g/dL",
-            "view_count": 2,
-            "view_mean": 12.8,
-            "view_std": 0.45,
+            "view_types": ["Anterior Ocular View"],
+            "input_files": ["capture_frame_1.jpg"],
+            "view_mean": None,
+            "model_output": None,
             "slid_result": {
                 "module": "slid",
                 "operational_status": "available_research_only",
-                "model_output": [{"predicted_class": "control_normal", "confidence": 0.988}]
+                "raw_prediction": []
             },
             "jaundice_result": {
                 "module": "jaundice",
                 "operational_status": "available_research_only",
-                "model_output": [{"predicted_class": "normal", "confidence": 0.912}]
+                "raw_prediction": []
             }
         }
 
@@ -1051,7 +1111,12 @@ async def get_report_data_endpoint(session_id: str):
         if not sess:
             raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found.")
         s_dict = sess.to_dict()
+        s_dict["session_id"] = sess.id
+        ts_str = sess.session_date.isoformat() if sess.session_date else (sess.created_at.isoformat() if sess.created_at else None)
+        s_dict["timestamp_utc"] = ts_str
+        s_dict["timestamp"] = ts_str
         s_dict["model_results"] = {}
+        user_data = sess.user.to_dict() if sess.user else None
         for r in sess.model_results:
             r_dict = r.to_dict()
             s_dict["model_results"][r.module] = r_dict
@@ -1059,15 +1124,35 @@ async def get_report_data_endpoint(session_id: str):
                 s_dict["anemia_result"] = r_dict
                 s_dict["view_mean"] = r.view_mean or r.prediction_value
                 s_dict["model_output"] = r.prediction_value
+                s_dict["unit"] = r.unit or "g/dL"
                 if isinstance(r.raw_prediction, list) and len(r.raw_prediction) > 0 and isinstance(r.raw_prediction[0], dict):
                     s_dict["clinical_decision"] = r.raw_prediction[0].get("clinical_decision")
             elif r.module in ("slid", "conjunctival_injection"):
                 s_dict["slid_result"] = r_dict
             elif r.module in ("jaundice", "scleral_icterus"):
                 s_dict["jaundice_result"] = r_dict
+
+        if s_dict.get("view_mean") is not None and not s_dict.get("clinical_decision"):
+            try:
+                from src.inference.clinical_analytics import compute_clinical_decision
+                ugen = (user_data.get("gender") if user_data else "prefer_not_to_say") or "prefer_not_to_say"
+                s_dict["clinical_decision"] = compute_clinical_decision(
+                    hb_val=float(s_dict["view_mean"]),
+                    gender=ugen
+                )
+            except Exception:
+                pass
+
+        q_sum = sess.quality_summary or {}
+        s_dict["segmentation"] = q_sum.get("segmentation")
+        s_dict["secondary_vision"] = q_sum.get("secondary_vision")
+        s_dict["reference_retrieval"] = q_sum.get("reference_retrieval")
+        s_dict["calibrated_ensemble"] = q_sum.get("calibrated_ensemble")
+        s_dict["input_provenance"] = q_sum.get("input_provenance")
+
         return {
             "session": s_dict,
-            "user": sess.user.to_dict() if sess.user else None
+            "user": user_data
         }
 
 
@@ -1124,6 +1209,7 @@ class DoctorBuddyAskPayload(BaseModel):
     question: str = Field(..., min_length=1, max_length=500, description="User question")
     language: str = Field("en", max_length=5, description="'en' or 'hi'")
     current_step: int = Field(1, ge=1, le=7, description="Current wizard step index")
+    session_id: Optional[str] = Field(None, description="Active session ID for session-grounded answers")
     history: Optional[List[dict]] = Field(default=None, description="Optional chat history")
 
 
@@ -1145,7 +1231,7 @@ async def doctor_buddy_event_endpoint(payload: DoctorBuddyEventPayload):
 @app.post("/api/doctor-buddy/ask")
 async def doctor_buddy_ask_endpoint(payload: DoctorBuddyAskPayload):
     """
-    Processes user questions through safe Gemini enrichment with deterministic fallback.
+    Processes user questions through safe LLM enrichment with deterministic fallback.
     PII sanitization and medical diagnostic advice blocking strictly enforced.
     """
     from src.inference.doctor_buddy import ask_doctor_buddy_question
@@ -1153,6 +1239,7 @@ async def doctor_buddy_ask_endpoint(payload: DoctorBuddyAskPayload):
         question=payload.question,
         language=payload.language,
         current_step=payload.current_step,
+        session_id=payload.session_id,
         history=payload.history
     )
     return response

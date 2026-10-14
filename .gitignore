@@ -50,3 +50,6 @@ tmp/
 temp/
 *.db
 *.sqlite3
+*.log
+.coverage
+htmlcov/

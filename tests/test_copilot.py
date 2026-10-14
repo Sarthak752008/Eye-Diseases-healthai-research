@@ -167,7 +167,8 @@ class TestChatEndpoint:
     """Tests the /api/chat and /api/copilot-status endpoints."""
 
     @pytest.fixture(scope="class")
-    def client(self):
+    @classmethod
+    def client(cls):
         from fastapi.testclient import TestClient
         from app import app
         return TestClient(app)

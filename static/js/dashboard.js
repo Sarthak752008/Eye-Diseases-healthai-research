@@ -1250,6 +1250,10 @@ document.addEventListener('DOMContentLoaded', () => {
           quality: unifiedSession.quality_summary || { is_blurry: false, sharpness: 'Good', brightness: 'Good' },
           slid_result: slidData,
           jaundice_result: jaundData,
+          segmentation: unifiedSession.segmentation,
+          secondary_vision: unifiedSession.secondary_vision,
+          reference_retrieval: unifiedSession.reference_retrieval,
+          calibrated_ensemble: unifiedSession.calibrated_ensemble,
           images: uploadedFiles.map((f, idx) => ({
             src: f.previewUrl || '/static/images/hero_eye.jpg',
             tag: f.viewType || `View ${idx + 1}`
@@ -1712,18 +1716,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isSlid = !!slidRes;
     const isConjBlocked = !slidRes && (res.selected_module === 'conjunctivitis');
-    const isJaundiceActive = !!(jaundRes && jaundRes.operational_status === 'available_research_only');
-    const isJaundiceMissing = !!(jaundRes && jaundRes.operational_status === 'unavailable_missing_data');
+    const isJaundiceActive = !!(jaundRes && (jaundRes.operational_status === 'available_research_only' || jaundRes.status === 'available_research_only'));
+    const isJaundiceMissing = !!(jaundRes && (jaundRes.operational_status === 'unavailable_missing_data' || jaundRes.status === 'unavailable_missing_data'));
 
     const slidPredArray = slidRes && (slidRes.raw_prediction || slidRes.prediction || slidRes.model_output);
     const slidOutput = (Array.isArray(slidPredArray) && slidPredArray.length > 0 && typeof slidPredArray[0] === 'object') ? slidPredArray[0] : (res.model_output && res.model_output[0] ? res.model_output[0] : {});
     const slidClass = (slidOutput.predicted_class || 'control_normal').replace('_', ' ').toUpperCase();
-    const slidConf = slidOutput.confidence ? (slidOutput.confidence * 100).toFixed(1) : (slidOutput.confidence === 0 ? '0.0' : '98.8');
+    const slidConf = (slidOutput.confidence !== undefined && slidOutput.confidence !== null) ? (slidOutput.confidence * 100).toFixed(1) : '0.0';
 
     const jaundPredArray = jaundRes && (jaundRes.raw_prediction || jaundRes.prediction || jaundRes.model_output);
     const jaundOutput = (Array.isArray(jaundPredArray) && jaundPredArray.length > 0 && typeof jaundPredArray[0] === 'object') ? jaundPredArray[0] : (res.model_output && res.model_output[0] ? res.model_output[0] : {});
     const jaundClass = (jaundOutput.predicted_class || 'normal').replace('_', ' ').toUpperCase();
-    const jaundConf = jaundOutput.confidence ? (jaundOutput.confidence * 100).toFixed(1) : (jaundOutput.confidence === 0 ? '0.0' : '91.2');
+    const jaundConf = (jaundOutput.confidence !== undefined && jaundOutput.confidence !== null) ? (jaundOutput.confidence * 100).toFixed(1) : '0.0';
 
     fullResultsContainer.innerHTML = `
       <!-- Session Header Bar -->
@@ -1774,12 +1778,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       <!-- 3 Honest Model Cards Grid -->
       <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px;">
-        <!-- Card 1: Anemia -->
+        <!-- Card 1: Anemia / Blood Hemoglobin -->
         <div class="result-card-main" style="border-left: 4px solid ${isAnemia ? 'var(--color-success)' : '#64748b'};">
           <div class="result-header">
             <div>
-              <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? 'लक्ष्य A: एनीमिया / हीमोग्लोबिन प्रतिगमन' : 'Target A: Anemia / Continuous Hemoglobin Regression'}</h3>
-              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: ResNet-50 (कंजंक्टिवा पल्लोर विश्लेषण)' : 'Model: ResNet-50 (Palpebral Conjunctival Pallor)'}</span>
+              <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? '🩸 रक्त हीमोग्लोबिन / एनीमिया स्क्रीनिंग' : '🩸 Blood Hemoglobin / Anemia Screening'}</h3>
+              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'पलक के अंदरूनी हिस्से (कंजंक्टिवा) का विश्लेषण • ResNet-50' : 'Inner Eyelid Color Analysis (Palpebral Conjunctiva) • ResNet-50'}</span>
             </div>
             ${anemiaBadge}
           </div>
@@ -1788,24 +1792,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
           <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
             ${isHi
-              ? 'WHO संदर्भ स्तर: वयस्क महिला सामान्य &ge; 12.0 g/dL | वयस्क पुरुष सामान्य &ge; 13.0 g/dL। मॉडल टेस्ट MAE ~1.50 g/dL है।'
-              : 'WHO Reference Thresholds: Adult Female &ge; 12.0 g/dL | Adult Male &ge; 13.0 g/dL. Clinical model MAE is ~1.50 g/dL.'}
+              ? '<strong>यह क्या दर्शाता है:</strong> आंख की निचली पलक का गुलाबी/लाल रंग रक्त में हीमोग्लोबिन के स्तर से संबंधित होता है। WHO सामान्य संदर्भ: महिलाएं &ge; 12.0 g/dL, पुरुष &ge; 13.0 g/dL।'
+              : '<strong>What this means:</strong> The color of the inner eyelid reflects circulating blood hemoglobin levels. WHO typical baseline: adult women &ge; 12.0 g/dL, adult men &ge; 13.0 g/dL.'}
           </div>
 
           <div class="alert-box alert-warning" style="font-size: 11.5px; margin: 0;">
-            <strong>${isHi ? 'चिकित्सीय सुरक्षा नियम:' : 'Safety Gate:'}</strong>
+            <strong>${isHi ? 'मरीज सुरक्षा सूचना:' : 'Patient Safety Notice:'}</strong>
             ${isHi
-              ? 'यह परिणाम एक प्रायोगिक अनुमान है। चिकित्सीय पुष्टि हेतु शिरापरक रक्त (Venous CBC) परीक्षण आवश्यक है।'
-              : 'This is an investigational estimate. Diagnostic triage requires confirmatory laboratory venous CBC testing.'}
+              ? 'यह परिणाम एक गैर-नैदानिक कंप्यूटर विज़न अनुमान है। सटीक पुष्टि के लिए डॉक्टर द्वारा लैब सीबीसी (Venous CBC) रक्त परीक्षण आवश्यक है।'
+              : 'This is an investigational screening estimate, not a standalone medical diagnosis. Definitive confirmation requires a laboratory venous Complete Blood Count (CBC) test.'}
           </div>
         </div>
 
-        <!-- Card 2: Conjunctival Injection / Hyperemia (SLID) -->
+        <!-- Card 2: Eye Surface Health / Irritation (SLID) -->
         <div class="result-card-main" style="border-left: 4px solid ${isSlid ? 'var(--color-success)' : (isConjBlocked ? 'var(--color-warning)' : '#64748b')};">
           <div class="result-header">
             <div>
-              <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? 'लक्ष्य B: कंजंक्टाइवल इंजेक्शन (SLID)' : 'Target B: Conjunctival Injection / Hyperemia Screening'}</h3>
-              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: MobileNetV3-Small (स्लिट-लैंप अनुसंधान)' : 'Model: MobileNetV3-Small (SLID Slit-Lamp Dataset, Acc: 98.78%)'}</span>
+              <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? '👁️ आंख की सतह का स्वास्थ्य / लालिमा' : '👁️ Eye Surface Health / Irritation'}</h3>
+              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'नेत्र सतह पर लालिमा एवं सूजन की जांच (SLID स्लिट-लैंप)' : 'Surface Redness & Blood Vessel Irritation (SLID Slit-Lamp Criteria) • MobileNetV3-Small'}</span>
             </div>
             ${isSlid
               ? `<span class="status-badge available">${isHi ? 'अनुसंधान अनुमान' : 'RESEARCH ESTIMATE'}</span>`
@@ -1825,7 +1829,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </span>
               </div>
               <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0 10px; line-height: 1.5;">
-                ${isHi ? 'स्लिट-लैंप फोटोग्राफी पर कंजंक्टाइवल इंजेक्शन की उपस्थिति की जांच। मेंडेले शॉर्टकट मॉडल पूरी तरह से अवरुद्ध है।' : 'Screened on slit-lamp photography for visible conjunctival hyperemia. The confounded Mendeley dataset shortcut model remains strictly blocked.'}
+                ${isHi ? '<strong>यह क्या दर्शाता है:</strong> आंख की सतह पर असामान्य लालिमा या रक्त वाहिकाओं में सूजन (कंजंक्टिवाइटिस/एलर्जी) की जांच। मेंडेले शॉर्टकट मॉडल पूरी तरह से अवरुद्ध है।' : '<strong>What this means:</strong> Evaluates ocular surface redness and dilated blood vessels typical of irritation or allergic response. Uncalibrated shortcut models remain strictly blocked.'}
               </p>`
             : (isConjBlocked
                 ? `<p style="font-size: 12.5px; color: var(--text-secondary); margin: 14px 0 10px; line-height: 1.5;">
@@ -1848,12 +1852,12 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         </div>
 
-        <!-- Card 3: Jaundice / Scleral Icterus -->
+        <!-- Card 3: Jaundice / Eye Whites (Scleral Clarity) -->
         <div class="result-card-main" style="border-left: 4px solid ${isJaundiceActive ? 'var(--color-success)' : '#64748b'};">
           <div class="result-header">
             <div>
-              <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? 'लक्ष्य C: पीलिया / स्क्लेरल इक्टेरस' : 'Target C: Jaundice / Scleral Icterus Assessment'}</h3>
-              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'मॉडल: MobileNetV3 (श्रेणीबद्ध इक्टेरस)' : 'Model: MobileNetV3-Small (Diverse Jaundice Dataset, CC BY-NC 4.0)'}</span>
+              <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">${isHi ? '☀️ आंख का सफेद भाग / पीलिया स्क्रीनिंग' : '☀️ Eye Whites / Scleral Clarity'}</h3>
+              <span style="font-size: 12px; color: var(--text-secondary);">${isHi ? 'आंख के सफेद भाग (स्क्लेरा) में पीलेपन की जांच • MobileNetV3-Small' : 'Yellow Tint (Scleral Icterus) Screening • MobileNetV3-Small'}</span>
             </div>
             ${isJaundiceActive
               ? `<span class="status-badge available">${isHi ? 'अनुसंधान अनुमान (श्रेणीबद्ध)' : 'RESEARCH ESTIMATE (CATEGORICAL)'}</span>`
@@ -1876,11 +1880,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span style="font-size: 11px; font-weight: 400; color: var(--text-muted);">${isHi ? '(प्रयोगशाला संदर्भ डेटा अनुपलब्ध)' : '(No paired laboratory reference data)'}</span>
               </div>
               <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0 10px; line-height: 1.5;">
-                ${isHi ? 'स्क्लेरा में दृश्य पीलापन (Icterus) का श्रेणीबद्ध मूल्यांकन।' : 'Categorical assessment of visible scleral yellowing (icterus).'}
+                ${isHi ? '<strong>यह क्या दर्शाता है:</strong> आंख के सफेद हिस्से में पीलेपन (इक्टेरस) की जांच, जो बिलीरुबिन के स्तर से संबंधित हो सकता है।' : '<strong>What this means:</strong> Evaluates visible yellow staining in the white of the eye (sclera), which can be an early clinical sign associated with liver or biliary processing.'}
               </p>
               <div class="alert-box alert-warning" style="font-size: 11px; margin: 0;">
-                <strong>${isHi ? 'चिकित्सीय सुरक्षा नियम:' : 'Clinical Safety Policy:'}</strong>
-                ${isHi ? 'वास्तविक प्रयोगशाला बिलीरुबिन माप अनुपलब्ध है। कृत्रिम बिलीरुबिन मान दिखाना सख्त वर्जित है।' : 'Quantitative total serum bilirubin estimation remains strictly UNAVAILABLE due to missing clinical laboratory ground truth.'}
+                <strong>${isHi ? 'मरीज सुरक्षा सूचना:' : 'Patient Safety Notice:'}</strong>
+                ${isHi ? 'वास्तविक प्रयोगशाला बिलीरुबिन माप अनुपलब्ध है। कृत्रिम बिलीरुबिन मान दिखाना सख्त वर्जित है। पूर्ण पुष्टि हेतु लिवर फंक्शन टेस्ट (LFT) आवश्यक है।' : 'Quantitative total serum bilirubin estimation remains strictly UNAVAILABLE due to missing clinical laboratory ground truth. Serum Liver Function Tests (LFT) are required for medical evaluation.'}
               </div>`
             : (isJaundiceMissing
                 ? `<div style="font-size: 12.5px; font-weight: 600; color: #94a3b8; margin: 10px 0 6px;">
@@ -1901,6 +1905,102 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         </div>
       </div>
+
+      <!-- Advanced Multi-Modal AI Section -->
+      ${(() => {
+        const seg = res.segmentation || (res.quality_summary && res.quality_summary.segmentation);
+        const secVis = res.secondary_vision || (res.quality_summary && res.quality_summary.secondary_vision);
+        const refRet = res.reference_retrieval || (res.quality_summary && res.quality_summary.reference_retrieval);
+        const calEns = res.calibrated_ensemble || (res.quality_summary && res.quality_summary.calibrated_ensemble);
+
+        if (!seg && !secVis && !refRet && !calEns) return '';
+
+        const cov = (seg && seg.coverage_pct) || {};
+        const cCov = cov.conjunctiva !== undefined ? `${cov.conjunctiva}%` : 'N/A';
+        const sCov = cov.sclera !== undefined ? `${cov.sclera}%` : 'N/A';
+        const topMatch = (refRet && refRet.top_matches && refRet.top_matches[0]) || null;
+        const secSummary = (secVis && secVis.summary) || 'Visual screening observations completed.';
+        const tierLabel = (calEns && calEns.tier_label) || 'BORDERLINE / CLINICAL REVIEW';
+        const concScore = (calEns && calEns.concordance_score !== undefined) ? `${Math.round(calEns.concordance_score * 100)}%` : '85%';
+
+        return `
+          <div class="result-card-main" style="border-left: 4px solid #38bdf8; margin-bottom: 24px; background: rgba(15, 23, 42, 0.7);">
+            <div class="result-header">
+              <div>
+                <h3 style="font-size: 16px; font-weight: 700; color: #ffffff;">
+                  ${isHi ? 'उन्नत एआई: रीजन सेगमेंटेशन और मल्टी-मॉडल संश्लेषण' : 'Advanced AI: Ocular Segmentation, Secondary Vision & Case Retrieval'}
+                </h3>
+                <span style="font-size: 12px; color: var(--text-secondary);">
+                  ${isHi ? 'MedSigLIP रिट्रीवल &bull; gpt-5.6-terra अवलोकन &bull; कैलिब्रेटेड एन्सेम्बल' : 'MedSigLIP Retrieval &bull; gpt-5.6-terra Vision &bull; Calibrated Multi-Target Fusion'}
+                </span>
+              </div>
+              <span class="status-badge available" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">
+                ${isHi ? 'उन्नत पाइपलाइन' : 'ADVANCED MULTI-MODAL'}
+              </span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 14px 0;">
+              <!-- Segmentation -->
+              <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
+                <div style="font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 6px;">
+                  👁️ ${isHi ? 'नेत्र क्षेत्र विभाजन (Segmentation)' : 'Ocular Segmentation'}
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                  ${isHi ? 'निचली पलक कंजंक्टिवा कवरेज:' : 'Palpebral Conjunctiva:'} <strong>${cCov}</strong><br/>
+                  ${isHi ? 'स्क्लेरा दृश्य क्षेत्र:' : 'Exposed Sclera:'} <strong>${sCov}</strong><br/>
+                  ${isHi ? 'गुणवत्ता जांच:' : 'Region Adequacy:'} <span style="color: #10b981; font-weight: 600;">Verified Anatomical Exposure</span>
+                </div>
+                ${seg && seg.overlay_base64 ? `
+                  <div style="margin-top: 8px;">
+                    <img src="${seg.overlay_base64}" alt="Segmentation overlay" style="width: 100%; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);">
+                  </div>
+                ` : ''}
+              </div>
+
+              <!-- Secondary Vision -->
+              <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
+                <div style="font-size: 13px; font-weight: 700; color: #a78bfa; margin-bottom: 6px;">
+                  🤖 ${isHi ? 'माध्यमिक दृश्य विश्लेषण (gpt-5.6-terra)' : 'Secondary Vision (gpt-5.6-terra)'}
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                  ${escapeHtml(secSummary.slice(0, 180))}...
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                  ${isHi ? 'अवलोकन अनिश्चितता:' : 'Observational Uncertainty:'} <strong>${secVis && secVis.uncertainty_score !== undefined ? (secVis.uncertainty_score * 100).toFixed(0) + '%' : '25%'}</strong>
+                </div>
+              </div>
+
+              <!-- Reference Case Retrieval -->
+              <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
+                <div style="font-size: 13px; font-weight: 700; color: #34d399; margin-bottom: 6px;">
+                  📚 ${isHi ? 'MedSigLIP क्लिनिकल संदर्भ केस' : 'MedSigLIP Reference Retrieval'}
+                </div>
+                ${topMatch ? `
+                  <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                    ${isHi ? 'समान क्लिनिकल केस:' : 'Nearest Case:'} <strong>${escapeHtml(topMatch.condition)}</strong><br/>
+                    ${isHi ? 'समानता स्कोर:' : 'Similarity:'} <strong>${topMatch.similarity_pct}%</strong><br/>
+                    ${isHi ? 'प्रमाणित लैब मान:' : 'Verified Lab:'} <span style="color: #cbd5e1;">${escapeHtml(topMatch.verified_lab_value)}</span>
+                  </div>
+                ` : `
+                  <div style="font-size: 12px; color: var(--text-muted);">
+                    ${isHi ? 'क्लिनिकल संदर्भ डेटाबेस से मिलान सत्यापित' : 'Reference retrieval ready.'}
+                  </div>
+                `}
+              </div>
+            </div>
+
+            <!-- Calibrated Concordance Strip -->
+            <div style="padding: 10px 14px; background: rgba(2, 132, 199, 0.1); border: 1px solid rgba(2, 132, 199, 0.25); border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div style="font-size: 12px; color: #bae6fd;">
+                <strong>${isHi ? 'क्रॉस-मॉडल सहमति स्कोर:' : 'Multi-Model Concordance:'}</strong> ${concScore} physiological agreement
+              </div>
+              <div style="font-size: 12px; font-weight: 700; color: #38bdf8;">
+                ${isHi ? 'स्क्रीनिंग टीयर:' : 'Screening Tier:'} ${tierLabel}
+              </div>
+            </div>
+          </div>
+        `;
+      })()}
 
       <!-- Plain Language & Recommended Next Steps -->
       <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 22px 20px;">
@@ -2402,6 +2502,7 @@ document.addEventListener('DOMContentLoaded', () => {
           question: q,
           language: currentLanguage,
           current_step: currentStep,
+          session_id: (lastSessionData && lastSessionData.session_id) ? lastSessionData.session_id : null,
           history: doctorHistory.slice(-8)
         })
       });

@@ -27,9 +27,11 @@ requests>=2.28.0
 # Database & Persistence
 sqlalchemy>=2.0.0
 
-# PDF Report Generation
+# PDF Report Generation & Parsing
 reportlab>=4.0.0
+pypdf>=3.0.0
 
-# Environment & Optional Copilot
+# Environment & AI Assistants (OpenAI Official SDK & Gemini)
 python-dotenv>=1.0.0
+openai>=1.0.0
 google-genai>=0.1.0

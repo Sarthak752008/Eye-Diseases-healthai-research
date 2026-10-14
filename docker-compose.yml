@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  eyehealthai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eyehealthai_clinical_node
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      - DEBUG=false
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEVICE=cpu
+      - DATABASE_URL=sqlite:////app/data/eyehealthai.db
+      - MAX_UPLOAD_SIZE_MB=15
+      # In hospital deployments, provide OPENAI_API_KEY for Dr. Astra consultation
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL_NAME=${OPENAI_MODEL_NAME:-gpt-4o-mini}
+      - OPENAI_VISION_MODEL=${OPENAI_VISION_MODEL:-gpt-4o-mini}
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
