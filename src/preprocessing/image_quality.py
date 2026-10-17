@@ -70,11 +70,12 @@ def resize_and_pad(img: Image.Image, target_size: Tuple[int, int] = (224, 224)) 
     Resizes image maintaining aspect ratio and pads to target_size,
     avoiding geometric distortion of the ocular structure.
     """
-    img.thumbnail(target_size, Image.Resampling.BILINEAR)
+    img_copy = img.copy()
+    img_copy.thumbnail(target_size, Image.Resampling.BILINEAR)
     new_img = Image.new('RGB', target_size, (0, 0, 0))
-    paste_x = (target_size[0] - img.width) // 2
-    paste_y = (target_size[1] - img.height) // 2
-    new_img.paste(img, (paste_x, paste_y))
+    paste_x = (target_size[0] - img_copy.width) // 2
+    paste_y = (target_size[1] - img_copy.height) // 2
+    new_img.paste(img_copy, (paste_x, paste_y))
     return new_img
 
 

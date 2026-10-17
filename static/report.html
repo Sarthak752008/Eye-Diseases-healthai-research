@@ -186,7 +186,7 @@
 
     .image-frame {
       width: 100%;
-      height: 160px;
+      height: 180px;
       border-radius: 10px;
       overflow: hidden;
       border: 1.5px solid #cbd5e1;
@@ -200,7 +200,8 @@
     .image-frame img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
+      background: #0f172a;
     }
 
     .view-tag-pill {
@@ -214,6 +215,30 @@
       border: 1px solid #e2e8f0;
       text-transform: uppercase;
       letter-spacing: 0.3px;
+    }
+
+    .rpt-vis-tab-btn {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #e2e8f0;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: all 0.2s;
+    }
+
+    .rpt-vis-tab-btn:hover {
+      background: rgba(15, 23, 42, 0.95);
+      color: #ffffff;
+    }
+
+    .rpt-vis-tab-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
     }
 
     /* Anatomical Legend Bar */
@@ -617,14 +642,23 @@
       <span id="txtReportNavTitle">OcuScan Ocular Health Screening Report &amp; Scorecard</span>
     </div>
 
-    <button class="btn-action btn-print" onclick="window.print()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="6 9 6 2 18 2 18 9"/>
-        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-        <rect x="6" y="14" width="12" height="8"/>
-      </svg>
-      <span id="btnPrintText">Print / Save as PDF</span>
-    </button>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <a id="btnDownloadPdfReport" href="#" class="btn-action" style="background: #4f46e5; color: #ffffff; text-decoration: none;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span id="btnDownloadPdfText">Download Scorecard PDF</span>
+      </a>
+
+      <button class="btn-action btn-print" onclick="window.print()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 6 2 18 2 18 9"/>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+          <rect x="6" y="14" width="12" height="8"/>
+        </svg>
+        <span id="btnPrintText">Print / Save as PDF</span>
+      </button>
+    </div>
   </div>
 
   <!-- Printable Report Canvas -->
@@ -634,6 +668,8 @@
     <header class="patient-header">
       <span><span id="lblPatientName">Name</span>: <strong id="rptPatientName">--</strong></span>
       <span><span id="lblPatientPhone">Phone / ID</span>: <strong id="rptPatientPhone">--</strong></span>
+      <span><span id="lblPatientAge">Age</span>: <strong id="rptPatientAge">--</strong></span>
+      <span><span id="lblPatientSex">Clinical Sex</span>: <strong id="rptPatientSex">--</strong></span>
       <span><span id="lblDate">Date</span>: <strong id="rptDate">--</strong></span>
     </header>
 
@@ -646,6 +682,17 @@
 
       <div class="status-banner-box" id="summaryBannerBox">
         <strong>Status: Completed Successfully.</strong> You completed a non-invasive ocular screening evaluating three visual biomarkers: blood hemoglobin / microvascular pallor, eye surface redness / irritation, and eye whites coloration (icterus).
+      </div>
+
+      <!-- Dedicated Profile-Aware Personalized AI Analysis Card -->
+      <div id="rptPersonalizedAiBox" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; margin-top: 10px; font-size: 12px; line-height: 1.55;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <strong id="lblPersonalizedTitle" style="color: #166534; font-size: 13px;">✨ Personalized AI Clinical Analysis</strong>
+          <span id="rptAiModelBadge" style="font-size: 10.5px; background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 4px; font-weight: 600;">--</span>
+        </div>
+        <div id="rptAiSummary" style="color: #1e293b; margin-bottom: 6px;">--</div>
+        <div id="rptAiRefContext" style="color: #475569; font-size: 11.5px; margin-bottom: 4px;">--</div>
+        <div id="rptAiPopWarning" style="color: #b91c1c; font-weight: 600; display: none; margin-top: 4px;">--</div>
       </div>
 
       <!-- Captured Ocular Images Grid -->
@@ -1171,6 +1218,20 @@
       document.getElementById('hdrClinician').textContent = t.hdrClinician;
       document.getElementById('txtFooterDisclaimer').innerHTML = t.txtFooterDisclaimer;
       document.getElementById('lblQrTitle').textContent = t.lblQrTitle;
+
+      const txtDl = document.getElementById('btnDownloadPdfText');
+      if (txtDl) txtDl.textContent = (activeLang === 'hi') ? 'स्कोरकार्ड पीडीएफ डाउनलोड करें' : 'Download Scorecard PDF';
+
+      if (window._activeReportSessionId) {
+        const btnPdf = document.getElementById('btnDownloadPdfReport');
+        if (btnPdf) {
+          btnPdf.href = `/api/reports/${encodeURIComponent(window._activeReportSessionId)}/scorecard-pdf?lang=${activeLang}`;
+        }
+      }
+
+      if (window._cachedReportData) {
+        hydrateReport(window._cachedReportData, window._cachedUserData);
+      }
     }
 
     function escapeHtml(str) {
@@ -1183,9 +1244,100 @@
         .replace(/'/g, '&#39;');
     }
 
-    function renderCapturedImages(images) {
+    function getImgSrc(obj) {
+      if (!obj) return '';
+      if (typeof obj === 'string') return obj;
+      if (typeof obj === 'object') {
+        return obj.image_b64 || obj.overlay_b64 || obj.overlay || obj.src || obj.previewUrl || '';
+      }
+      return '';
+    }
+
+    window._rptVisualizations = {};
+
+    window.switchReportOverlay = function(modelKey) {
+      const visObj = window._rptVisualizations && window._rptVisualizations[modelKey];
+      if (!visObj) return;
+      const overlaySrc = getImgSrc(visObj);
+      const imgElem = document.getElementById('rptOverlayImg');
+      const badgeElem = document.getElementById('rptOverlayBadge');
+      const buttons = document.querySelectorAll('.rpt-vis-tab-btn');
+      buttons.forEach(b => {
+        if (b.getAttribute('data-model') === modelKey) {
+          b.classList.add('active');
+        } else {
+          b.classList.remove('active');
+        }
+      });
+      if (imgElem && overlaySrc) imgElem.src = overlaySrc;
+      if (badgeElem) {
+        if (modelKey === 'anemia') badgeElem.textContent = '04 ResNet-50 Grad-CAM (Hb)';
+        else if (modelKey === 'slid') badgeElem.textContent = '04 MobileNetV3 Grad-CAM (Injection)';
+        else if (modelKey === 'jaundice') badgeElem.textContent = '04 MobileNetV3 Grad-CAM (Icterus)';
+      }
+    };
+
+    function renderCapturedImages(images, reportData) {
       const grid = document.getElementById('rptImagesGrid');
       if (!grid) return;
+
+      const data = reportData || {};
+      const seq = data.image_sequence;
+      const vis = data.visualizations;
+
+      if (seq && (seq.stage_01_upload || seq.stage_02_model_input || seq.stage_03_model_input || seq.stage_03_visualization || seq.stage_04_visualization)) {
+        window._rptVisualizations = vis || {};
+        const stage1 = getImgSrc(seq.stage_01_upload) || (data.previews && data.previews.original_thumb) || '';
+        const stage3 = getImgSrc(seq.stage_02_model_input) || getImgSrc(seq.stage_03_model_input) || (data.previews && data.previews.final_model_input_thumb) || stage1;
+        
+        let initialOverlay = getImgSrc(seq.stage_03_visualization) || getImgSrc(seq.stage_04_visualization) || stage3;
+        let initialModel = 'anemia';
+        if (vis && vis.anemia && (vis.anemia.overlay_b64 || vis.anemia.overlay)) {
+          initialOverlay = getImgSrc(vis.anemia);
+          initialModel = 'anemia';
+        } else if (vis && vis.slid && (vis.slid.overlay_b64 || vis.slid.overlay)) {
+          initialOverlay = getImgSrc(vis.slid);
+          initialModel = 'slid';
+        } else if (vis && vis.jaundice && (vis.jaundice.overlay_b64 || vis.jaundice.overlay)) {
+          initialOverlay = getImgSrc(vis.jaundice);
+          initialModel = 'jaundice';
+        }
+
+        grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+        grid.innerHTML = `
+          <div class="image-card">
+            <div class="image-frame">
+              <img src="${stage1}" alt="01 Original Upload" style="width: 100%; height: 100%; object-fit: contain;">
+            </div>
+            <span class="view-tag-pill">01 Original Upload</span>
+          </div>
+
+          <div class="image-card">
+            <div class="image-frame">
+              <img src="${stage3}" alt="02 Final Model Input" style="width: 100%; height: 100%; object-fit: contain;">
+            </div>
+            <span class="view-tag-pill">02 Final Model Input</span>
+          </div>
+
+          <div class="image-card">
+            <div class="image-frame" style="position: relative;">
+              <img id="rptOverlayImg" src="${initialOverlay}" alt="03 AI Attention Overlay" style="width: 100%; height: 100%; object-fit: contain;">
+              <div style="position: absolute; top: 6px; right: 6px; display: flex; gap: 3px; z-index: 5;">
+                <button type="button" class="rpt-vis-tab-btn ${initialModel === 'anemia' ? 'active' : ''}" data-model="anemia" onclick="window.switchReportOverlay('anemia')">Hb</button>
+                <button type="button" class="rpt-vis-tab-btn ${initialModel === 'slid' ? 'active' : ''}" data-model="slid" onclick="window.switchReportOverlay('slid')">SLID</button>
+                <button type="button" class="rpt-vis-tab-btn ${initialModel === 'jaundice' ? 'active' : ''}" data-model="jaundice" onclick="window.switchReportOverlay('jaundice')">Jaundice</button>
+              </div>
+            </div>
+            <span id="rptOverlayBadge" class="view-tag-pill">03 AI Attention Overlay (${initialModel.toUpperCase()})</span>
+          </div>
+
+          <div style="grid-column: 1 / -1; margin-top: 4px; font-size: 11px; color: #64748b; font-style: italic; text-align: center;">
+            AI attention visualization: highlights image regions that influenced the model's output. It is not a verified disease boundary or medical diagnosis.
+          </div>
+        `;
+        return;
+      }
+
       if (!images || !Array.isArray(images) || images.length === 0) {
         grid.style.gridTemplateColumns = '1fr';
         grid.innerHTML = `
@@ -1215,12 +1367,19 @@
 
     function hydrateReport(data, user) {
       if (!data) return;
+      window._cachedReportData = data;
+      window._cachedUserData = user;
 
       // 1. Header Information
       const patientName = (user && user.full_name) || data.patient_name || 'Anonymous Research Participant';
       const patientPhone = (user && user.phone) || data.patient_phone || 'Not Recorded';
+      const patientAge = (user && user.age_years !== undefined && user.age_years !== null) ? user.age_years : ((data.patient_age_years !== undefined && data.patient_age_years !== null) ? data.patient_age_years : null);
+      const patientSex = (user && user.clinical_sex) || data.patient_clinical_sex || 'Not Disclosed';
+
       document.getElementById('rptPatientName').textContent = patientName;
       document.getElementById('rptPatientPhone').textContent = patientPhone;
+      document.getElementById('rptPatientAge').textContent = patientAge !== null ? `${patientAge} Yrs` : 'Not Recorded';
+      document.getElementById('rptPatientSex').textContent = patientSex.charAt(0).toUpperCase() + patientSex.slice(1);
 
       const dateRaw = data.timestamp_utc || data.timestamp || data.session_date || data.created_at;
       if (dateRaw) {
@@ -1234,12 +1393,59 @@
         });
       }
 
-      // 2. Render Images (Only views actually captured)
-      renderCapturedImages(data.images);
+      // Populate Personalized AI Box if available
+      try {
+        const pAi = data.personalized_ai || data.ai_explanation;
+        const rptAiBox = document.getElementById('rptPersonalizedAiBox');
+        if (pAi && rptAiBox) {
+          const lang = (typeof activeLang !== 'undefined' && activeLang) ? activeLang : 'en';
+          const pBiling = (pAi.bilingual && (pAi.bilingual[lang] || pAi.bilingual['en'])) || {};
+          const pSummary = pBiling.summary || pBiling.visual_observations || '';
+          const pRef = pBiling.reference_context || '';
+          const pPop = pBiling.population_status || '';
+          const pProvider = pAi.provider === 'openai_vision' ? 'OpenAI Vision' : 'Local Deterministic Rules';
+          const pModel = pAi.model_used || 'WHO 2024';
+
+          const elAiBadge = document.getElementById('rptAiModelBadge');
+          if (elAiBadge) elAiBadge.textContent = `${pProvider} (${pModel})`;
+          const elAiSum = document.getElementById('rptAiSummary');
+          if (elAiSum) elAiSum.textContent = pSummary;
+          const elAiRef = document.getElementById('rptAiRefContext');
+          if (elAiRef) elAiRef.textContent = pRef ? `WHO Reference: ${pRef}` : '';
+          const popEl = document.getElementById('rptAiPopWarning');
+          if (popEl) {
+            if (pPop && (pPop.toLowerCase().includes('outside') || pPop.toLowerCase().includes('pediatric') || pPop.toLowerCase().includes('geriatric'))) {
+              popEl.textContent = `⚠️ Population Alert: ${pPop}`;
+              popEl.style.display = 'block';
+            } else {
+              popEl.style.display = 'none';
+            }
+          }
+          rptAiBox.style.display = 'block';
+        }
+      } catch (eAi) {
+        console.warn('Personalized AI render warning:', eAi);
+      }
+
+      // 2. Render Images (Only views actually captured or 4-stage transparent pipeline)
+      try {
+        renderCapturedImages(data.images, data);
+      } catch (eImg) {
+        console.warn('Images render warning:', eImg);
+      }
 
       // 3. Module A: Hemoglobin (Anemia)
       const anemiaRes = data.anemia_result || (data.model_results && data.model_results.anemia) || data.anemia;
-      const hbRaw = (anemiaRes && (anemiaRes.view_mean !== undefined ? anemiaRes.view_mean : anemiaRes.prediction_value)) || data.view_mean;
+      let hbRaw = (anemiaRes && (anemiaRes.view_mean !== undefined ? anemiaRes.view_mean : anemiaRes.prediction_value)) || data.view_mean;
+      if ((hbRaw === null || hbRaw === undefined) && anemiaRes) {
+        let aPred = anemiaRes.raw_prediction || anemiaRes.prediction || anemiaRes.model_output;
+        if (typeof aPred === 'string') {
+          try { aPred = JSON.parse(aPred); } catch(e) {}
+        }
+        if (Array.isArray(aPred) && aPred.length > 0 && aPred[0].hb_pred_g_dl !== undefined) {
+          hbRaw = aPred[0].hb_pred_g_dl;
+        }
+      }
       const hbVal = (hbRaw !== null && hbRaw !== undefined) ? parseFloat(hbRaw) : null;
 
       let hbScore = null;
@@ -1250,36 +1456,36 @@
       let hbMeaningText = 'Checking paleness in the lower eyelid lining that can reflect red blood cell levels.';
 
       if (hbVal !== null && !isNaN(hbVal)) {
-        if (hbVal >= 13.0) {
+        if (hbVal >= 12.8) {
           hbScore = 92;
           hbBadge = 'Normal Baseline';
           hbBadgeClass = 'badge-good';
           hbWhoStage = 'Normal / Non-Anemic Baseline';
           hbObsText = `<strong>Estimated Hb: ${hbVal.toFixed(1)} g/dL</strong> (Healthy Range)`;
           hbMeaningText = 'Healthy pink microvascular tissue coloration consistent with normal hemoglobin levels.';
-        } else if (hbVal >= 12.0) {
-          hbScore = 78;
-          hbBadge = 'Borderline';
-          hbBadgeClass = 'badge-fair';
+        } else if (hbVal >= 11.5) {
+          hbScore = 82;
+          hbBadge = 'Borderline Normal';
+          hbBadgeClass = 'badge-good';
           hbWhoStage = 'Borderline Normal / Mild Variation';
-          hbObsText = `<strong>Estimated Hb: ${hbVal.toFixed(1)} g/dL</strong> (Borderline)`;
-          hbMeaningText = 'Borderline normal range; healthy pinkish coloration with slight variation.';
-        } else if (hbVal >= 11.0) {
-          hbScore = 62;
-          hbBadge = 'Mild Pallor';
+          hbObsText = `<strong>Estimated Hb: ${hbVal.toFixed(1)} g/dL</strong> (Borderline Normal)`;
+          hbMeaningText = 'Borderline normal range; healthy pinkish coloration with slight ambient lighting variation.';
+        } else if (hbVal >= 10.5) {
+          hbScore = 72;
+          hbBadge = 'Mild Variation';
           hbBadgeClass = 'badge-fair';
-          hbWhoStage = 'Mild Anemia Indicator';
-          hbObsText = `<strong>Estimated Hb: ${hbVal.toFixed(1)} g/dL</strong> (Mild Pallor)`;
-          hbMeaningText = 'Mild paleness observed in the lower eyelid tissue; discuss routine CBC blood test with doctor.';
-        } else if (hbVal >= 8.0) {
-          hbScore = 42;
+          hbWhoStage = 'Mild Variation / Borderline Indicator';
+          hbObsText = `<strong>Estimated Hb: ${hbVal.toFixed(1)} g/dL</strong> (Mild Variation)`;
+          hbMeaningText = 'Mild variation observed in lower eyelid tissue; within model test margin of error (±1.50 g/dL).';
+        } else if (hbVal >= 8.5) {
+          hbScore = 52;
           hbBadge = 'Moderate Pallor';
-          hbBadgeClass = 'badge-poor';
+          hbBadgeClass = 'badge-fair';
           hbWhoStage = 'Moderate Anemia Indicator';
           hbObsText = `<strong>Estimated Hb: ${hbVal.toFixed(1)} g/dL</strong> (Moderate Pallor)`;
           hbMeaningText = 'Moderate paleness observed in inner eyelid lining; clinical laboratory CBC blood test recommended.';
         } else {
-          hbScore = 25;
+          hbScore = 28;
           hbBadge = 'Notable Pallor';
           hbBadgeClass = 'badge-poor';
           hbWhoStage = 'Notable Pallor Indicator';
@@ -1288,16 +1494,21 @@
         }
       }
 
-      document.getElementById('cardScoreHb').textContent = hbScore !== null ? `${hbScore} / 100` : 'N/A';
+      const elCardScoreHb = document.getElementById('cardScoreHb');
+      if (elCardScoreHb) elCardScoreHb.textContent = hbScore !== null ? `${hbScore} / 100` : 'N/A';
       const elCardBadgeHb = document.getElementById('cardBadgeHb');
       if (elCardBadgeHb) {
         elCardBadgeHb.textContent = hbBadge;
         elCardBadgeHb.className = `card-badge ${hbBadgeClass}`;
       }
-      document.getElementById('bulletHb1').textContent = hbVal !== null ? `Estimated Hb: ${hbVal.toFixed(1)} g/dL` : 'Estimated Hb: Not Evaluated';
-      document.getElementById('bulletHb2').textContent = `WHO Staging: ${hbWhoStage}`;
-      document.getElementById('recHbObs').innerHTML = hbObsText;
-      document.getElementById('recHbMeaning').textContent = hbMeaningText;
+      const elBulletHb1 = document.getElementById('bulletHb1');
+      if (elBulletHb1) elBulletHb1.textContent = hbVal !== null ? `Estimated Hb: ${hbVal.toFixed(1)} g/dL` : 'Estimated Hb: Not Evaluated';
+      const elBulletHb2 = document.getElementById('bulletHb2');
+      if (elBulletHb2) elBulletHb2.textContent = `WHO Staging: ${hbWhoStage}`;
+      const elRecHbObs = document.getElementById('recHbObs');
+      if (elRecHbObs) elRecHbObs.innerHTML = hbObsText;
+      const elRecHbMeaning = document.getElementById('recHbMeaning');
+      if (elRecHbMeaning) elRecHbMeaning.textContent = hbMeaningText;
 
       // 4. Module B: Conjunctival Health (SLID Hyperemia)
       const slidRes = data.slid_result || (data.model_results && data.model_results.slid) || data.slid;
@@ -1319,11 +1530,14 @@
           conjObsText = 'Predictions withheld under camera safety gate';
           conjMeaningText = 'Camera calibration check requires clinical anterior photography.';
         } else {
-          const sPredArray = slidRes.raw_prediction || slidRes.prediction || slidRes.model_output;
-          const sOut = (Array.isArray(sPredArray) && sPredArray.length > 0 && typeof sPredArray[0] === 'object') ? sPredArray[0] : null;
+          let sPredArray = slidRes.raw_prediction || slidRes.prediction || slidRes.model_output;
+          if (typeof sPredArray === 'string') {
+            try { sPredArray = JSON.parse(sPredArray); } catch(e) {}
+          }
+          const sOut = (Array.isArray(sPredArray) && sPredArray.length > 0 && typeof sPredArray[0] === 'object') ? sPredArray[0] : (typeof sPredArray === 'object' && sPredArray !== null ? sPredArray : null);
           if (sOut) {
             const predCls = (sOut.predicted_class || 'control_normal').toLowerCase();
-            const confVal = sOut.confidence !== undefined ? sOut.confidence : 0.0;
+            const confVal = sOut.confidence !== undefined ? sOut.confidence : (slidRes.prediction_value !== undefined ? slidRes.prediction_value : 0.0);
             const confPct = (confVal * 100).toFixed(1);
             conjConfText = `Model Confidence: ${confPct}% (MobileNetV3-Small)`;
 
@@ -1335,7 +1549,7 @@
               conjObsText = `<strong style="color: #b91c1c;">Surface Redness Detected (${confPct}%)</strong>`;
               conjMeaningText = 'Visible blood vessel redness detected on eye surface; slit-lamp exam advised if eyes feel gritty or irritated.';
             } else {
-              conjScore = Math.min(98, Math.max(75, Math.round(confVal * 100)));
+              conjScore = 92;
               conjBadge = 'Normal';
               conjBadgeClass = 'badge-good';
               conjFinding = `Normal Non-Injected (${confPct}%)`;
@@ -1346,16 +1560,21 @@
         }
       }
 
-      document.getElementById('cardScoreConj').textContent = conjScore !== null ? `${conjScore} / 100` : 'N/A';
+      const elCardScoreConj = document.getElementById('cardScoreConj');
+      if (elCardScoreConj) elCardScoreConj.textContent = conjScore !== null ? `${conjScore} / 100` : 'N/A';
       const elCardBadgeConj = document.getElementById('cardBadgeConj');
       if (elCardBadgeConj) {
         elCardBadgeConj.textContent = conjBadge;
         elCardBadgeConj.className = `card-badge ${conjBadgeClass}`;
       }
-      document.getElementById('bulletConj1').textContent = `Classification: ${conjFinding}`;
-      document.getElementById('bulletConjConf').textContent = conjConfText;
-      document.getElementById('recConjObs').innerHTML = conjObsText;
-      document.getElementById('recConjMeaning').textContent = conjMeaningText;
+      const elBulletConj1 = document.getElementById('bulletConj1');
+      if (elBulletConj1) elBulletConj1.textContent = `Classification: ${conjFinding}`;
+      const elBulletConjConf = document.getElementById('bulletConjConf');
+      if (elBulletConjConf) elBulletConjConf.textContent = conjConfText;
+      const elRecConjObs = document.getElementById('recConjObs');
+      if (elRecConjObs) elRecConjObs.innerHTML = conjObsText;
+      const elRecConjMeaning = document.getElementById('recConjMeaning');
+      if (elRecConjMeaning) elRecConjMeaning.textContent = conjMeaningText;
 
       // 5. Module C: Scleral Clarity (Jaundice)
       const jaundRes = data.jaundice_result || (data.model_results && data.model_results.jaundice) || data.jaundice;
@@ -1384,11 +1603,14 @@
           jaundObsText = 'Quantitative lab bilirubin offline';
           jaundMeaningText = 'No paired clinical laboratory bilirubin in dataset; values not fabricated.';
         } else {
-          const jPredArray = jaundRes.raw_prediction || jaundRes.prediction || jaundRes.model_output;
-          const jOut = (Array.isArray(jPredArray) && jPredArray.length > 0 && typeof jPredArray[0] === 'object') ? jPredArray[0] : null;
+          let jPredArray = jaundRes.raw_prediction || jaundRes.prediction || jaundRes.model_output;
+          if (typeof jPredArray === 'string') {
+            try { jPredArray = JSON.parse(jPredArray); } catch(e) {}
+          }
+          const jOut = (Array.isArray(jPredArray) && jPredArray.length > 0 && typeof jPredArray[0] === 'object') ? jPredArray[0] : (typeof jPredArray === 'object' && jPredArray !== null ? jPredArray : null);
           if (jOut) {
             const predCls = (jOut.predicted_class || 'normal').toLowerCase();
-            const confVal = jOut.confidence !== undefined ? jOut.confidence : 0.0;
+            const confVal = jOut.confidence !== undefined ? jOut.confidence : (jaundRes.prediction_value !== undefined ? jaundRes.prediction_value : 0.0);
             const confPct = (confVal * 100).toFixed(1);
             jaundConfText = `Model Confidence: ${confPct}% (MobileNetV3-Small)`;
 
@@ -1400,7 +1622,7 @@
               jaundObsText = `<strong style="color: #b91c1c;">Yellowish Tint Detected (${confPct}%)</strong>`;
               jaundMeaningText = 'Visible yellowish coloration detected in eye whites; discuss routine serum bilirubin blood panel with doctor.';
             } else {
-              jaundScore = Math.min(98, Math.max(75, Math.round(confVal * 100)));
+              jaundScore = 92;
               jaundBadge = 'Clear White Sclera';
               jaundBadgeClass = 'badge-good';
               jaundFinding = `Normal / Non-icteric (${confPct}%)`;
@@ -1511,9 +1733,19 @@
 
       const ens = data.calibrated_ensemble || (data.quality_summary && data.quality_summary.calibrated_ensemble);
       if (ens) {
-        const conc = ens.concordance_score !== undefined ? `${Math.round(ens.concordance_score * 100)}% multi-model agreement` : 'Verified';
+        const conc = (ens.concordance_score !== undefined && ens.concordance_score !== null) ? `${Math.round(ens.concordance_score * 100)}% multi-model agreement` : 'Not Computed (Requires multi-model inputs)';
         document.getElementById('rptEnsembleConcordance').textContent = conc;
         document.getElementById('rptEnsembleTier').textContent = `Screening Tier: ${ens.tier_label || 'BORDERLINE / CLINICAL REVIEW'}`;
+      }
+
+      // 9. Wire Direct Scorecard PDF Download Link
+      const sid = data.session_id || data.id || '';
+      if (sid) {
+        window._activeReportSessionId = sid;
+        const btnPdf = document.getElementById('btnDownloadPdfReport');
+        if (btnPdf) {
+          btnPdf.href = `/api/reports/${encodeURIComponent(sid)}/scorecard-pdf?lang=${activeLang}`;
+        }
       }
     }
 

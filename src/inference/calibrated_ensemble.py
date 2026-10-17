@@ -97,9 +97,11 @@ class CalibratedEnsembleFusion:
         if anemia.get("status") == "available_research_only":
             pred = anemia.get("prediction", [])
             if isinstance(pred, list) and len(pred) > 0:
-                hb_val = pred[0].get("predicted_hb_g_dl")
+                hb_val = pred[0].get("hb_pred_g_dl") or pred[0].get("predicted_hb_g_dl") or anemia.get("view_mean")
                 decision = pred[0].get("clinical_decision", {})
-                hb_stage = decision.get("severity_stage", "Unknown")
+                hb_stage = decision.get("stage_label_en") or decision.get("severity_stage", "Unknown")
+            elif anemia.get("view_mean") is not None:
+                hb_val = anemia.get("view_mean")
 
         slid_prob = None
         slid_class = "N/A"
@@ -124,18 +126,19 @@ class CalibratedEnsembleFusion:
         # Check Anemia vs Erythema Index
         ei = chrom.get("erythema_index", 0.15)
         if hb_val is not None:
-            if hb_val < 11.0 and ei < 0.15:
+            if hb_val < 11.0 and ei < 0.18:
                 concordance_flags.append("High concordance: ResNet-50 Hb regression confirms low Erythema Index mucosal pallor.")
-            elif hb_val >= 12.0 and ei >= 0.20:
+            elif hb_val >= 12.0 and ei >= 0.18:
                 concordance_flags.append("High concordance: Healthy Hb regression verified by strong microvascular erythema.")
             elif hb_val < 9.0 and ei > 0.28:
                 concordance_flags.append("Physiological discordance: Low Hb predicted despite high conjunctival erythema (possible hyperemic inflammation masking pallor).")
                 concordance_score -= 0.25
 
         # Check Conjunctivitis vs Erythema Index
-        if slid_class == "injection" and ei > 0.25:
+        is_inj = "injection" in slid_class or "hyperemia" in slid_class
+        if is_inj and ei > 0.22:
             concordance_flags.append("High concordance: SLID conjunctival injection confirmed by elevated microvascular erythema.")
-        elif slid_class == "injection" and ei < 0.10:
+        elif is_inj and ei < 0.12:
             concordance_flags.append("Mild divergence: SLID injection detected without high global erythema.")
             concordance_score -= 0.15
 
@@ -163,7 +166,7 @@ class CalibratedEnsembleFusion:
             # Evaluate clinical risk hierarchy
             is_severe_anemia = (hb_val is not None and hb_val < 8.0)
             is_moderate_anemia = (hb_val is not None and 8.0 <= hb_val < 11.0)
-            is_active_injection = (slid_class == "injection" and (calibrated_slid or 0) > 0.65)
+            is_active_injection = (("injection" in slid_class or "hyperemia" in slid_class) and (calibrated_slid or 0) > 0.65)
             is_active_icterus = (jaund_class == "visibly_jaundiced" and (calibrated_jaund or 0) > 0.65)
 
             if is_severe_anemia or (is_active_injection and is_active_icterus):

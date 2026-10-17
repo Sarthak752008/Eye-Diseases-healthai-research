@@ -101,9 +101,17 @@ def create_session_export(
         export_payload["secondary_vision"] = inference_result.get("secondary_vision")
         export_payload["reference_retrieval"] = inference_result.get("reference_retrieval")
         export_payload["calibrated_ensemble"] = inference_result.get("calibrated_ensemble")
+        export_payload["personalized_ai"] = inference_result.get("personalized_ai")
         if anemia_data and isinstance(anemia_data.get("prediction"), list) and len(anemia_data["prediction"]) > 0:
             export_payload["clinical_decision"] = anemia_data["prediction"][0].get("clinical_decision")
             export_payload["chromatic_biomarkers"] = anemia_data["prediction"][0].get("chromatic")
+
+    if "patient_age_years" in inference_result:
+        export_payload["patient_age_years"] = inference_result["patient_age_years"]
+    if "patient_clinical_sex" in inference_result:
+        export_payload["patient_clinical_sex"] = inference_result["patient_clinical_sex"]
+    if "personalized_ai" in inference_result and "personalized_ai" not in export_payload:
+        export_payload["personalized_ai"] = inference_result["personalized_ai"]
 
     return export_payload
 

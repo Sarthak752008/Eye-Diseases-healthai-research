@@ -75,10 +75,8 @@ class ClinicalOcularSegmenter(BaseOcularSegmenter):
         glare_mask = (v_chan >= self.glare_threshold) & (s_chan < 35)
 
         # 2. Iris / Pupil Localization (central darker region)
-        # Moderate to low luminance, relatively circular
         iris_candidates = (v_chan < 90) & (~glare_mask)
-        # Morphological opening and closing
-        kernel_sm = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        kernel_sm = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         iris_clean = cv2.morphologyEx(iris_candidates.astype(np.uint8), cv2.MORPH_OPEN, kernel_sm)
 
         # Pick largest central component as iris
@@ -90,51 +88,44 @@ class ClinicalOcularSegmenter(BaseOcularSegmenter):
         for i in range(1, num_labels):
             area = stats[i, cv2.CC_STAT_AREA]
             cx, cy = centroids[i]
-            # Must be reasonably large and not glued to outermost border
-            if area > total_pixels * 0.005 and 0.15 * w < cx < 0.85 * w and 0.15 * h < cy < 0.85 * h:
+            if area > total_pixels * 0.004 and 0.10 * w < cx < 0.90 * w and 0.10 * h < cy < 0.90 * h:
                 if area > best_iris_area:
                     best_iris_area = area
                     best_iris_centroid = (cx, cy)
                     iris_mask = (labels == i)
 
-        # 3. Sclera Mask (White/light region flanking the iris)
-        # High luminance (L > 120 or V > 120), low-to-moderate saturation (S < 95), not glare, not skin
-        sclera_candidates = (
-            (v_chan > 115) &
-            (s_chan < 95) &
-            (~glare_mask) &
-            (~iris_mask)
-        )
-        # Keep sclera near the eye center / iris altitude
+        # 3. Sclera Mask (White or jaundiced yellow outer ocular surface flanking iris)
+        sclera_white = (v_chan > 110) & (s_chan < 90) & (~glare_mask) & (~iris_mask)
+        sclera_jaundiced = (l_chan > 75) & (b_chan > 132) & (s_chan < 130) & (h_chan >= 15) & (h_chan <= 50) & (~glare_mask) & (~iris_mask)
+        sclera_candidates = sclera_white | sclera_jaundiced
         sclera_clean = cv2.morphologyEx(sclera_candidates.astype(np.uint8), cv2.MORPH_OPEN, kernel_sm)
         sclera_mask = sclera_clean.astype(bool)
 
-        # 4. Palpebral Conjunctiva Mask (Elevated red chroma a* > 138, mucosal luminance)
-        # Conjunctiva has high erythema: positive a* in CIE-Lab, typically in the lower everted lid
-        # Exclude iris and extreme glare
-        conj_candidates = (
-            (a_chan > 138) &
-            (l_chan > 45) &
-            (l_chan < 225) &
-            (~glare_mask) &
-            (~iris_mask)
-        )
+        # 4. Palpebral Conjunctiva Mask (Mucosal vascular bed in lower everted eyelid)
+        mucosal_lab = (a_chan >= 132) & (l_chan > 40) & (l_chan < 235)
+        mucosal_hsv = ((h_chan <= 18) | (h_chan >= 162)) & (s_chan >= 25) & (v_chan >= 40) & (v_chan <= 235)
+        conj_candidates = (mucosal_lab | mucosal_hsv) & (~glare_mask) & (~iris_mask)
 
-        kernel_conj = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+        k_size = max(3, min(7, int(min(h, w) * 0.015)))
+        if k_size % 2 == 0:
+            k_size += 1
+        kernel_conj = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k_size, k_size))
         conj_clean = cv2.morphologyEx(conj_candidates.astype(np.uint8), cv2.MORPH_OPEN, kernel_conj)
         conj_clean = cv2.morphologyEx(conj_clean, cv2.MORPH_CLOSE, kernel_conj)
 
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(conj_clean)
         conj_mask = np.zeros((h, w), dtype=bool)
+        min_area = max(15, int(total_pixels * 0.0008))
 
         for i in range(1, num_labels):
             area = stats[i, cv2.CC_STAT_AREA]
             cy = centroids[i][1]
-            # Lower eyelid mucosal bed typically resides in the middle to lower vertical hemisphere
-            if area >= total_pixels * 0.002:
-                # Prefer components lower than or near iris
-                if cy > best_iris_centroid[1] * 0.8:
+            if area >= min_area:
+                if best_iris_area == 0 or cy > best_iris_centroid[1] * 0.7:
                     conj_mask |= (labels == i)
+
+        if conj_mask.sum() == 0 and conj_clean.sum() > min_area:
+            conj_mask = conj_clean.astype(bool)
 
         return conj_mask, sclera_mask, iris_mask, glare_mask
 

@@ -18,7 +18,7 @@ import json
 import hashlib
 import logging
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from PIL import Image, ImageFile
 
 logger = logging.getLogger("eyehealthai.app")
@@ -43,6 +43,7 @@ from src.preprocessing.image_quality import calculate_image_quality
 from src.database import (
     init_db,
     register_user,
+    update_user_profile_age,
     get_user_by_id,
     get_user_by_email,
     create_session,
@@ -103,10 +104,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class NoCacheStaticFiles(StaticFiles):
+    """Static file handler that ensures browser doesn't cache JS/CSS during development."""
+    async def get_response(self, path: str, scope):
+        resp = await super().get_response(path, scope)
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
+
 # Mount static assets
 STATIC_DIR = os.path.join(WORKSPACE_ROOT, "static")
 if os.path.exists(STATIC_DIR):
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.mount("/static", NoCacheStaticFiles(directory=STATIC_DIR), name="static")
 
 
 def validate_uploaded_image(file: UploadFile, content: bytes) -> None:
@@ -161,7 +171,10 @@ async def serve_dashboard():
     index_path = os.path.join(STATIC_DIR, "index.html")
     if not os.path.exists(index_path):
         raise HTTPException(status_code=404, detail="Dashboard UI not found")
-    return FileResponse(index_path)
+    return FileResponse(
+        index_path,
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+    )
 
 
 @app.get("/report", response_class=FileResponse)
@@ -170,7 +183,10 @@ async def serve_screening_report():
     report_path = os.path.join(STATIC_DIR, "report.html")
     if not os.path.exists(report_path):
         raise HTTPException(status_code=404, detail="Report UI not found")
-    return FileResponse(report_path)
+    return FileResponse(
+        report_path,
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+    )
 
 
 @app.get("/health")
@@ -347,42 +363,36 @@ async def quality_check(image: UploadFile = File(...)):
                 "is_valid": False,
                 "error": "Corrupt or unreadable image bytes."
             }
-        quality = calculate_image_quality(rgb_img)
-        dims = {"width": rgb_img.width, "height": rgb_img.height}
-
-        from src.preprocessing.eye_detector import detect_ocular_region
-        ocular_detection = detect_ocular_region(rgb_img)
-
-        # Actionable guidance generation
-        guidance = []
-        is_usable = True
-        if quality.get("is_blurry"):
-            guidance.append("Capture again holding the camera steady to reduce motion blur.")
-            is_usable = False
-        if quality.get("is_too_dark"):
-            guidance.append("Improve lighting: face a diffuse light source or increase room illumination.")
-            is_usable = False
-        if quality.get("is_too_bright"):
-            guidance.append("Reduce glare: adjust angle to prevent direct bright reflections on the ocular surface.")
-            is_usable = False
-
-        if ocular_detection and ocular_detection.get("guidance"):
-            guidance.append(ocular_detection["guidance"])
-
-        if not guidance:
-            guidance.append("Exposure and sharpness are within operational bounds.")
-
-        guidance.append("Position the eye within 10–15 cm of the camera lens for optimal focal clarity.")
-        guidance.append("Macro framing required: Capture a close-up ocular view of the conjunctiva, not a full-face selfie.")
+        from src.preprocessing.advanced_pipeline import process_ocular_image_advanced
+        proc = process_ocular_image_advanced(rgb_img, generate_previews=True)
+        q_gate = proc["quality_gate"]
+        det = proc["detection"]
+        enh = proc["enhancement"]
+        prev = proc["previews"]
+        q_metrics = q_gate.get("metrics", {})
+        q_flags = q_gate.get("flags", {})
 
         return {
             "filename": image.filename,
-            "dimensions": dims,
-            "quality": quality,
-            "ocular_detection": ocular_detection,
-            "usability_status": "usable" if is_usable else "needs_adjustment",
-            "actionable_guidance": guidance,
-            "anatomical_disclaimer": "Image-quality check verifies pixel sharpness and luminance only. It does not verify that the inner conjunctiva or sclera is properly everted or visible. A full-face image is not a valid conjunctiva image.",
+            "dimensions": {"width": rgb_img.width, "height": rgb_img.height},
+            "crop_dimensions": {"width": proc["processed_image"].width, "height": proc["processed_image"].height},
+            "quality": {
+                "sharpness": q_metrics.get("sharpness_laplacian", 0.0),
+                "brightness": q_metrics.get("mean_luminance", 0.0),
+                "contrast": q_metrics.get("contrast_std", 0.0),
+                "is_blurry": q_flags.get("is_blurry", False),
+                "is_too_dark": q_flags.get("is_underexposed", False),
+                "is_too_bright": q_flags.get("is_overexposed", False),
+                "is_too_distant": q_flags.get("is_too_distant", False)
+            },
+            "quality_gate": q_gate,
+            "ocular_detection": det,
+            "enhancement": enh,
+            "previews": prev,
+            "usability_status": "usable" if q_gate.get("is_suitable", True) else "needs_adjustment",
+            "actionable_guidance": (q_gate.get("retake_guidance_en", []) + ([det.get("guidance_en")] if det.get("guidance_en") else [])) or ["Optimal image quality and illumination verified."],
+            "actionable_guidance_hi": (q_gate.get("retake_guidance_hi", []) + ([det.get("guidance_hi")] if det.get("guidance_hi") else [])) or ["छवि की गुणवत्ता और रोशनी उपयुक्त पाई गई।"],
+            "anatomical_disclaimer": "Image-quality check verifies pixel sharpness, lighting uniformity, and anterior ocular framing. Automatic ocular detection locates the anterior eye region and applies conservative, color-safe illumination enhancement. It does not replace clinical in-person slit-lamp or laboratory testing.",
             "is_valid": True
         }
     except HTTPException:
@@ -422,10 +432,17 @@ async def detect_eye_endpoint(image: UploadFile = File(...)):
 async def analyze_ocular_images(
     module: str = Form("anemia"),
     images: Optional[List[UploadFile]] = File(None),
+    image: Optional[UploadFile] = File(None),
     view_types: Optional[List[str]] = Form(None),
     capture_source: str = Form("upload"),
     experimental_override: bool = Form(False),
+    is_experimental_override: Optional[bool] = Form(None),
     user_id: Optional[str] = Form(None),
+    age_years: Optional[int] = Form(None),
+    clinical_sex: Optional[str] = Form(None),
+    is_pregnant: Optional[bool] = Form(None),
+    pregnancy_trimester: Optional[int] = Form(None),
+    external_ai_consent: Optional[bool] = Form(None),
     language: str = Form("en")
 ):
     """
@@ -434,13 +451,35 @@ async def analyze_ocular_images(
     Enforces camera-domain validation gates for laptop webcam inputs.
     Persists session metadata and results into the database if requested.
     """
+    if is_experimental_override is not None:
+        experimental_override = bool(experimental_override or is_experimental_override)
+
+    if not images:
+        images = [image] if image is not None else []
+    elif image is not None and image not in images:
+        images.append(image)
+
     service = get_inference_service()
     clean_module = module.strip().lower()
     clean_source = capture_source.strip().lower()
 
-    # 1. Mendeley Conjunctivitis (Strictly Blocked Reliability Gate) & Remediation Route
-    if clean_module in ('conjunctivitis', 'mendeley', 'red_eye'):
-        if not images or len(images) == 0:
+    # 1. Validation & Empty Input Handling
+    SUPPORTED_MODULE_ALIASES = {
+        'unified', 'all', 'multi', 'multi_target', 'unified_ocular_screening',
+        'anemia', 'hb', 'hemoglobin',
+        'slid', 'conjunctival_injection', 'injection',
+        'conjunctivitis', 'mendeley', 'red_eye',
+        'jaundice', 'icterus', 'scleral_icterus'
+    }
+    if clean_module not in SUPPORTED_MODULE_ALIASES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown module '{module}'. Supported modules: ['unified', 'anemia', 'slid', 'conjunctivitis', 'jaundice']."
+        )
+
+    # Empty image submissions trigger explicit diagnostic gate audits
+    if not images or len(images) == 0:
+        if clean_module in ('conjunctivitis', 'mendeley', 'red_eye'):
             res = service.predict_conjunctivitis()
             export_payload = create_session_export(
                 module="conjunctivitis",
@@ -450,103 +489,7 @@ async def analyze_ocular_images(
             )
             _persist_db_session(export_payload, clean_module, clean_source, user_id, language, [], res.get("gate_reason"))
             return export_payload
-
-        # Keep blocked for uncalibrated webcam capture
-        if clean_source == 'webcam':
-            res = service.predict_conjunctivitis(images=[])
-            export_payload = create_session_export(
-                module="conjunctivitis",
-                inference_result=res,
-                filenames=[f.filename for f in images],
-                capture_source=clean_source
-            )
-            _persist_db_session(export_payload, clean_module, clean_source, user_id, language, [], res.get("gate_reason"))
-            return export_payload
-
-        # For uploaded ocular images: route to verified SLID anterior ocular surface hyperemia classifier
-        pil_images = []
-        filenames = []
-        for idx, f in enumerate(images):
-            filenames.append(f.filename or f"image_{idx}")
-            content = await f.read()
-            validate_uploaded_image(f, content)
-            rgb_img = safe_decode_bytes(content)
-            if rgb_img is None:
-                raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({f.filename}). Corrupt file bytes.")
-            pil_images.append(rgb_img)
-
-        inference_res = service.predict_conjunctival_injection(
-            pil_images,
-            capture_source=clean_source,
-            experimental_override=experimental_override
-        )
-        if inference_res.get('status') == 'error':
-            raise HTTPException(status_code=400, detail=inference_res.get('error'))
-
-        inference_res['warnings'].append(
-            "REMEDIATED CLINICAL ROUTE: The legacy Mendeley dataset model is decommissioned due to resolution shortcut bias. Active screening is powered by the verified SLID Clinical Slit-Lamp Hyperemia Model (Acc: 98.78%)."
-        )
-        export_payload = create_session_export(
-            module="slid",
-            inference_result=inference_res,
-            filenames=filenames,
-            capture_source=clean_source
-        )
-        _persist_db_session(
-            export_payload,
-            "slid",
-            clean_source,
-            user_id,
-            language,
-            ["anterior_slit_lamp"] * len(filenames),
-            inference_res.get('status')
-        )
-        return export_payload
-
-    # 2. SLID Visible Conjunctival Injection (Active Research Classifier)
-    if clean_module in ('slid', 'conjunctival_injection', 'injection'):
-        if not images or len(images) == 0:
-            raise HTTPException(status_code=400, detail="No images provided for conjunctival injection analysis.")
-        pil_images = []
-        filenames = []
-        for idx, f in enumerate(images):
-            filenames.append(f.filename or f"image_{idx}")
-            content = await f.read()
-            validate_uploaded_image(f, content)
-            rgb_img = safe_decode_bytes(content)
-            if rgb_img is None:
-                raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({f.filename}). Corrupt file bytes.")
-            pil_images.append(rgb_img)
-
-        inference_res = service.predict_conjunctival_injection(
-            pil_images,
-            capture_source=clean_source,
-            experimental_override=experimental_override
-        )
-        if inference_res.get('status') == 'error':
-            raise HTTPException(status_code=400, detail=inference_res.get('error'))
-
-        export_payload = create_session_export(
-            module="slid",
-            inference_result=inference_res,
-            filenames=filenames,
-            capture_source=clean_source
-        )
-        _persist_db_session(
-            export_payload,
-            "slid",
-            clean_source,
-            user_id,
-            language,
-            ["anterior_slit_lamp"] * len(filenames),
-            inference_res.get('status')
-        )
-        return export_payload
-
-    # 3. Jaundice / Visible Scleral Icterus
-    if clean_module in ('jaundice', 'icterus', 'scleral_icterus'):
-        if not images or len(images) == 0:
-            # Missing clinical laboratory bilirubin gate enforced
+        elif clean_module in ('jaundice', 'icterus', 'scleral_icterus'):
             res = service.predict_jaundice()
             export_payload = create_session_export(
                 module="jaundice",
@@ -556,142 +499,47 @@ async def analyze_ocular_images(
             )
             _persist_db_session(export_payload, clean_module, clean_source, user_id, language, [], res.get("gate_reason"))
             return export_payload
+        else:
+            raise HTTPException(status_code=400, detail=f"No images provided for {clean_module} analysis.")
 
-        # When genuine images are supplied: run categorical scleral icterus screening
-        pil_images = []
-        filenames = []
-        for idx, f in enumerate(images):
-            filenames.append(f.filename or f"image_{idx}")
-            content = await f.read()
-            validate_uploaded_image(f, content)
-            rgb_img = safe_decode_bytes(content)
-            if rgb_img is None:
-                raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({f.filename}). Corrupt file bytes.")
-            pil_images.append(rgb_img)
-
-        inference_res = service.predict_scleral_icterus(
-            pil_images,
-            capture_source=clean_source,
-            experimental_override=experimental_override
-        )
-        if inference_res.get('status') == 'error':
-            raise HTTPException(status_code=400, detail=inference_res.get('error'))
-
+    # Legacy Mendeley dataset shortcut is strictly blocked across all capture sources per AGENTS.md
+    if clean_module in ('conjunctivitis', 'mendeley', 'red_eye'):
+        res = service.predict_conjunctivitis(images=[])
         export_payload = create_session_export(
-            module="jaundice",
-            inference_result=inference_res,
-            filenames=filenames,
+            module="conjunctivitis",
+            inference_result=res,
+            filenames=[f.filename for f in images],
             capture_source=clean_source
         )
-        _persist_db_session(
-            export_payload,
-            "jaundice",
-            clean_source,
-            user_id,
-            language,
-            ["scleral_crop"] * len(filenames),
-            inference_res.get('status')
-        )
+        _persist_db_session(export_payload, clean_module, clean_source, user_id, language, [], res.get("gate_reason"))
         return export_payload
 
-    # 4. Unified Multi-Target Ocular Screening (Anemia + SLID + Jaundice in One Automatic Pass)
-    if clean_module in ('unified', 'all', 'multi', 'multi_target', 'unified_ocular_screening'):
-        if not images or len(images) == 0:
-            raise HTTPException(status_code=400, detail="No images provided for unified ocular screening.")
-
-        pil_images = []
-        filenames = []
-        image_hashes = []
-        for idx, f in enumerate(images):
-            fname = f.filename or f"image_{idx}.jpg"
-            filenames.append(fname)
-            content = await f.read()
-            validate_uploaded_image(f, content)
-            img_h = hashlib.sha256(content).hexdigest()
-            image_hashes.append(img_h)
-            logger.info(f"Ingested image #{idx+1} ({fname}): SHA-256={img_h}, Size={len(content)} bytes")
-            rgb_img = safe_decode_bytes(content)
-            if rgb_img is None:
-                raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({fname}). Corrupt file bytes.")
-            pil_images.append(rgb_img)
-
-        v_types = view_types if view_types else ['unspecified'] * len(pil_images)
-        if len(v_types) != len(pil_images):
-            if len(v_types) == 1:
-                v_types = v_types * len(pil_images)
-            else:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Mismatched counts: {len(pil_images)} images and {len(v_types)} view types."
-                )
-
-        user_gender = "prefer_not_to_say"
-        if user_id:
-            try:
-                with SessionLocal() as db:
-                    u = get_user_by_id(db, user_id)
-                    if u and u.gender:
-                        user_gender = u.gender
-            except Exception:
-                pass
-
-        inference_res = service.predict_unified(
-            pil_images,
-            view_types=v_types,
-            capture_source=clean_source,
-            experimental_override=experimental_override,
-            gender=user_gender
-        )
-
-        if inference_res.get('status') == 'error':
-            raise HTTPException(status_code=400, detail=inference_res.get('error'))
-
-        export_payload = create_session_export(
-            module="unified",
-            inference_result=inference_res,
-            filenames=filenames,
-            checkpoint_id="Unified_MultiTarget_ResNet50_MobileNetV3",
-            capture_source=clean_source
-        )
-
-        export_payload["input_hashes"] = image_hashes
-        export_payload["input_provenance"] = [
-            {"filename": fn, "sha256": h} for fn, h in zip(filenames, image_hashes)
-        ]
-
-        _persist_db_session(
-            export_payload,
-            "unified",
-            clean_source,
-            user_id,
-            language,
-            v_types,
-            None
-        )
-        return export_payload
-
-    if clean_module != 'anemia':
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown module '{module}'. Supported modules: ['unified', 'anemia', 'slid', 'conjunctivitis', 'jaundice']."
-        )
-
-    # Anemia validation
-    if not images or len(images) == 0:
-        raise HTTPException(status_code=400, detail="No images provided for anemia analysis.")
-
-    # Convert uploaded files to PIL Images in-memory
+    # -----------------------------------------------------------------------
+    # Centralized Complete Multi-Target Evaluation Pipeline
+    # Runs whenever genuine images are submitted to any eligible module.
+    # -----------------------------------------------------------------------
     pil_images = []
     filenames = []
+    image_hashes = []
+    quality_records = []
+
     for idx, f in enumerate(images):
-        filenames.append(f.filename or f"image_{idx}")
+        fname = f.filename or f"image_{idx}.jpg"
+        filenames.append(fname)
         content = await f.read()
         validate_uploaded_image(f, content)
+        img_h = hashlib.sha256(content).hexdigest()
+        image_hashes.append(img_h)
+        logger.info(f"Ingested image #{idx+1} ({fname}): SHA-256={img_h}, Size={len(content)} bytes")
 
         rgb_img = safe_decode_bytes(content)
         if rgb_img is None:
-            raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({f.filename}). Corrupt file bytes.")
+            raise HTTPException(status_code=400, detail=f"Failed to decode image #{idx} ({fname}). Corrupt file bytes.")
         pil_images.append(rgb_img)
+
+        # Calculate genuine, un-faked image quality measurements
+        q_info = calculate_image_quality(rgb_img)
+        quality_records.append(q_info)
 
     # Normalize view types
     v_types = view_types if view_types else ['unspecified'] * len(pil_images)
@@ -704,53 +552,206 @@ async def analyze_ocular_images(
                 detail=f"Mismatched counts: {len(pil_images)} images and {len(v_types)} view types."
             )
 
-    # Execute inference with camera-domain gate & demographic WHO thresholding
     user_gender = "prefer_not_to_say"
-    if user_id:
-        try:
-            with SessionLocal() as db:
-                u = get_user_by_id(db, user_id)
-                if u and u.gender:
-                    user_gender = u.gender
-        except Exception:
-            pass
+    user_age = age_years
+    user_csex = clinical_sex
+    user_preg = is_pregnant
+    user_trim = pregnancy_trimester
+    user_ai_consent = external_ai_consent
 
-    inference_res = service.predict_anemia(
+    if user_id and str(user_id).strip().lower() not in ("none", "null", "undefined", ""):
+        with SessionLocal() as db:
+            u = get_user_by_id(db, str(user_id).strip())
+            if not u:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"User profile '{user_id}' not found. Please register before starting screening."
+                )
+            if u.gender:
+                user_gender = u.gender
+            if user_age is None:
+                user_age = u.age_years
+            if user_csex is None and u.clinical_sex:
+                user_csex = u.clinical_sex
+            if user_preg is None and u.is_pregnant is not None:
+                user_preg = u.is_pregnant
+            if user_trim is None and u.pregnancy_trimester is not None:
+                user_trim = u.pregnancy_trimester
+            if user_ai_consent is None and u.external_ai_consent is not None:
+                user_ai_consent = u.external_ai_consent
+
+    # Profile validation: Age is mandatory before starting an analysis
+    if user_id and user_age is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Mandatory profile field 'age_years' is missing for this account. Please update patient age (0-120) before starting screening."
+        )
+
+    # Validate age integer bounds if provided
+    if user_age is not None:
+        if isinstance(user_age, bool) or not isinstance(user_age, int) or user_age < 0 or user_age > 120:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Age must be a valid integer between 0 and 120 years. Received: {user_age}"
+            )
+
+    # Execute complete multi-target pipeline across all available clinical modules
+    inference_res = service.predict_unified(
         pil_images,
         view_types=v_types,
         capture_source=clean_source,
         experimental_override=experimental_override,
-        gender=user_gender
+        gender=user_gender,
+        age_years=user_age,
+        clinical_sex=user_csex,
+        is_pregnant=bool(user_preg),
+        pregnancy_trimester=user_trim,
+        external_ai_consent=bool(user_ai_consent)
     )
 
     if inference_res.get('status') == 'error':
         raise HTTPException(status_code=400, detail=inference_res.get('error'))
 
-    # Package as structured session export
+    # Select module-specific primary output while retaining all other findings
+    anemia_res = inference_res.get("anemia") or {}
+    slid_res = inference_res.get("slid") or {}
+    jaund_res = inference_res.get("jaundice") or {}
+
+    if clean_module in ('slid', 'conjunctival_injection', 'injection'):
+        chosen_output = slid_res.get("prediction")
+        ckpt_id = "MobileNetV3_saved_models_slid_best_model.pth"
+    elif clean_module in ('jaundice', 'icterus', 'scleral_icterus'):
+        chosen_output = jaund_res.get("prediction")
+        ckpt_id = "MobileNetV3_saved_models_jaundice_best_model.pth"
+    elif clean_module in ('conjunctivitis', 'mendeley', 'red_eye'):
+        chosen_output = slid_res.get("prediction")
+        ckpt_id = "SLID_Remediated_MobileNetV3_slid_best_model.pth"
+    else:
+        chosen_output = anemia_res.get("prediction")
+        ckpt_id = "Unified_MultiTarget_ResNet50_MobileNetV3"
+
     export_payload = create_session_export(
-        module="anemia",
+        module=clean_module,
         inference_result=inference_res,
         filenames=filenames,
-        checkpoint_id="ResNet50_saved_models_anemia_best_model.pth",
+        checkpoint_id=ckpt_id,
         capture_source=clean_source
     )
 
-    _persist_db_session(export_payload, clean_module, clean_source, user_id, language, v_types, inference_res.get("gate_reason"))
+    # Attach complete multi-target results to ensure every component appears in dashboard & reports
+    export_payload["selected_module"] = clean_module
+    export_payload["operational_status"] = inference_res.get("status")
+    export_payload["model_output"] = chosen_output
+    export_payload["input_hashes"] = image_hashes
+    export_payload["input_provenance"] = [
+        {"filename": fn, "sha256": h} for fn, h in zip(filenames, image_hashes)
+    ]
+    if isinstance(slid_res, dict) and "raw_prediction" not in slid_res:
+        slid_res["raw_prediction"] = slid_res.get("prediction")
+    if isinstance(jaund_res, dict) and "raw_prediction" not in jaund_res:
+        jaund_res["raw_prediction"] = jaund_res.get("prediction")
+    if isinstance(anemia_res, dict) and "raw_prediction" not in anemia_res:
+        anemia_res["raw_prediction"] = anemia_res.get("prediction")
+
+    export_payload["anemia"] = anemia_res
+    export_payload["anemia_result"] = anemia_res
+    export_payload["slid"] = slid_res
+    export_payload["slid_result"] = slid_res
+    export_payload["jaundice"] = jaund_res
+    export_payload["jaundice_result"] = jaund_res
+    export_payload["segmentation"] = inference_res.get("segmentation")
+    export_payload["secondary_vision"] = inference_res.get("secondary_vision")
+    export_payload["reference_retrieval"] = inference_res.get("reference_retrieval")
+    export_payload["calibrated_ensemble"] = inference_res.get("calibrated_ensemble")
+    export_payload["module_execution_audit"] = inference_res.get("module_execution_audit")
+    export_payload["mendeley_gate"] = inference_res.get("mendeley_gate")
+    export_payload["serum_bilirubin_gate"] = inference_res.get("serum_bilirubin_gate")
+    export_payload["personalized_ai"] = inference_res.get("personalized_ai")
+    export_payload["patient_age_years"] = user_age
+    export_payload["patient_clinical_sex"] = user_csex or user_gender
+    export_payload["is_pregnant"] = bool(user_preg)
+    export_payload["pregnancy_trimester"] = user_trim
+    export_payload["external_ai_consent"] = bool(user_ai_consent)
+
+    # Preprocessing Pipeline & Previews (Eye Detection & Conservative Enhancement)
+    prep_pipe = inference_res.get("preprocessing_pipeline") or {}
+    q_gate = prep_pipe.get("quality_gate") or {}
+    q_metrics = q_gate.get("metrics") or {}
+    q_flags = q_gate.get("flags") or {}
+
+    export_payload["preprocessing_pipeline"] = prep_pipe
+    export_payload["previews"] = inference_res.get("previews") or {}
+    export_payload["image_sequence"] = inference_res.get("image_sequence") or {}
+    export_payload["visualizations"] = inference_res.get("visualizations") or {}
+
+    # Real calculated quality summary (post-crop & post-enhancement)
+    first_q = quality_records[0] if quality_records else {}
+    export_payload["input_quality"] = quality_records
+    export_payload["quality_summary"] = {
+        "laplacian_var": q_metrics.get("sharpness_laplacian", first_q.get("sharpness", 0.0)),
+        "luminance_mean": q_metrics.get("mean_luminance", first_q.get("brightness", 0.0)),
+        "contrast_michelson": first_q.get("contrast_michelson", 0.0),
+        "is_blurry": q_flags.get("is_blurry", first_q.get("is_blurry", False)),
+        "is_underexposed": q_flags.get("is_underexposed", first_q.get("is_too_dark", False)),
+        "is_overexposed": q_flags.get("is_overexposed", first_q.get("is_too_bright", False)),
+        "resolution": q_metrics.get("effective_crop_resolution", first_q.get("resolution", [0, 0])),
+        "original_resolution": q_metrics.get("original_resolution", first_q.get("resolution", [0, 0])),
+        "detection_mode": (prep_pipe.get("detection") or {}).get("detection_mode", "direct_macro"),
+        "eye_side": (prep_pipe.get("detection") or {}).get("eye_side", "unspecified"),
+        "enhancement_steps": (prep_pipe.get("enhancement") or {}).get("steps", []),
+        "segmentation": inference_res.get("segmentation"),
+        "secondary_vision": inference_res.get("secondary_vision"),
+        "reference_retrieval": inference_res.get("reference_retrieval"),
+        "calibrated_ensemble": inference_res.get("calibrated_ensemble"),
+        "image_sequence": inference_res.get("image_sequence"),
+        "visualizations": inference_res.get("visualizations"),
+        "previews": inference_res.get("previews")
+    }
+
+    if clean_module in ('conjunctivitis', 'mendeley', 'red_eye'):
+        export_payload.setdefault("warnings", []).append(
+            "REMEDIATED CLINICAL ROUTE: The legacy Mendeley dataset model is decommissioned due to resolution shortcut bias. Active screening is powered by the verified SLID Clinical Slit-Lamp Hyperemia Model (Acc: 98.78%)."
+        )
+
+    _persist_db_session(
+        export_payload,
+        clean_module,
+        clean_source,
+        user_id,
+        language,
+        v_types,
+        inference_res.get("gate_reason")
+    )
     return export_payload
 
 
 def _persist_db_session(export_payload: dict, module: str, capture_source: str, user_id: Optional[str], language: str, view_types: list, gate_reason: Optional[str]):
-    """Internal helper to save session audit log and real multi-module outputs to database."""
-    try:
-        with SessionLocal() as db:
-            valid_user_id = user_id if (user_id and get_user_by_id(db, user_id)) else None
+    """Internal helper to save session audit log and real multi-module outputs to database with strict transaction integrity."""
+    with SessionLocal() as db:
+        valid_user_id = None
+        if user_id and str(user_id).strip().lower() not in ("none", "null", "undefined", ""):
+            user = get_user_by_id(db, str(user_id).strip())
+            if not user:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"User profile '{user_id}' not found. Please register before starting screening."
+                )
+            valid_user_id = user.id
+
+        try:
             q_sum = {
                 "status": "processed",
                 "segmentation": export_payload.get("segmentation"),
                 "secondary_vision": export_payload.get("secondary_vision"),
                 "reference_retrieval": export_payload.get("reference_retrieval"),
                 "calibrated_ensemble": export_payload.get("calibrated_ensemble"),
-                "input_provenance": export_payload.get("input_provenance")
+                "input_provenance": export_payload.get("input_provenance"),
+                "module_execution_audit": export_payload.get("module_execution_audit"),
+                "quality_summary": export_payload.get("quality_summary"),
+                "quality_metrics": export_payload.get("input_quality"),
+                "image_sequence": export_payload.get("image_sequence"),
+                "visualizations": export_payload.get("visualizations"),
+                "previews": export_payload.get("previews")
             }
             db_sess = create_session(
                 db=db,
@@ -760,13 +761,19 @@ def _persist_db_session(export_payload: dict, module: str, capture_source: str, 
                 language=language or "en",
                 view_types=view_types,
                 quality_summary=q_sum,
-                session_id=export_payload["session_id"]
+                patient_age_years=export_payload.get("patient_age_years"),
+                patient_clinical_sex=export_payload.get("patient_clinical_sex"),
+                ai_explanation=export_payload.get("personalized_ai"),
+                session_id=export_payload.get("session_id")
             )
 
-            # Check if this is a unified multi-module session
-            if module in ('unified', 'all', 'multi', 'multi_target', 'unified_ocular_screening'):
-                # 1. Anemia Result
-                anemia_data = export_payload.get("anemia") or {}
+            # Persist all available evaluated modules for comprehensive clinical provenance
+            anemia_data = export_payload.get("anemia") or export_payload.get("anemia_result") or {}
+            slid_data = export_payload.get("slid") or export_payload.get("slid_result") or {}
+            jaund_data = export_payload.get("jaundice") or export_payload.get("jaundice_result") or {}
+
+            # 1. Anemia Result
+            if anemia_data and anemia_data.get("prediction") is not None:
                 anemia_pred = anemia_data.get("prediction")
                 anemia_val = anemia_data.get("view_mean")
                 if anemia_val is None and isinstance(anemia_pred, list) and len(anemia_pred) > 0 and isinstance(anemia_pred[0], dict):
@@ -787,8 +794,8 @@ def _persist_db_session(export_payload: dict, module: str, capture_source: str, 
                     raw_prediction=anemia_pred
                 )
 
-                # 2. SLID Result
-                slid_data = export_payload.get("slid") or {}
+            # 2. SLID Hyperemia Result
+            if slid_data and slid_data.get("prediction") is not None:
                 slid_pred = slid_data.get("prediction") or []
                 slid_conf = None
                 if isinstance(slid_pred, list) and len(slid_pred) > 0 and isinstance(slid_pred[0], dict):
@@ -809,8 +816,8 @@ def _persist_db_session(export_payload: dict, module: str, capture_source: str, 
                     raw_prediction=slid_pred
                 )
 
-                # 3. Jaundice Result
-                jaund_data = export_payload.get("jaundice") or {}
+            # 3. Jaundice / Scleral Icterus Result
+            if jaund_data and jaund_data.get("prediction") is not None:
                 jaund_pred = jaund_data.get("prediction") or []
                 jaund_conf = None
                 if isinstance(jaund_pred, list) and len(jaund_pred) > 0 and isinstance(jaund_pred[0], dict):
@@ -830,8 +837,9 @@ def _persist_db_session(export_payload: dict, module: str, capture_source: str, 
                     gate_reason=jaund_data.get("gate_reason"),
                     raw_prediction=jaund_pred
                 )
-            else:
-                # Single-module fallback
+
+            # If none of the 3 structured modules matched, persist single-module fallback
+            if not anemia_data.get("prediction") and not slid_data.get("prediction") and not jaund_data.get("prediction"):
                 pred_val = export_payload.get("view_mean")
                 if pred_val is None:
                     raw_out = export_payload.get("model_output")
@@ -856,9 +864,33 @@ def _persist_db_session(export_payload: dict, module: str, capture_source: str, 
                     gate_reason=gate_reason,
                     raw_prediction=raw_p
                 )
-    except Exception as exc:
-        # Non-fatal persistence logging: failure in DB write does not disrupt immediate inference return
-        logger.warning(f"Session persistence to database failed: {exc}")
+
+            # Save report metadata
+            save_report_metadata(
+                db=db,
+                session_id=db_sess.id,
+                report_type="ocular_health_screening",
+                language=language or "en",
+                pdf_filename=f"EyeHealthAI_Report_{db_sess.id}_{language or 'en'}.pdf"
+            )
+
+            db.commit()
+            export_payload["session_id"] = db_sess.id
+            export_payload["id"] = db_sess.id
+            export_payload["persistence_status"] = "persisted"
+            export_payload["persisted_user_id"] = valid_user_id
+        except HTTPException:
+            db.rollback()
+            raise
+        except Exception as exc:
+            db.rollback()
+            logger.error(f"Session persistence to database failed: {exc}", exc_info=True)
+            export_payload["persistence_status"] = "failed"
+            export_payload["persistence_error"] = str(exc)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database persistence failure: Unable to save screening session {exc}"
+            )
 
 
 
@@ -890,15 +922,86 @@ async def export_session_report(session_data: dict):
 # ---------------------------------------------------------------------------
 
 class UserRegisterRequest(BaseModel):
-    """Request model for patient registration and informed consent."""
+    """Request model for patient registration and informed consent with mandatory age."""
     full_name: str = Field(..., min_length=2, max_length=128)
     phone: str = Field(..., min_length=7, max_length=24)
     email: str = Field(..., min_length=5, max_length=128)
-    date_of_birth: str = Field(..., min_length=8, max_length=16)
-    gender: Optional[str] = Field("prefer_not_to_say", description="Optional demographic gender: female, male, non-binary, self-describe, prefer_not_to_say")
+    age_years: Optional[int] = Field(None, description="Mandatory age in completed years (0-120)")
+    date_of_birth: Optional[str] = Field(None, max_length=16, description="Optional legacy DOB string")
+    gender: Optional[str] = Field("prefer_not_to_say", description="Demographic gender identity: female, male, non-binary, self-describe, prefer_not_to_say")
+    clinical_sex: Optional[str] = Field("not_disclosed", description="Biological reference variable for WHO 2024 cutoffs: female, male, not_disclosed")
+    is_pregnant: bool = Field(False, description="Pregnancy status (relevant for female WHO reference interpretation)")
+    pregnancy_trimester: Optional[int] = Field(None, ge=1, le=3, description="Trimester (1, 2, or 3)")
+    external_ai_consent: bool = Field(False, description="Explicit consent for privacy-preserved external AI vision evaluation")
     demographic_consent: bool = Field(False, description="Explicit consent for demographic research data collection")
     research_consent: bool = Field(True, description="Explicit consent for research-stage screening")
     data_storage_consent: bool = Field(True, description="Explicit consent for privacy-aware profile storage")
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_age_and_dob(cls, values):
+        if not isinstance(values, dict):
+            return values
+        age_val = values.get("age_years")
+        dob_val = values.get("date_of_birth")
+
+        if age_val is not None and age_val != "":
+            if isinstance(age_val, bool):
+                raise ValueError("Age must be an integer, not a boolean.")
+            if isinstance(age_val, float) and not age_val.is_integer():
+                raise ValueError("Age must be an integer number of years, not a decimal value.")
+            try:
+                val = int(age_val)
+            except (ValueError, TypeError):
+                raise ValueError("Age must be a valid integer between 0 and 120.")
+            if val < 0 or val > 120:
+                raise ValueError(f"Age must be between 0 and 120 years. Received: {val}")
+            values["age_years"] = val
+        elif dob_val:
+            try:
+                birth_year = int(str(dob_val).strip()[:4])
+                values["age_years"] = max(0, min(120, 2026 - birth_year))
+            except Exception:
+                raise ValueError("Age is mandatory and must be a valid integer between 0 and 120.")
+        else:
+            raise ValueError("Age is mandatory and must be a valid integer between 0 and 120.")
+        return values
+
+    @field_validator("clinical_sex", mode="before")
+    @classmethod
+    def validate_clinical_sex(cls, v):
+        if not v:
+            return "not_disclosed"
+        clean = str(v).strip().lower()
+        if clean in {"male", "m"}:
+            return "male"
+        if clean in {"female", "f"}:
+            return "female"
+        return "not_disclosed"
+
+
+class UserUpdateAgeRequest(BaseModel):
+    """Request model for updating missing age on legacy patient profiles."""
+    age_years: int = Field(..., description="Mandatory age in completed years (0-120)")
+    clinical_sex: Optional[str] = Field("not_disclosed")
+    is_pregnant: Optional[bool] = Field(False)
+    pregnancy_trimester: Optional[int] = Field(None, ge=1, le=3)
+    external_ai_consent: Optional[bool] = Field(False)
+
+    @field_validator("age_years", mode="before")
+    @classmethod
+    def validate_age_years(cls, v):
+        if v is None or v == "" or isinstance(v, bool):
+            raise ValueError("Age is mandatory and must be a valid integer between 0 and 120.")
+        if isinstance(v, float) and not v.is_integer():
+            raise ValueError("Age must be an integer number of years, not a decimal value.")
+        try:
+            val = int(v)
+        except (ValueError, TypeError):
+            raise ValueError("Age must be a valid integer between 0 and 120.")
+        if val < 0 or val > 120:
+            raise ValueError(f"Age must be between 0 and 120 years. Received: {val}")
+        return val
 
 
 @app.post("/api/register")
@@ -925,23 +1028,63 @@ async def register_patient_user(payload: UserRegisterRequest):
             detail="Invalid email format provided."
         )
 
+    clin_sex = payload.clinical_sex or "not_disclosed"
+    if clin_sex == "not_disclosed" and payload.gender:
+        gen_clean = payload.gender.strip().lower()
+        if gen_clean in {"male", "female"}:
+            clin_sex = gen_clean
+
     with SessionLocal() as db:
         user = register_user(
             db=db,
             full_name=payload.full_name,
             phone=payload.phone,
             email=payload.email,
+            age_years=payload.age_years,
             date_of_birth=payload.date_of_birth,
             gender=payload.gender,
+            clinical_sex=clin_sex,
+            is_pregnant=payload.is_pregnant,
+            pregnancy_trimester=payload.pregnancy_trimester,
             demographic_consent=payload.demographic_consent,
             research_consent=payload.research_consent,
-            data_storage_consent=payload.data_storage_consent
+            data_storage_consent=payload.data_storage_consent,
+            external_ai_consent=payload.external_ai_consent
         )
         return {
             "status": "success",
             "user": user.to_dict(),
             "message": "User registered and informed consent logged successfully."
         }
+
+
+@app.post("/api/user/{user_id}/update-age")
+async def update_patient_age(user_id: str, payload: UserUpdateAgeRequest):
+    """
+    Updates missing age and clinical reference variables for existing legacy accounts.
+    Allows unblocking screening while preserving complete historical session auditability.
+    """
+    with SessionLocal() as db:
+        user = get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User '{user_id}' not found.")
+        try:
+            user = update_user_profile_age(
+                db=db,
+                user_id=user_id,
+                age_years=payload.age_years,
+                clinical_sex=payload.clinical_sex,
+                is_pregnant=payload.is_pregnant,
+                pregnancy_trimester=payload.pregnancy_trimester,
+                external_ai_consent=payload.external_ai_consent
+            )
+            return {
+                "status": "success",
+                "user": user.to_dict(),
+                "message": "User profile age and clinical reference variables updated successfully."
+            }
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/api/user/{user_id}/history")
@@ -955,6 +1098,7 @@ async def get_user_session_history(user_id: str):
             raise HTTPException(status_code=404, detail=f"User '{user_id}' not found.")
         sessions = get_user_sessions(db, user_id)
         return {
+            "user_id": user.id,
             "user": user.to_dict(),
             "sessions": [s.to_dict() for s in sessions]
         }
@@ -995,9 +1139,11 @@ async def delete_screening_session_endpoint(session_id: str):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/reports/{session_id}/pdf")
-async def download_session_pdf(session_id: str, lang: str = "en"):
+@app.get("/reports/{session_id}/pdf")
+async def download_session_pdf(session_id: str, lang: str = "en", type: str = "screening"):
     """
-    Generates and downloads a clean two-page PDF screening report.
+    Generates and downloads a clean two-page PDF report.
+    type: 'screening' for the patient-friendly report, 'scorecard' for the research scorecard.
     Supports English ('en') and Hindi ('hi').
     """
     session_data = None
@@ -1014,8 +1160,22 @@ async def download_session_pdf(session_id: str, lang: str = "en"):
             session_data["capture_source"] = sess.capture_source or "upload"
             session_data["view_types"] = sess.view_types or []
             session_data["quality_summary"] = sess.quality_summary or {}
+            session_data["patient_age_years"] = getattr(sess, "patient_age_years", None)
+            session_data["patient_clinical_sex"] = getattr(sess, "patient_clinical_sex", None)
             if sess.user:
                 user_data = sess.user.to_dict()
+                if user_data.get("age_years") is None and sess.patient_age_years is not None:
+                    user_data["age_years"] = sess.patient_age_years
+            else:
+                user_data = {
+                    "full_name": "Anonymous Research Participant",
+                    "email": "Not Recorded",
+                    "phone": "Not Recorded",
+                    "age_years": getattr(sess, "patient_age_years", None),
+                    "clinical_sex": getattr(sess, "patient_clinical_sex", "not_disclosed"),
+                    "gender": getattr(sess, "patient_clinical_sex", "not_disclosed")
+                }
+
             session_data["model_results"] = {}
             for r in sess.model_results:
                 r_dict = r.to_dict()
@@ -1058,50 +1218,71 @@ async def download_session_pdf(session_id: str, lang: str = "en"):
             session_data["reference_retrieval"] = q_sum.get("reference_retrieval")
             session_data["calibrated_ensemble"] = q_sum.get("calibrated_ensemble")
             session_data["input_provenance"] = q_sum.get("input_provenance")
+            session_data["personalized_ai"] = q_sum.get("personalized_ai")
+            session_data["image_sequence"] = q_sum.get("image_sequence")
+            session_data["visualizations"] = q_sum.get("visualizations")
+            session_data["previews"] = q_sum.get("previews")
 
     if not session_data:
-        # Support test fixtures / unpersisted research session requests without fabricating medical metrics
-        clean_sid = session_id.replace("session_", "").replace("ses_", "").replace("usr_", "").upper()
-        session_data = {
-            "session_id": session_id,
-            "id": session_id,
-            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-            "selected_module": "unified",
-            "capture_source": "upload",
-            "operational_status": "available_research_only",
-            "view_types": ["Anterior Ocular View"],
-            "input_files": ["capture_frame_1.jpg"],
-            "view_mean": None,
-            "model_output": None,
-            "slid_result": {
-                "module": "slid",
-                "operational_status": "available_research_only",
-                "raw_prediction": []
-            },
-            "jaundice_result": {
-                "module": "jaundice",
-                "operational_status": "available_research_only",
-                "raw_prediction": []
-            }
-        }
+        raise HTTPException(
+            status_code=404,
+            detail=f"Screening session '{session_id}' not found. Cannot generate report for nonexistent session."
+        )
 
+    is_scorecard = str(type).lower() in ("scorecard", "technical", "research")
     pdf_bytes = build_two_page_pdf(
         session_data=session_data,
         user_data=user_data,
-        language=lang
+        language=lang,
+        doc_type="scorecard" if is_scorecard else "screening"
     )
 
     clean_lang = "hi" if lang.lower().startswith("hi") else "en"
+    if is_scorecard:
+        filename = f"OcuScan_Technical_Scorecard_{session_id}_{clean_lang}.pdf"
+    else:
+        filename = f"EyeHealthAI_Report_{session_id}_{clean_lang}.pdf"
+
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="EyeHealthAI_Report_{session_id}_{clean_lang}.pdf"'
+            "Content-Disposition": f'attachment; filename="{filename}"'
         }
     )
 
 
+@app.get("/api/reports/{session_id}/screening-pdf")
+@app.get("/reports/{session_id}/screening-pdf")
+async def download_screening_report_pdf(session_id: str, lang: str = "en"):
+    """Dedicated endpoint for 2-Page Patient Screening Report."""
+    return await download_session_pdf(session_id=session_id, lang=lang, type="screening")
+
+
+@app.get("/api/reports/{session_id}/scorecard-pdf")
+@app.get("/reports/{session_id}/scorecard-pdf")
+async def download_scorecard_pdf(session_id: str, lang: str = "en"):
+    """Dedicated endpoint for 2-Page Technical Research Scorecard."""
+    return await download_session_pdf(session_id=session_id, lang=lang, type="scorecard")
+
+
+@app.get("/api/download-report")
+@app.get("/download-report")
+async def download_report_shortcut(session_id: str, lang: str = "en", type: str = "screening"):
+    """Shortcut endpoint for downloading reports."""
+    return await download_session_pdf(session_id=session_id, lang=lang, type=type)
+
+
+@app.get("/api/download-scorecard")
+@app.get("/download-scorecard")
+async def download_scorecard_shortcut(session_id: str, lang: str = "en"):
+    """Shortcut endpoint for downloading technical scorecard."""
+    return await download_session_pdf(session_id=session_id, lang=lang, type="scorecard")
+
+
+
 @app.get("/api/reports/{session_id}")
+@app.get("/reports/{session_id}")
 async def get_report_data_endpoint(session_id: str):
     """
     Retrieves session and user metadata for rendering in the HTML report view.
@@ -1149,10 +1330,31 @@ async def get_report_data_endpoint(session_id: str):
         s_dict["reference_retrieval"] = q_sum.get("reference_retrieval")
         s_dict["calibrated_ensemble"] = q_sum.get("calibrated_ensemble")
         s_dict["input_provenance"] = q_sum.get("input_provenance")
+        s_dict["image_sequence"] = q_sum.get("image_sequence")
+        s_dict["visualizations"] = q_sum.get("visualizations")
+        s_dict["previews"] = q_sum.get("previews")
 
         return {
+            "session_id": sess.id,
+            "id": sess.id,
             "session": s_dict,
-            "user": user_data
+            "user": user_data,
+            "model_results": s_dict.get("model_results", {}),
+            "anemia": s_dict.get("anemia_result"),
+            "anemia_result": s_dict.get("anemia_result"),
+            "slid": s_dict.get("slid_result"),
+            "slid_result": s_dict.get("slid_result"),
+            "jaundice": s_dict.get("jaundice_result"),
+            "jaundice_result": s_dict.get("jaundice_result"),
+            "view_mean": s_dict.get("view_mean"),
+            "segmentation": s_dict.get("segmentation"),
+            "secondary_vision": s_dict.get("secondary_vision"),
+            "reference_retrieval": s_dict.get("reference_retrieval"),
+            "calibrated_ensemble": s_dict.get("calibrated_ensemble"),
+            "personalized_ai": s_dict.get("personalized_ai"),
+            "image_sequence": s_dict.get("image_sequence"),
+            "visualizations": s_dict.get("visualizations"),
+            "previews": s_dict.get("previews")
         }
 
 

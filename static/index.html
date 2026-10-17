@@ -11,15 +11,2030 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=20261017_v12">
 
-  <!-- Early theme initialization to prevent Flash of Unstyled Theme -->
+  <!-- Critical Inline Styles for OcuScan Unified Screening Workspace (Guarantees zero cache failures) -->
+  <style>
+    /* Reset buttons inside tracker to remove OS native button styling */
+    .four-step-tracker {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      background: var(--bg-card, #ffffff) !important;
+      border: 1px solid var(--border-subtle, #e2e8f0) !important;
+      border-radius: 14px !important;
+      padding: 14px 28px !important;
+      margin-bottom: 24px !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    .tracker-step {
+      display: flex !important;
+      align-items: center !important;
+      gap: 12px !important;
+      cursor: pointer !important;
+      background: transparent !important;
+      border: none !important;
+      outline: none !important;
+      padding: 6px 10px !important;
+      border-radius: 8px !important;
+      transition: all 0.2s ease !important;
+      text-decoration: none !important;
+      font-family: inherit !important;
+    }
+
+    .tracker-step:hover {
+      background: var(--bg-secondary, #f1f5f9) !important;
+    }
+
+    .tracker-step.pending {
+      cursor: not-allowed !important;
+      opacity: 0.6 !important;
+      pointer-events: none !important;
+    }
+
+    .tracker-step.pending:hover {
+      background: transparent !important;
+      transform: none !important;
+    }
+
+    .tracker-circle {
+      width: 32px !important;
+      height: 32px !important;
+      border-radius: 50% !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      flex-shrink: 0 !important;
+    }
+
+    .tracker-step.completed .tracker-circle {
+      background: #06b6d4 !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.3) !important;
+    }
+
+    .tracker-step.active .tracker-circle {
+      background: #0284c7 !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 14px rgba(2, 132, 199, 0.4) !important;
+    }
+
+    .tracker-step.pending .tracker-circle {
+      background: var(--bg-secondary, #f1f5f9) !important;
+      color: var(--text-muted, #64748b) !important;
+      border: 1px solid var(--border-subtle, #cbd5e1) !important;
+    }
+
+    .tracker-info {
+      display: flex !important;
+      flex-direction: column !important;
+      text-align: left !important;
+    }
+
+    .tracker-title {
+      font-size: 13.5px !important;
+      font-weight: 700 !important;
+      color: var(--text-primary, #0f172a) !important;
+      line-height: 1.25 !important;
+    }
+
+    .tracker-step.active .tracker-title {
+      color: #0284c7 !important;
+    }
+
+    .tracker-step.pending .tracker-title {
+      color: var(--text-muted, #64748b) !important;
+    }
+
+    .tracker-sub {
+      font-size: 11px !important;
+      color: var(--text-secondary, #334155) !important;
+      line-height: 1.25 !important;
+      margin-top: 2px !important;
+    }
+
+    .tracker-line {
+      flex: 1 !important;
+      height: 2px !important;
+      background: var(--border-subtle, #e2e8f0) !important;
+      margin: 0 16px !important;
+      border-radius: 2px !important;
+    }
+
+    .tracker-line.completed {
+      background: #06b6d4 !important;
+    }
+
+    /* Workspace Hero & Banner */
+    .workspace-hero {
+      margin-bottom: 20px !important;
+    }
+
+    .workspace-title-row {
+      display: flex !important;
+      align-items: flex-start !important;
+      gap: 12px !important;
+      margin-bottom: 6px !important;
+    }
+
+    .workspace-accent-bar {
+      width: 4px !important;
+      height: 32px !important;
+      background: #0284c7 !important;
+      border-radius: 2px !important;
+      flex-shrink: 0 !important;
+      margin-top: 2px !important;
+    }
+
+    .workspace-main-title {
+      font-family: 'Outfit', sans-serif !important;
+      font-size: 26px !important;
+      font-weight: 700 !important;
+      color: var(--text-primary, #0f172a) !important;
+      letter-spacing: -0.01em !important;
+      margin: 0 !important;
+      line-height: 1.2 !important;
+    }
+
+    .workspace-subtitle {
+      font-size: 13.5px !important;
+      color: var(--text-secondary, #475569) !important;
+      margin: 0 0 14px 16px !important;
+      line-height: 1.45 !important;
+    }
+
+    .workspace-info-banner {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      background: #f0f9ff !important;
+      border: 1px solid #bae6fd !important;
+      color: #0284c7 !important;
+      border-radius: 12px !important;
+      padding: 12px 18px !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      margin-bottom: 24px !important;
+    }
+
+    [data-theme="dark"] .workspace-info-banner {
+      background: rgba(2, 132, 199, 0.12) !important;
+      border-color: rgba(2, 132, 199, 0.3) !important;
+      color: #38bdf8 !important;
+    }
+
+    /* Two-Column Workspace Grid */
+    .screening-workspace-grid {
+      display: grid !important;
+      grid-template-columns: 1.15fr 0.85fr !important;
+      gap: 24px !important;
+      margin-bottom: 24px !important;
+    }
+
+    @media (max-width: 960px) {
+      .screening-workspace-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .four-step-tracker {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+        padding: 16px !important;
+      }
+      .tracker-line {
+        display: none !important;
+      }
+    }
+
+    .screening-card {
+      background: var(--bg-card, #ffffff) !important;
+      border: 1px solid var(--border-subtle, #e2e8f0) !important;
+      border-radius: 16px !important;
+      padding: 24px !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    .screening-card-header {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      margin-bottom: 18px !important;
+      padding-bottom: 14px !important;
+      border-bottom: 1px solid var(--border-subtle, #e2e8f0) !important;
+    }
+
+    .screening-card-title-group {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+    }
+
+    .screening-card-icon {
+      width: 32px !important;
+      height: 32px !important;
+      border-radius: 8px !important;
+      background: rgba(2, 132, 199, 0.1) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      color: #0284c7 !important;
+    }
+
+    .screening-card-title {
+      font-size: 16px !important;
+      font-weight: 700 !important;
+      color: var(--text-primary, #0f172a) !important;
+      margin: 0 !important;
+    }
+
+    .screening-card-badge {
+      font-size: 11.5px !important;
+      color: #0284c7 !important;
+      font-weight: 500 !important;
+    }
+
+    /* Dropzone & Scanner Reticle */
+    .scanner-dropzone {
+      border: 1.5px dashed #38bdf8 !important;
+      background: rgba(56, 189, 248, 0.03) !important;
+      border-radius: 14px !important;
+      padding: 28px 20px !important;
+      text-align: center !important;
+      cursor: pointer !important;
+      transition: all 0.25s ease !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    .scanner-dropzone:hover,
+    .scanner-dropzone.dragover {
+      border-color: #0284c7 !important;
+      background: rgba(2, 132, 199, 0.07) !important;
+    }
+
+    .eye-scanner-target {
+      position: relative !important;
+      width: 140px !important;
+      height: 84px !important;
+      margin-bottom: 14px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    .eye-scanner-target .scanner-corner {
+      position: absolute !important;
+      width: 16px !important;
+      height: 16px !important;
+      border-color: #0284c7 !important;
+      border-style: solid !important;
+    }
+
+    .eye-scanner-target .corner-tl {
+      top: 0 !important;
+      left: 0 !important;
+      border-width: 2.5px 0 0 2.5px !important;
+      border-top-left-radius: 4px !important;
+    }
+
+    .eye-scanner-target .corner-tr {
+      top: 0 !important;
+      right: 0 !important;
+      border-width: 2.5px 2.5px 0 0 !important;
+      border-top-right-radius: 4px !important;
+    }
+
+    .eye-scanner-target .corner-bl {
+      bottom: 0 !important;
+      left: 0 !important;
+      border-width: 0 0 2.5px 2.5px !important;
+      border-bottom-left-radius: 4px !important;
+    }
+
+    .eye-scanner-target .corner-br {
+      bottom: 0 !important;
+      right: 0 !important;
+      border-width: 0 2.5px 2.5px 0 !important;
+      border-bottom-right-radius: 4px !important;
+    }
+
+    .eye-scanner-bg {
+      width: 96px !important;
+      height: 60px !important;
+      border-radius: 50% !important;
+      background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.22) 0%, rgba(2, 132, 199, 0.05) 70%, transparent 100%) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    .eye-scanner-bg svg {
+      width: 48px !important;
+      height: 48px !important;
+      color: #0284c7 !important;
+      max-width: 48px !important;
+      max-height: 48px !important;
+    }
+
+    .dropzone-main-text {
+      font-size: 14.5px !important;
+      font-weight: 700 !important;
+      color: var(--text-primary, #0f172a) !important;
+      margin-bottom: 4px !important;
+    }
+
+    .dropzone-main-text .browse-link {
+      color: #0284c7 !important;
+      text-decoration: underline !important;
+    }
+
+    .dropzone-sub-text {
+      font-size: 12px !important;
+      color: var(--text-muted, #64748b) !important;
+      margin-bottom: 18px !important;
+    }
+
+    .btn-choose-eye {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      background: #0284c7 !important;
+      color: #ffffff !important;
+      padding: 10px 24px !important;
+      border-radius: 8px !important;
+      font-size: 13.5px !important;
+      font-weight: 600 !important;
+      border: none !important;
+      cursor: pointer !important;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25) !important;
+      transition: all 0.2s ease !important;
+    }
+
+    .btn-choose-eye:hover {
+      background: #0369a1 !important;
+      transform: translateY(-1px) !important;
+    }
+
+    .mode-or-divider {
+      display: flex !important;
+      align-items: center !important;
+      width: 100% !important;
+      margin: 16px 0 14px !important;
+      color: var(--text-muted, #64748b) !important;
+      font-size: 12px !important;
+    }
+
+    .mode-or-divider::before,
+    .mode-or-divider::after {
+      content: '' !important;
+      flex: 1 !important;
+      height: 1px !important;
+      background: var(--border-subtle, #e2e8f0) !important;
+    }
+
+    .mode-or-divider span {
+      padding: 0 10px !important;
+    }
+
+    .upload-mode-buttons {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 12px !important;
+      width: 100% !important;
+    }
+
+    .btn-mode-toggle {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+      padding: 9px 14px !important;
+      border-radius: 8px !important;
+      border: 1px solid var(--border-subtle, #cbd5e1) !important;
+      background: var(--bg-card, #ffffff) !important;
+      color: var(--text-secondary, #475569) !important;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      cursor: pointer !important;
+      transition: all 0.2s ease !important;
+    }
+
+    .btn-mode-toggle:hover {
+      border-color: #0284c7 !important;
+      color: #0284c7 !important;
+    }
+
+    .btn-mode-toggle.active {
+      background: #e0f2fe !important;
+      border-color: #0284c7 !important;
+      color: #0284c7 !important;
+    }
+
+    [data-theme="dark"] .btn-mode-toggle.active {
+      background: rgba(2, 132, 199, 0.18) !important;
+      border-color: #0284c7 !important;
+      color: #38bdf8 !important;
+    }
+
+    .btn-analyze-unified {
+      width: 100% !important;
+      margin-top: 16px !important;
+      padding: 12px 20px !important;
+      font-size: 14.5px !important;
+      font-weight: 700 !important;
+      border-radius: 10px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 10px !important;
+      background: #0284c7 !important;
+      color: #ffffff !important;
+      border: none !important;
+      cursor: pointer !important;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3) !important;
+      transition: all 0.2s ease !important;
+    }
+
+    .btn-analyze-unified:hover:not(:disabled) {
+      background: #0369a1 !important;
+      transform: translateY(-1px) !important;
+    }
+
+    .btn-analyze-unified:disabled {
+      opacity: 0.5 !important;
+      cursor: not-allowed !important;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Informational Assessment Cards */
+    .assessment-list {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 12px !important;
+      margin-bottom: 18px !important;
+    }
+
+    .assess-info-card {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 16px !important;
+      border-radius: 12px !important;
+      border: 1px solid var(--border-subtle, #e2e8f0) !important;
+      background: var(--bg-card, #ffffff) !important;
+      transition: all 0.2s ease !important;
+    }
+
+    .assess-info-card:hover {
+      border-color: rgba(2, 132, 199, 0.4) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+    }
+
+    .assess-left {
+      display: flex !important;
+      align-items: center !important;
+      gap: 14px !important;
+    }
+
+    .assess-icon-wrap {
+      width: 40px !important;
+      height: 40px !important;
+      border-radius: 10px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      flex-shrink: 0 !important;
+    }
+
+    .assess-icon-anemia {
+      background: #fef2f2 !important;
+      color: #ef4444 !important;
+    }
+
+    [data-theme="dark"] .assess-icon-anemia {
+      background: rgba(239, 68, 68, 0.15) !important;
+      color: #f87171 !important;
+    }
+
+    .assess-icon-slid {
+      background: #f0f9ff !important;
+      color: #0284c7 !important;
+    }
+
+    [data-theme="dark"] .assess-icon-slid {
+      background: rgba(2, 132, 199, 0.15) !important;
+      color: #38bdf8 !important;
+    }
+
+    .assess-icon-jaundice {
+      background: #fffbeb !important;
+      color: #f59e0b !important;
+    }
+
+    [data-theme="dark"] .assess-icon-jaundice {
+      background: rgba(245, 158, 11, 0.15) !important;
+      color: #fbbf24 !important;
+    }
+
+    .assess-texts {
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    .assess-title {
+      font-size: 14px !important;
+      font-weight: 700 !important;
+      color: var(--text-primary, #0f172a) !important;
+      line-height: 1.25 !important;
+    }
+
+    .assess-desc {
+      font-size: 11.5px !important;
+      color: var(--text-secondary, #475569) !important;
+      line-height: 1.35 !important;
+      margin-top: 3px !important;
+    }
+
+    .assess-badge {
+      background: #e0f2fe !important;
+      color: #0369a1 !important;
+      font-size: 11px !important;
+      font-weight: 600 !important;
+      padding: 4px 10px !important;
+      border-radius: 9999px !important;
+      white-space: nowrap !important;
+    }
+
+    [data-theme="dark"] .assess-badge {
+      background: rgba(2, 132, 199, 0.2) !important;
+      color: #38bdf8 !important;
+    }
+
+    .assess-footer-note {
+      margin-top: auto !important;
+      background: #f8fafc !important;
+      border: 1px solid #e2e8f0 !important;
+      border-radius: 10px !important;
+      padding: 12px 14px !important;
+      font-size: 12px !important;
+      color: var(--text-secondary, #475569) !important;
+      display: flex !important;
+      align-items: flex-start !important;
+      gap: 10px !important;
+      line-height: 1.45 !important;
+    }
+
+    [data-theme="dark"] .assess-footer-note {
+      background: rgba(18, 26, 47, 0.5) !important;
+      border-color: var(--border-subtle, #334155) !important;
+      color: var(--text-secondary, #94a3b8) !important;
+    }
+
+    /* Bottom Process Pipeline */
+    .how-it-works-panel {
+      background: var(--bg-card, #ffffff) !important;
+      border: 1px solid var(--border-subtle, #e2e8f0) !important;
+      border-radius: 14px !important;
+      padding: 18px 24px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 16px !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+      margin-top: 16px !important;
+    }
+
+    .how-it-works-lead {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      flex-shrink: 0 !important;
+      padding-right: 18px !important;
+      border-right: 1px solid var(--border-subtle, #e2e8f0) !important;
+    }
+
+    .how-it-works-lead svg {
+      color: #0284c7 !important;
+    }
+
+    .how-it-works-title {
+      font-size: 13.5px !important;
+      font-weight: 700 !important;
+      color: var(--text-primary, #0f172a) !important;
+      line-height: 1.2 !important;
+    }
+
+    .how-it-works-sub {
+      font-size: 11px !important;
+      color: var(--text-muted, #64748b) !important;
+    }
+
+    .how-it-works-steps {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      flex: 1 !important;
+      gap: 8px !important;
+    }
+
+    .how-step {
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+    }
+
+    .how-step-circle {
+      width: 26px !important;
+      height: 26px !important;
+      border-radius: 50% !important;
+      background: #e0f2fe !important;
+      color: #0284c7 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 12px !important;
+      font-weight: 700 !important;
+      flex-shrink: 0 !important;
+    }
+
+    [data-theme="dark"] .how-step-circle {
+      background: rgba(2, 132, 199, 0.2) !important;
+      color: #38bdf8 !important;
+    }
+
+    .how-step-info {
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    .how-step-name {
+      font-size: 12px !important;
+      font-weight: 700 !important;
+      color: var(--text-primary, #0f172a) !important;
+      line-height: 1.2 !important;
+    }
+
+    .how-step-desc {
+      font-size: 10.5px !important;
+      color: var(--text-muted, #64748b) !important;
+      line-height: 1.2 !important;
+    }
+
+    .how-arrow {
+      color: var(--text-muted, #94a3b8) !important;
+      font-size: 14px !important;
+    }
+
+    @media (max-width: 900px) {
+      .how-it-works-panel {
+        flex-direction: column !important;
+        align-items: stretch !important;
+      }
+      .how-it-works-lead {
+        border-right: none !important;
+        border-bottom: 1px solid var(--border-subtle, #e2e8f0) !important;
+        padding-right: 0 !important;
+        padding-bottom: 12px !important;
+      }
+      .how-it-works-steps {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+      }
+      .how-arrow {
+        display: none !important;
+      }
+    }
+
+    /* -------------------------------------------------------------------------
+       OcuScan Redesign Views (Language, Profile & Consent, Results Summary)
+       ------------------------------------------------------------------------- */
+    .four-step-tracker.tracker-hidden {
+      display: none !important;
+    }
+
+    /* Language Selection Setup (Mockup Image 1) */
+    .lang-welcome-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin: 18px auto 26px;
+      max-width: 600px;
+    }
+
+    .lang-welcome-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border-subtle, #cbd5e1);
+    }
+
+    .lang-welcome-text {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--text-muted, #64748b);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .lang-setup-card {
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-subtle, #e2e8f0);
+      border-radius: 20px;
+      padding: 38px 36px 34px;
+      max-width: 620px;
+      margin: 0 auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      text-align: center;
+    }
+
+    .lang-globe-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #0084ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 18px;
+      box-shadow: 0 0 24px rgba(0, 132, 255, 0.35);
+      color: #ffffff;
+    }
+
+    .lang-globe-avatar svg {
+      width: 34px;
+      height: 34px;
+      stroke: #ffffff;
+    }
+
+    .lang-setup-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 25px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+
+    .lang-setup-sub {
+      font-size: 13.5px;
+      color: var(--text-secondary, #475569);
+      margin-bottom: 26px;
+      line-height: 1.45;
+    }
+
+    .lang-setup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 26px;
+      text-align: left;
+    }
+
+    @media (max-width: 640px) {
+      .lang-setup-grid {
+        grid-template-columns: 1fr;
+      }
+      .lang-setup-card {
+        padding: 24px 18px;
+      }
+    }
+
+    .lang-card-item {
+      position: relative;
+      background: var(--bg-card, #ffffff);
+      border: 1.5px solid var(--border-subtle, #e2e8f0);
+      border-radius: 14px;
+      padding: 16px 18px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 90px;
+    }
+
+    .lang-card-item:hover {
+      border-color: #38bdf8;
+      background: var(--bg-secondary, #f8fafc);
+    }
+
+    .lang-card-item.selected {
+      border-color: #0084ff !important;
+      background: #f0f7ff !important;
+      box-shadow: 0 0 0 1px #0084ff, 0 4px 14px rgba(0, 132, 255, 0.12) !important;
+    }
+
+    [data-theme="dark"] .lang-card-item.selected {
+      background: rgba(2, 132, 199, 0.15) !important;
+      border-color: #38bdf8 !important;
+    }
+
+    .lang-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .lang-card-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+    }
+
+    .lang-radio-outer {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .lang-card-item.selected .lang-radio-outer {
+      border-color: #0084ff;
+    }
+
+    .lang-radio-inner {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #0084ff;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.2s ease;
+    }
+
+    .lang-card-item.selected .lang-radio-inner {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .lang-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .lang-card-desc {
+      font-size: 12px;
+      color: var(--text-secondary, #64748b);
+      line-height: 1.35;
+    }
+
+    .lang-selected-pill {
+      display: none;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #0084ff;
+      background: #e0f0fe;
+      padding: 2px 7px;
+      border-radius: 6px;
+      margin-left: 8px;
+      white-space: nowrap;
+    }
+
+    .lang-card-item.selected .lang-selected-pill {
+      display: inline-block;
+    }
+
+    .lang-continue-btn {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 13px 28px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 10px;
+      background: #0084ff !important;
+      color: #ffffff !important;
+      border: none !important;
+      box-shadow: 0 4px 14px rgba(0, 132, 255, 0.3) !important;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .lang-continue-btn:hover {
+      background: #0073e6 !important;
+      transform: translateY(-1px);
+    }
+
+    /* Profile & Informed Consent (Mockup Image 2) */
+    .profile-consent-card {
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-subtle, #e2e8f0);
+      border-radius: 18px;
+      padding: 30px;
+      max-width: 860px;
+      margin: 0 auto;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    }
+
+    .pc-main-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 22px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border-subtle, #e2e8f0);
+    }
+
+    .pc-header-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: #e0f2fe;
+      color: #0284c7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .pc-header-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 21px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      margin: 0 0 3px 0;
+    }
+
+    .pc-header-sub {
+      font-size: 13px;
+      color: var(--text-secondary, #475569);
+      margin: 0;
+    }
+
+    .pc-section {
+      margin-bottom: 26px;
+    }
+
+    .pc-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .pc-section-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pc-section-badge-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #e0f2fe;
+      color: #0284c7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pc-section-title {
+      font-size: 15.5px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      margin: 0;
+    }
+
+    .pc-info-callout {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 10px;
+      padding: 9px 13px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 11.5px;
+      line-height: 1.45;
+      color: #0369a1;
+      max-width: 460px;
+    }
+
+    [data-theme="dark"] .pc-info-callout {
+      background: rgba(2, 132, 199, 0.1);
+      border-color: rgba(2, 132, 199, 0.25);
+      color: #7dd3fc;
+    }
+
+    .pc-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 720px) {
+      .pc-form-grid {
+        grid-template-columns: 1fr;
+      }
+      .profile-consent-card {
+        padding: 20px 16px;
+      }
+    }
+
+    .pc-input-wrap {
+      position: relative;
+    }
+
+    .pc-input-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pc-form-input {
+      width: 100%;
+      padding: 10px 14px 10px 38px;
+      border: 1px solid var(--border-subtle, #cbd5e1);
+      border-radius: 10px;
+      font-size: 13.5px;
+      background: var(--bg-card, #ffffff);
+      color: var(--text-primary, #0f172a);
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+    }
+
+    .pc-form-input:focus {
+      outline: none;
+      border-color: #0084ff;
+      box-shadow: 0 0 0 3px rgba(0, 132, 255, 0.15);
+    }
+
+    /* Remove native up/down stepper arrows & spin buttons on age/number inputs */
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none !important;
+      margin: 0 !important;
+    }
+
+    input[type="number"] {
+      -moz-appearance: textfield !important;
+      appearance: textfield !important;
+    }
+
+    .pc-input-hint {
+      font-size: 11px;
+      color: var(--text-muted, #64748b);
+      margin-top: 4px;
+    }
+
+    .pc-consent-box {
+      background: #f8fafc;
+      border: 1px solid var(--border-subtle, #e2e8f0);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+    }
+
+    [data-theme="dark"] .pc-consent-box {
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .pc-consent-bullets {
+      margin: 8px 0 0 18px;
+      padding: 0;
+      font-size: 12px;
+      color: var(--text-secondary, #475569);
+      line-height: 1.5;
+    }
+
+    .pc-consent-bullets li {
+      margin-bottom: 4px;
+    }
+
+    .pc-checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 9px 4px;
+      cursor: pointer;
+    }
+
+    .pc-checkbox-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      border-radius: 4px;
+      border: 1.5px solid #94a3b8;
+      cursor: pointer;
+      accent-color: #0084ff;
+      flex-shrink: 0;
+    }
+
+    .pc-checkbox-label {
+      font-size: 13px;
+      color: var(--text-primary, #1e293b);
+      line-height: 1.4;
+      cursor: pointer;
+    }
+
+    .pc-actions-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border-subtle, #e2e8f0);
+    }
+
+    .pc-agree-btn {
+      padding: 11px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 10px;
+      background: #0084ff !important;
+      color: #ffffff !important;
+      border: none !important;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 132, 255, 0.25);
+      transition: all 0.2s ease;
+    }
+
+    .pc-agree-btn:disabled {
+      background: #94a3b8 !important;
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .pc-privacy-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 11.5px;
+      color: var(--text-muted, #64748b);
+      margin-top: 14px;
+    }
+
+    /* Results Workspace (Mockup Image 3) */
+    .results-workspace-wrap {
+      max-width: 1060px;
+      margin: 0 auto;
+    }
+
+    .res-summary-bar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .res-title-group {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .res-accent-bar {
+      width: 4px;
+      height: 32px;
+      background: #0084ff;
+      border-radius: 2px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .res-main-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      margin: 0 0 3px 0;
+      letter-spacing: -0.01em;
+    }
+
+    .res-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary, #475569);
+      margin: 0;
+    }
+
+    .btn-session-info {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle, #cbd5e1);
+      background: var(--bg-card, #ffffff);
+      color: var(--text-secondary, #334155);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-session-info:hover {
+      background: var(--bg-secondary, #f8fafc);
+      border-color: #94a3b8;
+    }
+
+    .res-disclaimer-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: #0369a1;
+      margin-bottom: 24px;
+    }
+
+    [data-theme="dark"] .res-disclaimer-banner {
+      background: rgba(2, 132, 199, 0.12);
+      border-color: rgba(2, 132, 199, 0.25);
+      color: #7dd3fc;
+    }
+
+    .res-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .res-cards-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .res-clean-card {
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-subtle, #e2e8f0);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 220px;
+    }
+
+    .res-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .res-card-icon-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .res-card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .icon-red-drop {
+      background: #fee2e2;
+      color: #ef4444;
+    }
+
+    .icon-blue-eye {
+      background: #e0f2fe;
+      color: #0284c7;
+    }
+
+    .icon-yellow-sun {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .res-card-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      line-height: 1.25;
+      margin: 0 0 2px 0;
+    }
+
+    .res-card-subname {
+      font-size: 11px;
+      color: var(--text-muted, #64748b);
+      line-height: 1.25;
+      margin: 0;
+    }
+
+    .res-status-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .res-status-badge.green {
+      background: #ecfdf5;
+      color: #059669;
+    }
+
+    .res-status-badge.blue {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    .res-status-badge.purple {
+      background: #f5f3ff;
+      color: #7c3aed;
+    }
+
+    .res-card-val-row {
+      margin: 10px 0 8px;
+      padding: 8px 12px;
+      background: var(--bg-secondary, #f8fafc);
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle, #e2e8f0);
+    }
+
+    .res-val-primary {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+    }
+
+    .res-val-sub {
+      font-size: 11px;
+      color: var(--text-muted, #64748b);
+      margin-left: 6px;
+    }
+
+    .res-card-desc {
+      font-size: 12px;
+      color: var(--text-secondary, #475569);
+      line-height: 1.45;
+      margin-bottom: 14px;
+      flex: 1;
+    }
+
+    .res-card-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #0084ff;
+      text-decoration: none;
+      cursor: pointer;
+      padding: 0;
+      background: none;
+      border: none;
+    }
+
+    .res-card-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Image Quality Summary Card */
+    .iq-summary-card {
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-subtle, #e2e8f0);
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+    }
+
+    .iq-header-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .iq-card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      margin: 0;
+    }
+
+    .iq-card-sub {
+      font-size: 12px;
+      color: var(--text-muted, #64748b);
+      margin: 2px 0 0 0;
+    }
+
+    .iq-content-row {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .iq-thumb-box {
+      width: 120px;
+      height: 74px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle, #cbd5e1);
+      flex-shrink: 0;
+      background: #000;
+    }
+
+    .iq-thumb-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .iq-divider-line {
+      width: 1px;
+      height: 60px;
+      background: var(--border-subtle, #e2e8f0);
+      flex-shrink: 0;
+    }
+
+    .iq-items-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      flex: 1;
+    }
+
+    @media (max-width: 760px) {
+      .iq-content-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .iq-divider-line {
+        display: none;
+      }
+      .iq-items-grid {
+        grid-template-columns: 1fr;
+        width: 100%;
+      }
+    }
+
+    .iq-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .iq-item-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--bg-secondary, #f1f5f9);
+      color: #0284c7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .iq-item-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      line-height: 1.25;
+    }
+
+    .iq-item-status {
+      font-size: 11px;
+      color: #0084ff;
+      line-height: 1.25;
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* Your Reports 2-Card Download Section */
+    .reports-section-wrap {
+      margin-bottom: 24px;
+    }
+
+    .reports-sec-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .reports-sec-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      margin: 0;
+    }
+
+    .reports-sec-sub {
+      font-size: 12.5px;
+      color: var(--text-secondary, #64748b);
+      margin: 0 0 16px 28px;
+    }
+
+    .reports-two-col-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 820px) {
+      .reports-two-col-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .report-card-container {
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-subtle, #e2e8f0);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      gap: 18px;
+      align-items: stretch;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+    }
+
+    .report-mini-sheet {
+      width: 84px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 8px 6px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      flex-shrink: 0;
+    }
+
+    .sheet-tag-ocu {
+      font-size: 7px;
+      font-weight: 800;
+      color: #0084ff;
+      letter-spacing: 0.05em;
+    }
+
+    .sheet-title-text {
+      font-size: 6.5px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 4px;
+    }
+
+    .sheet-eye-preview {
+      width: 100%;
+      height: 32px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 4px;
+      background: #f1f5f9;
+    }
+
+    .sheet-eye-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .sheet-mock-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .sheet-mock-lines span {
+      height: 3px;
+      background: #e2e8f0;
+      border-radius: 2px;
+      width: 100%;
+    }
+
+    .sheet-mock-lines span:nth-child(2) {
+      width: 75%;
+    }
+
+    .sheet-mock-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 36px;
+      padding: 4px 2px;
+      margin-top: 4px;
+    }
+
+    .sheet-mock-chart .bar {
+      flex: 1;
+      background: #0284c7;
+      border-radius: 2px 2px 0 0;
+    }
+
+    .report-card-body {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      flex: 1;
+    }
+
+    .report-card-heading-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .report-card-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .report-doc-icon {
+      color: #0084ff;
+      flex-shrink: 0;
+    }
+
+    .report-doc-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      margin: 0;
+    }
+
+    .report-scope-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .report-scope-badge.blue {
+      background: #eff6ff;
+      color: #0084ff;
+    }
+
+    .report-scope-badge.purple {
+      background: #f5f3ff;
+      color: #6366f1;
+    }
+
+    .report-card-text {
+      font-size: 12.5px;
+      color: var(--text-secondary, #475569);
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+
+    .btn-report-download-primary {
+      width: 100%;
+      padding: 10px 16px;
+      border-radius: 8px;
+      background: #0084ff !important;
+      color: #ffffff !important;
+      border: none !important;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 2px 8px rgba(0, 132, 255, 0.25);
+      transition: all 0.2s ease;
+    }
+
+    .btn-report-download-primary:hover {
+      background: #0073e6 !important;
+    }
+
+    .btn-report-download-secondary {
+      width: 100%;
+      padding: 10px 16px;
+      border-radius: 8px;
+      background: #ffffff !important;
+      color: #0084ff !important;
+      border: 1.5px solid #0084ff !important;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-report-download-secondary:hover {
+      background: #eff6ff !important;
+    }
+
+    [data-theme="dark"] .btn-report-download-secondary {
+      background: transparent !important;
+      color: #38bdf8 !important;
+      border-color: #38bdf8 !important;
+    }
+
+    /* Collapsible AI Insight Card Enhanced */
+    .res-ai-collapse-card {
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-subtle, #e2e8f0);
+      border-radius: 14px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      position: relative;
+    }
+
+    .res-ai-collapse-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #8b5cf6, #3b82f6, #06b6d4);
+    }
+
+    .res-ai-collapse-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 22px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      font-family: inherit;
+    }
+
+    .res-ai-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .res-ai-icon {
+      color: #8b5cf6;
+      flex-shrink: 0;
+    }
+
+    .res-ai-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+    }
+
+    .res-ai-badge {
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: #f5f3ff;
+      color: #7c3aed;
+      border: 1px solid #ddd6fe;
+    }
+
+    [data-theme="dark"] .res-ai-badge {
+      background: rgba(139, 92, 246, 0.15);
+      color: #c4b5fd;
+      border-color: rgba(139, 92, 246, 0.3);
+    }
+
+    .res-ai-chevron {
+      color: #94a3b8;
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .res-ai-collapse-card.open .res-ai-chevron {
+      transform: rotate(180deg);
+    }
+
+    .res-ai-collapse-body {
+      display: none;
+      padding: 20px 24px 26px;
+      font-size: 13.5px;
+      line-height: 1.65;
+      color: var(--text-secondary, #334155);
+      border-top: 1px solid var(--border-subtle, #f1f5f9);
+    }
+
+    .res-ai-collapse-card.open .res-ai-collapse-body {
+      display: block;
+    }
+
+    /* AI Enhanced Sections */
+    .ai-summary-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #1e293b;
+    }
+
+    [data-theme="dark"] .ai-summary-box {
+      background: #1e293b;
+      border-color: #334155;
+      color: #f1f5f9;
+    }
+
+    .ai-sec-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin: 18px 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    [data-theme="dark"] .ai-sec-title {
+      color: #94a3b8;
+    }
+
+    .ai-models-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .ai-model-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    [data-theme="dark"] .ai-model-card {
+      background: #0f172a;
+      border-color: #334155;
+    }
+
+    .ai-model-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ai-model-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+    }
+
+    .ai-model-val {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0284c7;
+      margin: 2px 0;
+    }
+
+    .ai-model-desc {
+      font-size: 12px;
+      color: var(--text-secondary, #64748b);
+      line-height: 1.4;
+    }
+
+    .ai-context-banner {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 12.5px;
+      color: #166534;
+      line-height: 1.5;
+    }
+
+    [data-theme="dark"] .ai-context-banner {
+      background: rgba(22, 101, 52, 0.2);
+      border-color: rgba(22, 101, 52, 0.4);
+      color: #86efac;
+    }
+
+    .ai-limits-banner {
+      background: #fffbeb;
+      border: 1px solid #fef3c7;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 12.5px;
+      color: #92400e;
+      line-height: 1.5;
+    }
+
+    [data-theme="dark"] .ai-limits-banner {
+      background: rgba(146, 64, 14, 0.2);
+      border-color: rgba(146, 64, 14, 0.4);
+      color: #fde68a;
+    }
+
+    .ai-next-steps-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ai-next-step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 13px;
+      color: var(--text-primary, #1e293b);
+      line-height: 1.45;
+    }
+
+    [data-theme="dark"] .ai-next-step-item {
+      background: #1e293b;
+      border-color: #334155;
+      color: #f1f5f9;
+    }
+
+    .ai-step-check {
+      color: #10b981;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .res-bottom-action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+      padding-top: 18px;
+    }
+
+    .res-legal-note {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 11.5px;
+      color: var(--text-muted, #64748b);
+      margin-top: 16px;
+      text-align: center;
+    }
+  </style>
+
+  <!-- Early theme initialization: defaults to clean light research theme from mockup -->
   <script>
     (function() {
       try {
         var saved = localStorage.getItem('eyehealth_theme');
-        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var theme = saved ? saved : (prefersDark ? 'dark' : 'light');
+        var theme = saved ? saved : 'light';
         document.documentElement.setAttribute('data-theme', theme);
       } catch(e) {}
     })();
@@ -38,7 +2053,7 @@
         </div>
         <div class="title-area">
           <h1 id="appTitle">OcuScan</h1>
-          <p id="appSubtitle">Multi-Modal Ocular Screening &bull; Continuous Hb Regression &bull; Clinical Safety Gates</p>
+          <p id="appSubtitle">Unified Ocular Screening &bull; Research Prototype</p>
         </div>
       </div>
       
@@ -107,6 +2122,48 @@
       </div>
     </header>
 
+    <!-- Modern 4-Step Progress Tracker (Profile -> Consent -> Screening -> Report) -->
+    <nav class="four-step-tracker" id="fourStepTracker" aria-label="OcuScan Screening Journey">
+      <button class="tracker-step completed" id="trackStep1" type="button" data-step="1">
+        <div class="tracker-circle">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="tracker-info">
+          <span class="tracker-title" data-i18n="trackStep1Title">1. Profile</span>
+          <span class="tracker-sub" data-i18n="trackStep1Sub">Basic information</span>
+        </div>
+      </button>
+      <div class="tracker-line completed" id="trackLine1"></div>
+
+      <button class="tracker-step completed" id="trackStep2" type="button" data-step="2">
+        <div class="tracker-circle">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="tracker-info">
+          <span class="tracker-title" data-i18n="trackStep2Title">2. Consent</span>
+          <span class="tracker-sub" data-i18n="trackStep2Sub">Review &amp; agree</span>
+        </div>
+      </button>
+      <div class="tracker-line completed" id="trackLine2"></div>
+
+      <button class="tracker-step active" id="trackStep3" type="button" data-step="3" aria-current="step">
+        <div class="tracker-circle">3</div>
+        <div class="tracker-info">
+          <span class="tracker-title" data-i18n="trackStep3Title">3. Screening</span>
+          <span class="tracker-sub" data-i18n="trackStep3Sub">Upload eye image</span>
+        </div>
+      </button>
+      <div class="tracker-line" id="trackLine3"></div>
+
+      <button class="tracker-step pending" id="trackStep4" type="button" data-step="4" disabled aria-disabled="true">
+        <div class="tracker-circle">4</div>
+        <div class="tracker-info">
+          <span class="tracker-title" data-i18n="trackStep4Title">4. Report</span>
+          <span class="tracker-sub" data-i18n="trackStep4Sub">Results &amp; export</span>
+        </div>
+      </button>
+    </nav>
+
     <!-- Multi-Step Stepper Navigation (Kept for automated test suite compatibility; hidden in modern page-based UI) -->
     <nav class="stepper-nav" id="stepperNav" style="display: none;" aria-label="Screening Workflow Progress">
       <button class="step-item active" id="stepBtn1" data-step="1">
@@ -146,135 +2203,269 @@
     </nav>
 
     <!-- ================================================================
-         PAGE 1: LANGUAGE SELECTION
+         PAGE 1: LANGUAGE SELECTION SETUP (Mockup Image 1)
          ================================================================ -->
     <section id="page1Language" class="page-view active">
-      <div class="lang-hero-card">
-        <div class="lang-hero-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <div class="lang-welcome-divider">
+        <span class="lang-welcome-line"></span>
+        <span class="lang-welcome-text">WELCOME &bull; SET UP YOUR EXPERIENCE</span>
+        <span class="lang-welcome-line"></span>
+      </div>
+
+      <div class="lang-setup-card">
+        <div class="lang-globe-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <line x1="2" y1="12" x2="22" y2="12"/>
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
           </svg>
         </div>
-        <h2 class="lang-hero-title" data-i18n="langTitle">Select Your Preferred Language</h2>
-        <p class="lang-hero-sub" data-i18n="langSub">
-          Choose your language for guided preparation, ocular screening, and downloaded clinical reports. Both languages are fully supported across all steps.
+        <h2 class="lang-setup-title" data-i18n="langTitle">Select Your Preferred Language</h2>
+        <p class="lang-setup-sub" data-i18n="langSub">
+          Choose your language for the guided screening workflow and report.
         </p>
 
-        <div class="lang-options-grid">
-          <!-- English Choice -->
-          <div class="lang-choice-card selected" id="cardLangEn">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span class="lang-choice-title">English</span>
-              <span class="badge-tag available">Active</span>
+        <div class="lang-setup-grid">
+          <!-- English Option Card -->
+          <div class="lang-card-item selected" id="cardLangEn" role="radio" aria-checked="true" tabindex="0">
+            <div class="lang-card-header">
+              <span class="lang-card-name">English</span>
+              <div class="lang-radio-outer">
+                <div class="lang-radio-inner"></div>
+              </div>
             </div>
-            <span class="lang-choice-sub">Standard English interface &amp; 2-page report</span>
+            <div class="lang-card-footer">
+              <span class="lang-card-desc">English interface and report</span>
+              <span class="lang-selected-pill">Selected</span>
+            </div>
           </div>
 
-          <!-- Hindi Choice -->
-          <div class="lang-choice-card" id="cardLangHi">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span class="lang-choice-title">हिंदी</span>
-              <span class="badge-tag available">सक्रिय</span>
+          <!-- Hindi Option Card -->
+          <div class="lang-card-item" id="cardLangHi" role="radio" aria-checked="false" tabindex="0">
+            <div class="lang-card-header">
+              <span class="lang-card-name">हिंदी</span>
+              <div class="lang-radio-outer">
+                <div class="lang-radio-inner"></div>
+              </div>
             </div>
-            <span class="lang-choice-sub">हिंदी इंटरफ़ेस और 2-पेज विस्तृत रिपोर्ट</span>
+            <div class="lang-card-footer">
+              <span class="lang-card-desc">हिंदी इंटरफ़ेस और रिपोर्ट</span>
+              <span class="lang-selected-pill">Selected</span>
+            </div>
           </div>
         </div>
 
-        <button id="btnContinueLang" class="btn-primary" type="button" style="width: 100%; max-width: 280px; margin: 0 auto;">
+        <button id="btnContinueLang" class="lang-continue-btn" type="button">
           <span data-i18n="btnContinue">Continue &rarr;</span>
         </button>
       </div>
     </section>
 
     <!-- ================================================================
-         PAGE 2: REGISTRATION & INFORMED CONSENT
+         PAGE 2: PARTICIPANT PROFILE & INFORMED CONSENT (Mockup Image 2)
          ================================================================ -->
     <section id="page2Registration" class="page-view">
-      <div class="reg-container">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-          <div class="step-circle" style="background: var(--color-brand); color: #fff;">2</div>
-          <h2 class="section-title" style="margin: 0;" data-i18n="regTitle">Participant Profile &amp; Informed Consent</h2>
+      <div class="profile-consent-card">
+        <div class="pc-main-header">
+          <div class="pc-header-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="pc-header-title" data-i18n="regTitle">Participant Profile &amp; Informed Consent</h2>
+            <p class="pc-header-sub" data-i18n="regSub">
+              Provide the required details and review the research privacy terms before continuing.
+            </p>
+          </div>
         </div>
-        <p style="color: var(--text-secondary); font-size: 13.5px; margin-bottom: 24px;" data-i18n="regSub">
-          Please enter your details and review the research consent terms before proceeding. Your data is stored privacy-compliantly.
-        </p>
 
         <form id="formRegistration">
-          <div class="form-grid-2">
-            <div class="form-group">
-              <label class="form-label" for="inputRegName" data-i18n="labelFullName">Full Name *</label>
-              <input type="text" id="inputRegName" class="form-input" placeholder="e.g. Sarthak Sharma" required value="Sarthak Sharma">
+          <!-- Section 1: Participant Profile -->
+          <div class="pc-section">
+            <div class="pc-section-header">
+              <div class="pc-section-title-wrap">
+                <div class="pc-section-badge-icon">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </div>
+                <h3 class="pc-section-title">1. Participant profile</h3>
+              </div>
+              <div class="pc-info-callout">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0; margin-top:1px;">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <span>Please enter accurate information. Some models have age or clinical reference limits. Sex-specific or pregnancy-related questions may be asked only when relevant and with your consent.</span>
+              </div>
             </div>
-            <div class="form-group">
-              <label class="form-label" for="inputRegPhone" data-i18n="labelPhone">Phone Number *</label>
-              <input type="tel" id="inputRegPhone" class="form-input" placeholder="e.g. 9019488301" required value="9019488301">
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="inputRegEmail" data-i18n="labelEmail">Email Address *</label>
-              <input type="email" id="inputRegEmail" class="form-input" placeholder="e.g. sarthak@example.com" required value="sarthak@research.org">
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="inputRegDob" data-i18n="labelDob">Date of Birth (YYYY-MM-DD) *</label>
-              <input type="text" id="inputRegDob" class="form-input" placeholder="YYYY-MM-DD" required value="2008-01-15">
-            </div>
-            <div class="form-group" style="grid-column: 1 / -1;">
-              <label class="form-label" for="selectRegGender" data-i18n="labelGender">Gender *</label>
-              <select id="selectRegGender" class="form-input" required>
-                <option value="male" selected data-i18n="genderOptMale">Male</option>
-                <option value="female" data-i18n="genderOptFemale">Female</option>
-                <option value="other" data-i18n="genderOptOther">Other</option>
-                <option value="prefer_not_to_say" data-i18n="genderOptPreferNot">Prefer not to say</option>
-              </select>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.45;">
-                <strong>Demographic Research Notice:</strong> Demographic documentation helps evaluate algorithmic fairness across diverse populations. This information is <strong>strictly decoupled</strong> from computer-vision inference and will never determine or alter a medical prediction.
+
+            <div class="pc-form-grid">
+              <!-- Left Column -->
+              <div>
+                <div class="form-group" style="margin-bottom: 14px;">
+                  <label class="form-label" for="inputRegName" data-i18n="labelFullName">Full Name *</label>
+                  <div class="pc-input-wrap">
+                    <span class="pc-input-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                    <input type="text" id="inputRegName" class="pc-form-input" placeholder="Enter full name" required>
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                  <label class="form-label" for="inputRegEmail" data-i18n="labelEmail">Email Address *</label>
+                  <div class="pc-input-wrap">
+                    <span class="pc-input-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    </span>
+                    <input type="email" id="inputRegEmail" class="pc-form-input" placeholder="name@example.com" required>
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                  <label class="form-label" for="selectRegGender" data-i18n="labelGender">Gender / Clinical Reference *</label>
+                  <div class="pc-input-wrap">
+                    <span class="pc-input-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </span>
+                    <select id="selectRegGender" class="pc-form-input" required>
+                      <option value="" disabled selected>Select an option</option>
+                      <option value="male" data-i18n="genderOptMale">Male</option>
+                      <option value="female" data-i18n="genderOptFemale">Female</option>
+                      <option value="other" data-i18n="genderOptOther">Other</option>
+                      <option value="prefer_not_to_say" data-i18n="genderOptPreferNot">Prefer not to say</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column -->
+              <div>
+                <div class="form-group" style="margin-bottom: 14px;">
+                  <label class="form-label" for="inputRegPhone" data-i18n="labelPhone">Phone Number *</label>
+                  <div class="pc-input-wrap">
+                    <span class="pc-input-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    </span>
+                    <input type="tel" id="inputRegPhone" class="pc-form-input" placeholder="Enter phone number" required>
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                  <label class="form-label" for="inputRegAge">Age (Years) * <span style="font-size: 11px; color: var(--color-brand);">(0–120)</span></label>
+                  <div class="pc-input-wrap">
+                    <span class="pc-input-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </span>
+                    <input type="number" id="inputRegAge" class="pc-form-input" placeholder="Enter age" min="0" max="120" step="1" required>
+                  </div>
+                  <div class="pc-input-hint">Required &bull; Age 0–120; model validation limits may apply.</div>
+                </div>
+
+                <!-- Conditional Pregnancy Controls (for Female participants) -->
+                <div id="pregnancySection" class="form-group" style="display: none; background: rgba(2, 132, 199, 0.05); border: 1px dashed rgba(2, 132, 199, 0.3); border-radius: var(--radius-sm); padding: 10px 14px; margin-top: 6px;">
+                  <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                      <input type="checkbox" id="chkPregnancy">
+                      Currently Pregnant
+                    </label>
+                    <div id="trimesterWrap" style="display: none; align-items: center; gap: 6px; font-size: 13px;">
+                      <span>Trimester:</span>
+                      <select id="selectTrimester" class="form-input" style="width: auto; padding: 4px 8px;">
+                        <option value="1">1st Trimester</option>
+                        <option value="2">2nd Trimester</option>
+                        <option value="3">3rd Trimester</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Informed Consent Accordion Box -->
-          <div class="consent-panel">
-            <h4 data-i18n="consentHeader">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
-              Informed Consent &amp; Privacy Notice
-            </h4>
-            <ul>
-              <li data-i18n="consentP1"><strong>Experimental Research Only:</strong> EyeHealthAI is an investigational software prototype. It does NOT provide a certified medical diagnosis.</li>
-              <li data-i18n="consentP2"><strong>No Raw Image Retention:</strong> Captured eye photographs and webcam frames are processed strictly in RAM and are NEVER permanently stored on disk by default.</li>
-              <li data-i18n="consentP3"><strong>Laboratory Reference Required:</strong> Continuous hemoglobin estimations require confirmatory laboratory Complete Blood Count (CBC) venous blood tests.</li>
-              <li data-i18n="consentP4"><strong>Right to Be Forgotten:</strong> You can permanently delete your participant profile, session history, and report metadata at any time.</li>
-            </ul>
+          <!-- Section 2: Informed Consent & Privacy -->
+          <div class="pc-section">
+            <div class="pc-section-header" style="margin-bottom: 12px;">
+              <div class="pc-section-title-wrap">
+                <div class="pc-section-badge-icon">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  </svg>
+                </div>
+                <h3 class="pc-section-title">2. Informed consent &amp; privacy</h3>
+              </div>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 12px 38px;">
+              Please review the important information below and select the applicable consent options to continue.
+            </p>
 
-            <div class="consent-checkbox-wrap">
-              <input type="checkbox" id="chkConsentResearch" checked required>
-              <label for="chkConsentResearch" class="consent-checkbox-label" data-i18n="chkConsentResearchText">
-                I understand this is an experimental research prototype and agree to participate in non-invasive ocular screening.
-              </label>
+            <div class="pc-consent-box">
+              <div style="display: flex; align-items: flex-start; gap: 8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2" style="flex-shrink:0; margin-top:2px;">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <div style="flex:1;">
+                  <ul class="pc-consent-bullets">
+                    <li data-i18n="consentP1">This is an experimental research prototype and does NOT provide a certified medical diagnosis.</li>
+                    <li data-i18n="consentP2">Images are processed for screening only and are not saved by default unless your consent and app settings allow it.</li>
+                    <li data-i18n="consentP3">Hemoglobin estimates and other model outputs are not a substitute for clinical evaluation or laboratory testing.</li>
+                    <li data-i18n="consentP4">You may withdraw consent and request deletion of your data according to the privacy policy.</li>
+                  </ul>
+                </div>
+              </div>
             </div>
-            <div class="consent-checkbox-wrap" style="margin-top: 8px;">
-              <input type="checkbox" id="chkConsentStorage" checked required>
-              <label for="chkConsentStorage" class="consent-checkbox-label" data-i18n="chkConsentStorageText">
-                I consent to privacy-aware session and report metadata storage with the ability to purge my records at any time.
-              </label>
-            </div>
-            <div class="consent-checkbox-wrap" style="margin-top: 8px;">
+
+            <!-- 4 Checkboxes (ALL UNCHECKED BY DEFAULT) -->
+            <label class="pc-checkbox-row" for="chkConsentResearch">
+              <input type="checkbox" id="chkConsentResearch" required>
+              <span class="pc-checkbox-label">
+                I understand this is experimental research software, not a diagnostic tool. <strong style="color: #ef4444;">*</strong>
+              </span>
+            </label>
+
+            <label class="pc-checkbox-row" for="chkConsentStorage">
+              <input type="checkbox" id="chkConsentStorage" required>
+              <span class="pc-checkbox-label">
+                I consent to privacy-aware session storage and report metadata (can be deleted at any time). <strong style="color: #ef4444;">*</strong>
+              </span>
+            </label>
+
+            <label class="pc-checkbox-row" for="chkConsentExternalAi">
+              <input type="checkbox" id="chkConsentExternalAi">
+              <span class="pc-checkbox-label">
+                I consent to send a minimized, de-identified image and relevant profile context to the external AI service for an optional AI explanation. <span style="color: var(--text-muted);">(Optional)</span>
+              </span>
+            </label>
+
+            <label class="pc-checkbox-row" for="chkConsentDemographic">
               <input type="checkbox" id="chkConsentDemographic">
-              <label for="chkConsentDemographic" class="consent-checkbox-label" data-i18n="chkConsentDemographicText">
-                (Optional) I consent to the collection of demographic data (gender) exclusively for research diversity evaluation. You may continue without selecting a gender.
-              </label>
-            </div>
+              <span class="pc-checkbox-label">
+                I consent to contribute de-identified data to research evaluation for improving the prototype. <span style="color: var(--text-muted);">(Optional)</span>
+              </span>
+            </label>
           </div>
 
           <div id="regErrorAlert" class="alert-box alert-danger" style="display: none; margin-bottom: 16px;"></div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+          <!-- Bottom Actions -->
+          <div class="pc-actions-row">
             <button id="btnBackToLang" class="btn-secondary" type="button" data-i18n="btnBack">&larr; Back</button>
-            <button id="btnSubmitRegistration" class="btn-primary" type="submit" style="min-width: 180px;">
+            <button id="btnSubmitRegistration" class="pc-agree-btn" type="submit" disabled>
               <span data-i18n="btnAgreeContinue">Agree &amp; Continue &rarr;</span>
             </button>
+          </div>
+
+          <div class="pc-privacy-footer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Your information is handled according to the displayed consent settings.</span>
           </div>
         </form>
       </div>
@@ -338,204 +2529,168 @@
     <!-- ================================================================
          PAGE 4: CAMERA & IMAGE CAPTURE (MODULE SELECTION & CAPTURE)
          ================================================================ -->
+    <!-- ================================================================
+         STEP 3: UNIFIED SCREENING WORKSPACE (PAGE 4)
+         ================================================================ -->
     <section id="page4Capture" class="page-view">
-      <!-- Top Navigation & Return Action -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <button id="btnBackToGuide" class="btn-secondary" type="button" style="padding: 6px 14px; font-size: 13px;">
-          &larr; Back to Protocol Guide
-        </button>
-        <span style="font-size: 12px; color: var(--text-muted);">Step 3 of 4: Screening Workspace</span>
+      <!-- Workspace Hero Heading & Subtitle -->
+      <div class="workspace-hero">
+        <div class="workspace-title-row">
+          <div class="workspace-accent-bar" aria-hidden="true"></div>
+          <h2 class="workspace-main-title" data-i18n="workspaceTitle">Unified Screening Workspace</h2>
+        </div>
+        <p class="workspace-subtitle" data-i18n="workspaceSub">
+          Upload one clear eye image. OcuScan will evaluate all compatible research targets and prepare one consolidated report.
+        </p>
+
+        <!-- Subtle Info Banner -->
+        <div class="workspace-info-banner" role="status">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <span data-i18n="workspaceInfoBanner">No disease selection needed &mdash; all supported targets are evaluated automatically.</span>
+        </div>
       </div>
 
-      <!-- Project Context Banner -->
-      <aside class="banner-notice" aria-label="System Notice">
-        <div>
-          <strong>Unified Clinical Multi-Target Screening Active:</strong>
-          Submit an ocular image to run continuous hemoglobin (Anemia), conjunctival hyperemia (SLID), and scleral icterus (Jaundice) simultaneously with active scientific safety gates.
-        </div>
-      </aside>
-
-      <!-- Clinical Target Modules Selection -->
-      <section aria-labelledby="modules-title">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <h2 id="modules-title" class="section-title" style="margin-bottom: 0;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="7" height="7"/>
-              <rect x="14" y="3" width="7" height="7"/>
-              <rect x="14" y="14" width="7" height="7"/>
-              <rect x="3" y="14" width="7" height="7"/>
-            </svg>
-            Clinical Target Modules (Evaluated in Unified Multi-Task Run)
-          </h2>
-          <span class="badge-tag available" style="font-size: 11px;">All 3 Active Models Evaluated</span>
-        </div>
-        <div class="modules-grid" id="modulesGrid">
-          <!-- Module A: Anemia -->
-          <article class="module-card selected" id="moduleCardAnemia" data-module="anemia" tabindex="0" role="button" aria-pressed="true">
-            <div class="card-top">
-              <div>
-                <h3 class="module-name">Anemia / Hemoglobin</h3>
-                <span class="module-sub">Continuous Hb Regression</span>
+      <!-- Main Two-Column Screening Layout -->
+      <div class="screening-workspace-grid">
+        <!-- Left Column: Capture or Upload Eye Image -->
+        <div class="screening-card">
+          <div class="screening-card-header">
+            <div class="screening-card-title-group">
+              <div class="screening-card-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
               </div>
-              <span class="status-badge available">RESEARCH ONLY</span>
+              <h3 class="screening-card-title" data-i18n="captureCardTitle">Capture or upload eye image</h3>
             </div>
-            <p class="module-desc">
-              Predicts laboratory hemoglobin (g/dL) from conjunctival pallor using a pretrained ResNet-50. Supports multi-view session averaging across palpebral and forniceal crops.
-            </p>
-            <div class="module-meta">
-              <span>Arch: ResNet-50</span>
-              <span>Test MAE: ~1.50 g/dL</span>
-            </div>
-          </article>
-
-          <!-- Module B: Conjunctival Injection (SLID) -->
-          <article class="module-card" id="moduleCardConj" data-module="slid" tabindex="0" role="button" aria-pressed="false">
-            <div class="card-top">
-              <div>
-                <h3 class="module-name">Conjunctival Injection (SLID)</h3>
-                <span class="module-sub">Clinical Slit-Lamp Hyperemia</span>
-              </div>
-              <span class="status-badge available">RESEARCH ONLY</span>
-            </div>
-            <p class="module-desc">
-              Predicts visible conjunctival injection on anterior slit-lamp photography using MobileNetV3-Small (Acc: 98.78%). Confounded Mendeley shortcut model remains strictly blocked.
-            </p>
-            <div class="module-meta">
-              <span>Arch: MobileNetV3-S</span>
-              <span>Test Acc: 98.78%</span>
-            </div>
-          </article>
-
-          <!-- Module C: Jaundice / Scleral Icterus -->
-          <article class="module-card" id="moduleCardJaund" data-module="jaundice" tabindex="0" role="button" aria-pressed="false">
-            <div class="card-top">
-              <div>
-                <h3 class="module-name">Scleral Icterus / Jaundice</h3>
-                <span class="module-sub">Categorical Yellowing Screening</span>
-              </div>
-              <span class="status-badge available">RESEARCH ONLY</span>
-            </div>
-            <p class="module-desc">
-              Categorical screening of visible scleral icterus (Normal vs. Jaundiced) via MobileNetV3-Small (CC BY-NC 4.0). Quantitative serum bilirubin estimation remains strictly unavailable.
-            </p>
-            <div class="module-meta">
-              <span>Arch: MobileNetV3-S</span>
-              <span>Categorical (No Lab Bilirubin)</span>
-            </div>
-          </article>
-
-          <!-- Module D: Mendeley Conjunctivitis (Audited & Blocked) -->
-          <article class="module-card" id="moduleCardMendeley" data-module="conjunctivitis" tabindex="0" role="button" aria-pressed="false">
-            <div class="card-top">
-              <div>
-                <h3 class="module-name">Mendeley Conjunctivitis</h3>
-                <span class="module-sub">Audited Shortcut Model</span>
-              </div>
-              <span class="status-badge blocked">BLOCKED (GATE)</span>
-            </div>
-            <p class="module-desc">
-              Reliability gate active. Audit proved normal vs disease classes have non-overlapping dimensions (56px square vs 352px macro). Output is withheld to prevent shortcut reliance.
-            </p>
-            <div class="module-meta">
-              <span>Arch: MobileNetV3-S</span>
-              <span>Gate: Resolution Confound</span>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <!-- Main Workflow Layout -->
-      <main class="workflow-grid">
-        <!-- Input Panel -->
-        <section class="panel" aria-labelledby="input-title">
-          <h2 id="input-title" class="section-title">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            Input Session &amp; Image Capture
-          </h2>
-
-          <!-- Module Status Explanation Banner -->
-          <div id="moduleBanner" class="alert-box alert-info" style="margin-bottom: 16px;">
-            <strong>Active Module: Anemia Hemoglobin Regressor</strong><br>
-            Permitted for experimental research use. You may upload one or multiple anatomical views (e.g. palpebral, forniceal, full eye) from the same capture session.
+            <span class="screening-card-badge" data-i18n="captureCardSubtitle">One upload &bull; One consolidated report</span>
           </div>
 
-          <!-- Source Mode Switcher -->
-          <div class="mode-switcher" style="display: flex; gap: 8px; margin-bottom: 16px;">
-            <button id="btnModeUpload" class="btn-mode active" type="button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-              File Upload Mode
-            </button>
-            <button id="btnModeWebcam" class="btn-mode" type="button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M23 7l-7 5 7 5V7z"/>
-                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-              </svg>
-              Live Laptop Camera
-            </button>
-          </div>
-
-          <!-- File Upload Section -->
+          <!-- File Upload Mode View -->
           <div id="uploadSection">
-            <!-- Dropzone -->
-            <div class="dropzone" id="dropzone" role="region" aria-label="Image dropzone">
-              <input type="file" id="fileInput" multiple accept=".jpg,.jpeg,.png,.bmp,.webp,.tiff" style="display: none;">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
-              <div class="dropzone-title">Click to upload or drag &amp; drop images</div>
-              <div class="dropzone-hint">Supports JPG, PNG, WEBP (Ocular anterior crops or full eye)</div>
+            <!-- Dropzone Area -->
+            <div class="scanner-dropzone" id="dropzone" role="region" aria-label="Eye image dropzone">
+              <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.bmp,.webp,.tiff" style="display: none;">
+              
+              <!-- Scanning Eye Reticle Graphic with Viewfinder Corner Brackets -->
+              <div class="eye-scanner-target" aria-hidden="true">
+                <span class="scanner-corner corner-tl"></span>
+                <span class="scanner-corner corner-tr"></span>
+                <span class="scanner-corner corner-bl"></span>
+                <span class="scanner-corner corner-br"></span>
+                <div class="eye-scanner-bg">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 48px; height: 48px; max-width: 48px; max-height: 48px; color: #0284c7;">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                    <circle cx="12" cy="12" r="1" fill="currentColor"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="dropzone-main-text">
+                <span data-i18n="dropzoneMain">Drag an image here or</span> <span class="browse-link" id="btnBrowseLink" data-i18n="dropzoneBrowse">browse files</span>
+              </div>
+              <div class="dropzone-sub-text" data-i18n="dropzoneSub">
+                Supported formats: JPG, PNG, WEBP &bull; Up to 10 MB
+              </div>
+
+              <button class="btn-choose-eye" id="btnChooseEye" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span data-i18n="btnChooseEyeText">Choose eye image</span>
+              </button>
             </div>
 
-            <!-- Uploaded Images Previews & View Selection -->
-            <div class="previews-container" id="previewsContainer" style="display: none;">
-              <!-- Dynamically populated -->
+            <!-- Single Image Uploaded Preview Card -->
+            <div id="singlePreviewContainer" style="display: none; margin-top: 14px;">
+              <div class="single-preview-card">
+                <div class="preview-main-row">
+                  <img id="previewImageThumb" class="preview-img-thumb" src="" alt="Selected eye preview">
+                  <div class="preview-details">
+                    <div class="preview-name-row">
+                      <span id="previewImageName" class="preview-filename">image.jpg</span>
+                    </div>
+                    <span id="previewImageMeta" class="preview-meta">1920 &times; 1080 &bull; 1.2 MB</span>
+                    <div class="preview-quality-row" id="previewQualityTags">
+                      <span id="badgeDetectionMode" class="badge-tag available" style="display: none;">👁 Auto-Cropped Eye</span>
+                      <span id="badgeEnhancement" class="badge-tag available" style="display: none; background: rgba(99, 102, 241, 0.12); color: #6366f1; border-color: rgba(99, 102, 241, 0.3);">✨ Enhanced (LAB)</span>
+                      <span id="badgeSharpness" class="badge-tag available">Laplacian Sharpness: Valid</span>
+                      <span id="badgeLuminance" class="badge-tag available">Exposure: Balanced</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Pre-Inference Inspection Pills -->
+                <div class="stage-pills-row" id="stagePillsRow" style="display: none; padding: 4px 10px; background: rgba(0,0,0,0.03); border-radius: 8px;">
+                  <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); align-self: center; margin-right: 4px;">Inspect Stage:</span>
+                  <button type="button" class="stage-pill-btn active" id="btnStageUpload" onclick="window.selectPreviewStage('upload')">
+                    01 Original Upload
+                  </button>
+                  <button type="button" class="stage-pill-btn" id="btnStageModelInput" onclick="window.selectPreviewStage('model_input')">
+                    02 Final Model Input (224&times;224)
+                  </button>
+                </div>
+
+                <div class="preview-action-row">
+                  <button type="button" class="btn-preview-link" id="btnReplaceImage">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Replace Image
+                  </button>
+                  <button type="button" class="btn-preview-link danger" id="btnRemoveImage">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    Remove
+                  </button>
+                </div>
+              </div>
+
+              <!-- Automated View Recognition & Guidance -->
+              <div id="aiViewRecognitionBox" class="alert-box alert-info" style="display: none; margin-top: 12px; font-size: 11.5px;">
+                <span id="aiViewRecognitionDesc">Detecting ocular anatomical features...</span>
+              </div>
+              <div id="qualityWarningBox" class="alert-box alert-warning" style="display: none; margin-top: 12px; font-size: 11.5px;"></div>
             </div>
+
+            <!-- Legacy Previews Container (Kept in DOM for test suite backwards compatibility) -->
+            <div class="previews-container" id="previewsContainer" style="display: none;"></div>
           </div>
 
-          <!-- Live Laptop Camera Section (Layer 6) -->
+          <!-- Live Laptop Camera View (Layer 6) -->
           <div id="webcamSection" style="display: none;">
-            <!-- Camera Mode & Zoom Toolbar -->
+            <!-- Camera Toolbar -->
             <div class="cam-toolbar">
               <div style="display: flex; gap: 6px; align-items: center;">
                 <button type="button" id="btnCamModeAuto" class="cam-mode-pill active">Auto Eye Detection</button>
                 <button type="button" id="btnCamModeManual" class="cam-mode-pill">Manual Reticle</button>
               </div>
               <div style="display: flex; gap: 6px; align-items: center;">
-                <button type="button" id="btnCamZoomToggle" class="cam-mode-pill" title="Toggle 2x Macro Close-Up View">🔍 1x View</button>
+                <button type="button" id="btnCamZoomToggle" class="cam-mode-pill" title="Toggle 2x Macro Close-Up View">&#128269; 1x View</button>
                 <span id="liveGuidancePill" class="crop-badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border-color: rgba(14, 165, 233, 0.3);">
-                  Move closer (10–15 cm)
+                  Move closer (10&ndash;15 cm)
                 </span>
               </div>
             </div>
 
-            <!-- Camera Viewport Container -->
+            <!-- Video Viewport -->
             <div class="webcam-container" id="webcamContainer">
               <video id="webcamVideo" autoplay playsinline muted></video>
               <div class="webcam-overlay" id="webcamOverlay">
-                <!-- Dynamic Eye Tracking Bounding Box -->
                 <div id="eyeDetectorBox" class="eye-detector-box" style="display: none;">
                   <div class="eye-box-corners"></div>
                   <span class="eye-box-label" id="eyeBoxLabel">Target Eye</span>
                 </div>
-
-                <!-- Manual Macro Framing Target (Reticle) -->
                 <div class="eye-guide-reticle" id="eyeGuideReticle">
                   <div class="eye-guide-oval"></div>
                 </div>
-
-                <!-- Live Guidance Box -->
                 <div class="guide-label-box" id="guideLabelBox">
-                  <span class="guide-title" id="guideTitleText">Manual Macro Framing Target (10–15 cm)</span>
+                  <span class="guide-title" id="guideTitleText">Manual Macro Framing Target (10&ndash;15 cm)</span>
                   <span class="guide-sub" id="guideSubText">Position one eye to fill this area. Positioning aid only; not automated eye detection.</span>
                 </div>
               </div>
@@ -543,57 +2698,44 @@
               <canvas id="cropCanvas" style="display: none;"></canvas>
             </div>
 
-            <!-- Anatomical Framing Warning (Prevent Full-Face Captures) -->
+            <!-- Framing Note -->
             <div class="alert-box alert-warning" style="margin-top: 10px; font-size: 11px; line-height: 1.45;">
-              <strong>⚠️ MACRO EYE FRAMING REQUIRED — NOT A FULL FACE:</strong><br>
-              The model requires a close-up image of the ocular conjunctiva. A full-face selfie contains mostly facial skin and background, which cannot be analyzed for microvascular conjunctival pallor. Move within 10–15 cm of the laptop camera and expose the target eye view.
+              <strong>&#9888;&#65039; MACRO EYE FRAMING REQUIRED — NOT A FULL FACE:</strong> Position the camera 10&ndash;15 cm from the eye. Macro close-up required, not a distant full-face selfie.
             </div>
 
-            <!-- Camera Controls -->
+            <!-- Camera Action Buttons -->
             <div class="camera-controls">
               <button id="btnStartCamera" class="btn-cam" type="button">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"/>
-                  <polygon points="10 8 16 12 10 16 10 8"/>
-                </svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
                 Start Camera
               </button>
               <button id="btnCaptureStill" class="btn-cam btn-cam-capture" type="button" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19 21H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2z"/>
-                </svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 21H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2z"/></svg>
                 Capture Still
               </button>
               <button id="btnStopCamera" class="btn-cam" type="button" style="display: none;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="6" y="6" width="12" height="12"/>
-                </svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"/></svg>
                 Stop
               </button>
             </div>
 
-            <!-- Camera Status & Error Alert -->
             <div id="webcamStatusAlert" class="alert-box alert-warning" style="display: none; margin-top: 12px;"></div>
 
-            <!-- Captured Still Preview & Guidance Card -->
-            <div id="capturedStillCard" class="captured-card" style="display: none; margin-top: 16px;">
+            <!-- Captured Still Card -->
+            <div id="capturedStillCard" class="captured-card" style="display: none; margin-top: 14px;">
               <div style="display: flex; gap: 14px; align-items: flex-start;">
-                <img id="capturedStillThumb" class="preview-thumb" alt="Captured still frame" style="width: 80px; height: 80px;">
+                <img id="capturedStillThumb" class="preview-thumb" alt="Captured frame" style="width: 80px; height: 80px;">
                 <div style="flex-grow: 1;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <strong style="font-size: 13px;">Captured Eye Crop</strong>
-                      <span id="capturedCropBadge" class="crop-badge" style="display: none;">Cropped Eye Region (Macro)</span>
-                    </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="font-size: 13px;">Captured Eye Crop</strong>
+                    <span id="capturedCropBadge" class="crop-badge" style="display: none;">Cropped Eye Region (Macro)</span>
                     <button id="btnRecapture" class="btn-remove" title="Discard and recapture" type="button" style="width: auto; padding: 2px 8px; font-size: 11px;">Recapture</button>
                   </div>
                   <div id="capturedCropMetadata" style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;"></div>
                   <div id="webcamQualityMetrics" style="font-size: 11px; margin-top: 4px;"></div>
                   <div id="capturedRejectionBox" class="alert-box alert-danger" style="display: none; margin-top: 8px; font-size: 11px;"></div>
                   <div style="margin-top: 8px;">
-                    <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 2px;">Anatomical View Tag:</label>
-                    <select id="webcamViewSelect" style="width: 100%; background: rgba(10, 15, 29, 0.8); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 12px;">
+                    <select id="webcamViewSelect" style="width: 100%; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 12px;">
                       <option value="raw_eye">Raw Full Eye View</option>
                       <option value="palpebral">Palpebral Conjunctiva</option>
                       <option value="forniceal">Forniceal Conjunctiva</option>
@@ -603,106 +2745,191 @@
                   </div>
                 </div>
               </div>
-              <!-- Actionable Guidance Box -->
               <div id="webcamGuidanceBox" class="guidance-box" style="margin-top: 10px; font-size: 11px;"></div>
             </div>
 
-            <!-- Webcam Domain Validation Gate Warning & Researcher Override -->
-            <div id="webcamDomainNotice" class="alert-box alert-danger" style="margin-top: 16px;">
-              <h4 style="display: flex; align-items: center; gap: 6px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-                Camera-Domain Validation Gate Active
-              </h4>
-              <p style="margin-bottom: 8px;">
-                The anemia ResNet-50 model was trained strictly on clinical research photography and has <strong>not been validated for ordinary laptop webcams</strong>. By default, webcam inference is blocked per Layer 6 standards.
-              </p>
+            <div id="webcamDomainNotice" class="alert-box alert-danger" style="margin-top: 14px;">
+              <div style="font-weight: 700; font-size: 11.5px; margin-bottom: 4px;">Camera-Domain Validation Gate Active</div>
               <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; color: var(--text-primary);">
                 <input type="checkbox" id="chkWebcamOverride">
-                <span>Enable Researcher Experimental Override (Unvalidated Webcam Test)</span>
+                <span>Enable Researcher Experimental Override (Unvalidated Laptop Webcam Test)</span>
               </label>
             </div>
           </div>
 
-          <!-- Automated Anatomical View Recognition Card -->
-          <div id="aiViewRecognitionBox" class="alert-box alert-info" style="display: none; margin-top: 14px; margin-bottom: 14px; border-left: 4px solid var(--color-brand);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <strong style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-primary);">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                Automatic Anatomical View Recognition
-              </strong>
-              <span id="aiViewConfidenceBadge" class="badge-tag available" style="font-size: 10px;">Automated Classification</span>
-            </div>
-            <div id="aiViewRecognitionDesc" style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.45;">
-              Analyzing anatomical surface features...
-            </div>
+          <!-- Divider line 'or' (Always accessible in both modes) -->
+          <div class="mode-or-divider">
+            <span data-i18n="dividerOr">or</span>
           </div>
 
-          <!-- Quality Pre-Check Feedback -->
-          <div id="qualityWarningBox" class="alert-box alert-warning" style="display: none; margin-bottom: 16px;">
-            <!-- Dynamically populated with blur/exposure flags -->
+          <!-- Mode Selector Buttons (Always accessible in both modes) -->
+          <div class="upload-mode-buttons">
+            <button id="btnModeUpload" class="btn-mode-toggle active" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span data-i18n="modeUploadText">Upload image</span>
+            </button>
+            <button id="btnModeWebcam" class="btn-mode-toggle" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 7l-7 5 7 5V7z"/>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+              <span data-i18n="modeLiveCameraText">Live camera</span>
+            </button>
           </div>
 
-          <!-- Action Button -->
-          <button id="btnAnalyze" class="btn-primary" disabled>
-            <span id="btnAnalyzeText">Run Research Inference</span>
+          <!-- Primary Analyze Button -->
+          <button id="btnAnalyze" class="btn-primary btn-analyze-unified" disabled type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            <span id="btnAnalyzeText" data-i18n="btnAnalyzeText">Analyze Image</span>
             <div id="btnSpinner" class="spinner" style="display: none;"></div>
           </button>
-        </section>
+        </div>
 
-        <!-- Results & Export Quick Preview Panel -->
-        <section class="panel" aria-labelledby="results-title">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
-            <h2 id="results-title" class="section-title" style="margin-bottom: 0;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
-              </svg>
-              Session Analysis Preview
-            </h2>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <button id="btnViewReport" class="btn-primary" type="button" style="display: none; padding: 6px 12px; font-size: 12px; background: linear-gradient(135deg, #2563eb, #3b82f6); border-radius: 6px; align-items: center; gap: 6px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
+        <!-- Right Column: What We Assess Automatically -->
+        <div class="screening-card">
+          <div class="screening-card-header">
+            <div class="screening-card-title-group">
+              <div class="screening-card-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"/>
+                  <rect x="14" y="3" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/>
                 </svg>
-                Clinical Report
-              </button>
-              <button id="btnExport" class="btn-export" style="display: none;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Export JSON
-              </button>
+              </div>
+              <h3 class="screening-card-title" data-i18n="assessCardTitle">What we assess automatically</h3>
             </div>
           </div>
 
-          <!-- Initial Placeholder State -->
-          <div id="resultsEmpty" class="results-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 16v-4"/>
-              <path d="M12 8h.01"/>
-            </svg>
-            <p>Select images and click <strong>Run Research Inference</strong> to generate an experimental session estimate.</p>
+          <div class="assessment-list">
+            <!-- Target A: Anemia / Hemoglobin -->
+            <div class="assess-info-card" id="moduleCardAnemia">
+              <div class="assess-left">
+                <div class="assess-icon-wrap assess-icon-anemia" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                  </svg>
+                </div>
+                <div class="assess-texts">
+                  <span class="assess-title" data-i18n="assessAnemiaTitle">Anemia / Hemoglobin</span>
+                  <span class="assess-desc" data-i18n="assessAnemiaDesc">Experimental Hb estimate from compatible conjunctival views</span>
+                </div>
+              </div>
+              <span class="assess-badge" data-i18n="badgeResearchOnly">Research only</span>
+            </div>
+
+            <!-- Target B: Conjunctival Injection (SLID) -->
+            <div class="assess-info-card" id="moduleCardConj">
+              <div class="assess-left">
+                <div class="assess-icon-wrap assess-icon-slid" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </div>
+                <div class="assess-texts">
+                  <span class="assess-title" data-i18n="assessSlidTitle">Conjunctival injection (SLID)</span>
+                  <span class="assess-desc" data-i18n="assessSlidDesc">Visible redness classification when image quality and domain are suitable</span>
+                </div>
+              </div>
+              <span class="assess-badge" data-i18n="badgeResearchOnly">Research only</span>
+            </div>
+
+            <!-- Target C: Visible Scleral Icterus -->
+            <div class="assess-info-card" id="moduleCardJaund">
+              <div class="assess-left">
+                <div class="assess-icon-wrap assess-icon-jaundice" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 2v3m0 14v3M2 12h3m14 0h3m-3.5-6.5l-2.1 2.1m-8.8 8.8l-2.1 2.1m0-13l2.1 2.1m8.8 8.8l2.1 2.1"/>
+                  </svg>
+                </div>
+                <div class="assess-texts">
+                  <span class="assess-title" data-i18n="assessIcterusTitle">Visible scleral icterus</span>
+                  <span class="assess-desc" data-i18n="assessIcterusDesc">Categorical scleral-yellowing screen; not a bilirubin measurement</span>
+                </div>
+              </div>
+              <span class="assess-badge" data-i18n="badgeResearchOnly">Research only</span>
+            </div>
           </div>
 
-          <!-- Active Results Display -->
-          <div id="resultsContent" class="results-content" style="display: none;">
-            <!-- Dynamically populated -->
+          <!-- Bottom Transparency Footnote -->
+          <div class="assess-footer-note">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #0284c7; flex-shrink: 0; margin-top: 1px;">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <span data-i18n="assessFooterNote">Unsuitable image, unsupported capture conditions, or unavailable model? The report will state this clearly rather than invent a result.</span>
           </div>
-        </section>
-      </main>
+        </div>
+      </div>
+
+      <!-- Bottom Process Tracker: How It Works -->
+      <div class="how-it-works-panel">
+        <div class="how-it-works-lead">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="18" cy="5" r="3"/>
+            <circle cx="6" cy="12" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+          <div>
+            <div class="how-it-works-title" data-i18n="howItWorksTitle">How it works</div>
+            <div class="how-it-works-sub" data-i18n="howItWorksSub">From image to report</div>
+          </div>
+        </div>
+
+        <div class="how-it-works-steps">
+          <div class="how-step">
+            <div class="how-step-circle">1</div>
+            <div class="how-step-info">
+              <span class="how-step-name" data-i18n="howStep1Name">Image quality check</span>
+              <span class="how-step-desc" data-i18n="howStep1Desc">Validates clarity and view</span>
+            </div>
+          </div>
+          <span class="how-arrow" aria-hidden="true">&rarr;</span>
+
+          <div class="how-step">
+            <div class="how-step-circle">2</div>
+            <div class="how-step-info">
+              <span class="how-step-name" data-i18n="howStep2Name">Automatic multi-target inference</span>
+              <span class="how-step-desc" data-i18n="howStep2Desc">Evaluates all supported targets</span>
+            </div>
+          </div>
+          <span class="how-arrow" aria-hidden="true">&rarr;</span>
+
+          <div class="how-step">
+            <div class="how-step-circle">3</div>
+            <div class="how-step-info">
+              <span class="how-step-name" data-i18n="howStep3Name">AI-assisted explanation (if enabled)</span>
+              <span class="how-step-desc" data-i18n="howStep3Desc">Provides clear, contextual insights</span>
+            </div>
+          </div>
+          <span class="how-arrow" aria-hidden="true">&rarr;</span>
+
+          <div class="how-step">
+            <div class="how-step-circle">4</div>
+            <div class="how-step-info">
+              <span class="how-step-name" data-i18n="howStep4Name">Consolidated report</span>
+              <span class="how-step-desc" data-i18n="howStep4Desc">View, download or save</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden compatibility elements for existing DOM references -->
+      <div id="resultsEmpty" style="display: none;"></div>
+      <div id="resultsContent" style="display: none;"></div>
+      <button id="btnExport" style="display: none;"></button>
+      <button id="btnViewReport" style="display: none;"></button>
     </section>
 
     <!-- ================================================================
@@ -723,55 +2950,16 @@
          ================================================================ -->
     <section id="page6Results" class="page-view">
       <div style="max-width: 1080px; margin: 0 auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-          <div>
-            <h2 class="section-title" style="margin: 0;" data-i18n="resultsTitle">Ocular Screening Results &amp; Clinical Insights</h2>
-            <p style="color: var(--text-secondary); font-size: 13px;" data-i18n="resultsSub">
-              Experimental non-invasive screening findings with active reliability and domain validation boundaries.
-            </p>
-          </div>
-
-          <!-- Download Official PDF & Scorecard Actions -->
-          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <button id="btnDownloadPdfReport" class="btn-primary" type="button" style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 0 16px rgba(16, 185, 129, 0.3);">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              <span data-i18n="btnDownloadPdf">Download 2-Page PDF (EN)</span>
-            </button>
-
-            <button id="btnDownloadPdfHi" class="btn-secondary" type="button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              <span>रिपोर्ट डाउनलोड (हिंदी)</span>
-            </button>
-
-            <button id="btnOpenPrintScorecard" class="btn-secondary" type="button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-              </svg>
-              <span data-i18n="btnViewPrintable">View Printable Scorecard</span>
-            </button>
-          </div>
+        <div style="margin-bottom: 18px;">
+          <h2 class="section-title" style="margin: 0;" data-i18n="resultsTitle">Ocular Screening Results &amp; Clinical Insights</h2>
+          <p style="color: var(--text-secondary); font-size: 13px; margin: 4px 0 0;" data-i18n="resultsSub">
+            Experimental non-invasive screening findings with active reliability and domain validation boundaries.
+          </p>
         </div>
 
-        <!-- Render Target for Results Cards -->
+        <!-- Render Target for Results Cards (Includes Single Consolidated Bottom Navigation) -->
         <div id="fullResultsContainer">
           <!-- Dynamically populated from dashboard.js -->
-        </div>
-
-        <div class="step-actions-bar">
-          <button id="btnBackToCapture" class="btn-secondary" type="button" data-i18n="btnBackCapture">&larr; Back to Capture</button>
-          <div style="display: flex; gap: 10px;">
-            <button id="btnNewScreeningFromResults" class="btn-secondary" type="button" data-i18n="btnNewScreening">Start New Screening</button>
-            <button id="btnViewHistoryFromResults" class="btn-primary" type="button" data-i18n="btnViewHistory">View Session History &rarr;</button>
-          </div>
         </div>
       </div>
     </section>
@@ -833,6 +3021,67 @@
       </div>
     </section>
 
+  <!-- Modal: Mandatory Age & Clinical Reference Update for Existing Accounts -->
+  <div id="modalUpdateAge" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 10000; justify-content: center; align-items: center; padding: 20px;">
+    <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); width: 100%; max-width: 500px; border-radius: var(--radius-md); padding: 24px; box-shadow: 0 16px 48px rgba(0,0,0,0.6);">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+        <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(2, 132, 199, 0.2); display: flex; align-items: center; justify-content: center; color: var(--color-brand);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <div>
+          <h3 style="font-size: 16px; font-weight: 700; color: #ffffff; margin: 0;">Mandatory Profile Update</h3>
+          <span style="font-size: 12px; color: var(--text-secondary);">Age &amp; Profile Details Required</span>
+        </div>
+      </div>
+      <p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px;">
+        Please confirm your age and profile details before starting a new screening session.
+      </p>
+
+      <form id="formUpdateAge">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inputUpdateAge">Age (Years) * <span style="font-size: 11px; color: var(--color-brand);">(0–120)</span></label>
+          <input type="number" id="inputUpdateAge" class="form-input" min="0" max="120" step="1" required placeholder="e.g. 28">
+        </div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="selectUpdateClinicalSex">Gender *</label>
+          <select id="selectUpdateClinicalSex" class="form-input" required>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="not_disclosed" selected>Prefer not to say / Other</option>
+          </select>
+        </div>
+        <div id="updatePregnancySection" class="form-group" style="display: none; margin-bottom: 12px; background: rgba(2, 132, 199, 0.05); padding: 8px 12px; border-radius: var(--radius-sm);">
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;">
+            <input type="checkbox" id="chkUpdatePregnancy"> Currently Pregnant
+          </label>
+          <div id="updateTrimesterWrap" style="display: none; margin-top: 6px; font-size: 12px;">
+            <span>Trimester:</span>
+            <select id="selectUpdateTrimester" class="form-input" style="width: auto; padding: 2px 8px; font-size: 12px;">
+              <option value="1">1st Trimester</option>
+              <option value="2">2nd Trimester</option>
+              <option value="3">3rd Trimester</option>
+            </select>
+          </div>
+        </div>
+        <div class="consent-checkbox-wrap" style="margin-bottom: 16px;">
+          <input type="checkbox" id="chkUpdateConsentExternalAi" checked>
+          <label for="chkUpdateConsentExternalAi" class="consent-checkbox-label" style="font-size: 11.5px;">
+            I consent to OpenAI Vision personalized analysis (zero PII transmitted).
+          </label>
+        </div>
+
+        <div id="updateAgeErrorAlert" class="alert-box alert-danger" style="display: none; margin-bottom: 12px; font-size: 12px;"></div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button id="btnCancelUpdateAge" type="button" class="btn-secondary">Cancel</button>
+          <button id="btnSubmitUpdateAge" type="submit" class="btn-primary">Save &amp; Proceed</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- In-Page Clinical Screening Report Modal Preview -->
@@ -932,6 +3181,6 @@
     </div>
   </aside>
 
-  <script src="/static/js/dashboard.js"></script>
+  <script src="/static/js/dashboard.js?v=20261017_v12"></script>
 </body>
 </html>
