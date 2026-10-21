@@ -35,6 +35,9 @@ dataset anemia/
 Eye Conjunctiva Segmentation Dataset/
 Image Dataset on Eye Diseases Classification (Uveitis, Conjunctivitis, Cataract, Eyelid) with Symptoms and SMOTE Validation/
 data/processed/
+/Nuclear Cataract Dataset/
+/stye/
+/backups/
 
 # Large Model Weight Binaries (>100MB exceeds GitHub push limits)
 *.pth

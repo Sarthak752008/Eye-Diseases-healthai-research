@@ -58,7 +58,9 @@ class CalibratedEnsembleFusion:
         segmentation_result: Optional[Dict[str, Any]] = None,
         chromatic_features: Optional[Dict[str, Any]] = None,
         quality_info: Optional[Dict[str, Any]] = None,
-        secondary_vision: Optional[Dict[str, Any]] = None
+        secondary_vision: Optional[Dict[str, Any]] = None,
+        cataract_result: Optional[Dict[str, Any]] = None,
+        stye_result: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Consumes all pipeline components and computes a calibrated multi-modal evaluation.
@@ -70,6 +72,8 @@ class CalibratedEnsembleFusion:
         chrom = chromatic_features or {}
         qual = quality_info or {}
         vision = secondary_vision or {}
+        cataract = cataract_result or {}
+        stye = stye_result or {}
 
         # 1. Quality & Abstention Checks
         sharpness = qual.get("sharpness", 100.0)
@@ -97,9 +101,11 @@ class CalibratedEnsembleFusion:
         if anemia.get("status") == "available_research_only":
             pred = anemia.get("prediction", [])
             if isinstance(pred, list) and len(pred) > 0:
-                hb_val = pred[0].get("predicted_hb_g_dl")
+                hb_val = pred[0].get("hb_pred_g_dl") or pred[0].get("predicted_hb_g_dl") or anemia.get("view_mean")
                 decision = pred[0].get("clinical_decision", {})
-                hb_stage = decision.get("severity_stage", "Unknown")
+                hb_stage = decision.get("stage_label_en") or decision.get("severity_stage", "Unknown")
+            elif anemia.get("view_mean") is not None:
+                hb_val = anemia.get("view_mean")
 
         slid_prob = None
         slid_class = "N/A"
@@ -117,6 +123,31 @@ class CalibratedEnsembleFusion:
                 jaund_prob = pred[0].get("confidence", 0.5)
                 jaund_class = pred[0].get("predicted_class", "normal")
 
+        cataract_prob = None
+        cataract_class = "N/A"
+        cataract_locs = None
+        if cataract.get("status") in ("available_research_only", "success"):
+            c_pred = cataract.get("prediction") or cataract.get("raw_prediction") or []
+            if isinstance(c_pred, list) and len(c_pred) > 0 and isinstance(c_pred[0], dict):
+                cataract_prob = c_pred[0].get("confidence", 0.5)
+                cataract_class = c_pred[0].get("predicted_class", "normal_clear_lens")
+                cataract_locs = c_pred[0].get("locs_grade_estimate")
+            elif isinstance(c_pred, dict):
+                cataract_prob = c_pred.get("confidence", 0.5)
+                cataract_class = c_pred.get("predicted_class", "normal_clear_lens")
+                cataract_locs = c_pred.get("locs_grade_estimate")
+
+        stye_prob = None
+        stye_class = "N/A"
+        if stye.get("status") in ("available_research_only", "success"):
+            s_pred = stye.get("prediction") or stye.get("raw_prediction") or []
+            if isinstance(s_pred, list) and len(s_pred) > 0 and isinstance(s_pred[0], dict):
+                stye_prob = s_pred[0].get("confidence", 0.5)
+                stye_class = s_pred[0].get("predicted_class", "normal")
+            elif isinstance(s_pred, dict):
+                stye_prob = s_pred.get("confidence", 0.5)
+                stye_class = s_pred.get("predicted_class", "normal")
+
         # 3. Cross-Modal Concordance Analysis
         concordance_flags = []
         concordance_score = 1.0  # Perfect baseline
@@ -124,18 +155,19 @@ class CalibratedEnsembleFusion:
         # Check Anemia vs Erythema Index
         ei = chrom.get("erythema_index", 0.15)
         if hb_val is not None:
-            if hb_val < 11.0 and ei < 0.15:
+            if hb_val < 11.0 and ei < 0.18:
                 concordance_flags.append("High concordance: ResNet-50 Hb regression confirms low Erythema Index mucosal pallor.")
-            elif hb_val >= 12.0 and ei >= 0.20:
+            elif hb_val >= 12.0 and ei >= 0.18:
                 concordance_flags.append("High concordance: Healthy Hb regression verified by strong microvascular erythema.")
             elif hb_val < 9.0 and ei > 0.28:
                 concordance_flags.append("Physiological discordance: Low Hb predicted despite high conjunctival erythema (possible hyperemic inflammation masking pallor).")
                 concordance_score -= 0.25
 
         # Check Conjunctivitis vs Erythema Index
-        if slid_class == "injection" and ei > 0.25:
+        is_inj = "injection" in slid_class or "hyperemia" in slid_class
+        if is_inj and ei > 0.22:
             concordance_flags.append("High concordance: SLID conjunctival injection confirmed by elevated microvascular erythema.")
-        elif slid_class == "injection" and ei < 0.10:
+        elif is_inj and ei < 0.12:
             concordance_flags.append("Mild divergence: SLID injection detected without high global erythema.")
             concordance_score -= 0.15
 
@@ -153,6 +185,8 @@ class CalibratedEnsembleFusion:
         # 4. Calibrated Probabilities
         calibrated_slid = self._calibrate_probability(slid_prob, "slid") if slid_prob is not None else None
         calibrated_jaund = self._calibrate_probability(jaund_prob, "jaundice") if jaund_prob is not None else None
+        calibrated_cataract = self._calibrate_probability(cataract_prob, "cataract") if cataract_prob is not None else None
+        calibrated_stye = self._calibrate_probability(stye_prob, "stye") if stye_prob is not None else None
 
         # 5. Composite Multi-Target Screening Risk Tier
         if should_abstain:
@@ -163,14 +197,16 @@ class CalibratedEnsembleFusion:
             # Evaluate clinical risk hierarchy
             is_severe_anemia = (hb_val is not None and hb_val < 8.0)
             is_moderate_anemia = (hb_val is not None and 8.0 <= hb_val < 11.0)
-            is_active_injection = (slid_class == "injection" and (calibrated_slid or 0) > 0.65)
+            is_active_injection = (("injection" in slid_class or "hyperemia" in slid_class) and (calibrated_slid or 0) > 0.65)
             is_active_icterus = (jaund_class == "visibly_jaundiced" and (calibrated_jaund or 0) > 0.65)
+            is_active_cataract = ("cataract" in str(cataract_class).lower() and (calibrated_cataract or 0) > 0.65)
+            is_active_stye = (("stye" in str(stye_class).lower() or "hordeolum" in str(stye_class).lower()) and (calibrated_stye or 0) > 0.65)
 
-            if is_severe_anemia or (is_active_injection and is_active_icterus):
+            if is_severe_anemia or (is_active_injection and is_active_icterus) or (is_active_cataract and (cataract_locs or 0) >= 4):
                 screening_tier = "high_risk_flag"
                 tier_label = "HIGH RISK / CLINICAL ATTENTION"
-                risk_summary = "Significant ocular abnormalities detected. Immediate physician / laboratory CBC blood consultation advised."
-            elif is_moderate_anemia or is_active_injection or is_active_icterus:
+                risk_summary = "Significant ocular abnormalities detected. Immediate ophthalmologist / physician consultation advised."
+            elif is_moderate_anemia or is_active_injection or is_active_icterus or is_active_cataract or is_active_stye:
                 screening_tier = "borderline_review"
                 tier_label = "BORDERLINE / CLINICAL REVIEW"
                 risk_summary = "One or more biomarkers show deviation from normal reference ranges. Confirmatory testing recommended."
@@ -190,13 +226,18 @@ class CalibratedEnsembleFusion:
             "concordance_flags": concordance_flags,
             "calibrated_probabilities": {
                 "slid_injection": calibrated_slid,
-                "scleral_icterus": calibrated_jaund
+                "scleral_icterus": calibrated_jaund,
+                "nuclear_cataract": calibrated_cataract,
+                "stye_hordeolum": calibrated_stye
             },
             "specialist_findings": {
                 "anemia_hb_g_dl": hb_val,
                 "anemia_staging": hb_stage,
                 "conjunctivitis_status": slid_class,
-                "jaundice_status": jaund_class
+                "jaundice_status": jaund_class,
+                "cataract_status": cataract_class,
+                "cataract_locs_grade": cataract_locs,
+                "stye_status": stye_class
             },
             "segmentation_adequacy": {
                 "conjunctiva_exposure_pct": conj_cov,

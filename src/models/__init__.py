@@ -14,3 +14,14 @@ from .jaundice_model import (
     save_jaundice_checkpoint,
     load_jaundice_checkpoint
 )
+from .cataract_model import (
+    CataractClassifier,
+    save_cataract_checkpoint,
+    load_cataract_checkpoint
+)
+from .stye_model import (
+    StyeClassifier,
+    save_stye_checkpoint,
+    load_stye_checkpoint
+)
+

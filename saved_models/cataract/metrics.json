@@ -1,0 +1,62 @@
+{
+  "disease": "Nuclear Cataract",
+  "architecture": "MobileNetV3-Small",
+  "dataset": "Nuclear Cataract Dataset (Cruz-Vega et al. / Ignatowicz et al.)",
+  "modality": "Slit-Lamp Biomicroscopy (Topcon DC-3 / SL-D7)",
+  "locs_iii_protocol": "Lens Opacities Classification System III",
+  "total_images": 335,
+  "unique_patients": 69,
+  "patient_isolated_split": {
+    "train_patients": 47,
+    "val_patients": 10,
+    "test_patients": 12,
+    "train_images": 234,
+    "val_images": 51,
+    "test_images": 50
+  },
+  "validation_metrics": {
+    "accuracy": 0.9019607843137255,
+    "precision": 0.9019607843137255,
+    "recall_sensitivity": 1.0,
+    "specificity": 0.0,
+    "f1_score": 0.9484536082474226,
+    "roc_auc": 0.6260869565217392,
+    "confusion_matrix": [
+      [
+        0,
+        5
+      ],
+      [
+        0,
+        46
+      ]
+    ],
+    "true_negatives": 0,
+    "false_positives": 5,
+    "false_negatives": 0,
+    "true_positives": 46
+  },
+  "test_metrics": {
+    "accuracy": 0.8,
+    "precision": 0.8,
+    "recall_sensitivity": 1.0,
+    "specificity": 0.0,
+    "f1_score": 0.8888888888888888,
+    "roc_auc": 0.9099999999999999,
+    "confusion_matrix": [
+      [
+        0,
+        10
+      ],
+      [
+        0,
+        40
+      ]
+    ],
+    "true_negatives": 0,
+    "false_positives": 10,
+    "false_negatives": 0,
+    "true_positives": 40
+  },
+  "training_duration_seconds": 1497.64
+}

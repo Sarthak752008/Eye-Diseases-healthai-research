@@ -62,6 +62,14 @@ class Settings:
         "JAUNDICE_CONFIG_PATH",
         os.path.join(WORKSPACE_ROOT, "saved_models", "jaundice", "jaundice_config.json")
     )
+    CATARACT_CHECKPOINT_PATH: str = os.getenv(
+        "CATARACT_CHECKPOINT_PATH",
+        os.path.join(WORKSPACE_ROOT, "saved_models", "cataract", "best_model.pth")
+    )
+    STYE_CHECKPOINT_PATH: str = os.getenv(
+        "STYE_CHECKPOINT_PATH",
+        os.path.join(WORKSPACE_ROOT, "saved_models", "stye", "best_model.pth")
+    )
 
     # Compute Device
     DEVICE: str = os.getenv("DEVICE", "cpu")
@@ -76,3 +84,11 @@ class Settings:
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 settings = Settings()
+
+# Module-level convenience exports
+ANEMIA_CHECKPOINT_PATH = settings.ANEMIA_CHECKPOINT_PATH
+CONJUNCTIVITIS_CHECKPOINT_PATH = settings.CONJUNCTIVITIS_CHECKPOINT_PATH
+SLID_CHECKPOINT_PATH = settings.SLID_CHECKPOINT_PATH
+JAUNDICE_CHECKPOINT_PATH = settings.JAUNDICE_CHECKPOINT_PATH
+CATARACT_CHECKPOINT_PATH = settings.CATARACT_CHECKPOINT_PATH
+STYE_CHECKPOINT_PATH = settings.STYE_CHECKPOINT_PATH

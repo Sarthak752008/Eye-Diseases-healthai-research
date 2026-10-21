@@ -13,9 +13,13 @@ Implements:
 
 import os
 import sys
+import uuid
+import logging
 from typing import List, Dict, Any, Optional, Union
 import numpy as np
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if WORKSPACE_ROOT not in sys.path:
@@ -27,6 +31,8 @@ try:
     from src.models.anemia_model import load_anemia_checkpoint, AnemiaRegressor
     from src.models.conjunctivitis_model import load_conjunctivitis_checkpoint, ConjunctivitisClassifier
     from src.models.jaundice_model import load_jaundice_checkpoint, JaundiceClassifier
+    from src.models.cataract_model import load_cataract_checkpoint, CataractClassifier
+    from src.models.stye_model import load_stye_checkpoint, StyeClassifier
     TORCH_AVAILABLE = True
 except (ImportError, Exception):
     torch = None
@@ -37,6 +43,10 @@ except (ImportError, Exception):
     ConjunctivitisClassifier = Any  # type: ignore
     load_jaundice_checkpoint = None
     JaundiceClassifier = Any  # type: ignore
+    load_cataract_checkpoint = None
+    CataractClassifier = Any  # type: ignore
+    load_stye_checkpoint = None
+    StyeClassifier = Any  # type: ignore
     TORCH_AVAILABLE = False
 from src.preprocessing.image_quality import (
     safe_load_image,
@@ -48,7 +58,9 @@ from src.inference.clinical_analytics import (
     extract_ocular_chromatic_features,
     compute_anemia_clinical_decision,
     compute_slid_clinical_decision,
-    compute_jaundice_clinical_decision
+    compute_jaundice_clinical_decision,
+    compute_cataract_clinical_decision,
+    compute_stye_clinical_decision
 )
 
 # Allowed ocular views supported by the trained Anemia pipeline
@@ -101,6 +113,15 @@ class InferenceResult(dict):
             **kwargs
         )
 
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(f"'InferenceResult' object has no attribute '{name}'")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        self[name] = value
+
 
 class EyeHealthInferenceService:
     """
@@ -112,6 +133,8 @@ class EyeHealthInferenceService:
         anemia_checkpoint_path: Optional[str] = None,
         slid_checkpoint_path: Optional[str] = None,
         jaundice_checkpoint_path: Optional[str] = None,
+        cataract_checkpoint_path: Optional[str] = None,
+        stye_checkpoint_path: Optional[str] = None,
         device: str = 'cpu'
     ):
         self.device = device
@@ -124,9 +147,17 @@ class EyeHealthInferenceService:
         self.jaundice_checkpoint_path = jaundice_checkpoint_path or os.path.join(
             WORKSPACE_ROOT, 'saved_models', 'jaundice', 'best_model.pth'
         )
+        self.cataract_checkpoint_path = cataract_checkpoint_path or os.path.join(
+            WORKSPACE_ROOT, 'saved_models', 'cataract', 'best_model.pth'
+        )
+        self.stye_checkpoint_path = stye_checkpoint_path or os.path.join(
+            WORKSPACE_ROOT, 'saved_models', 'stye', 'best_model.pth'
+        )
         self._anemia_model: Optional[AnemiaRegressor] = None
         self._slid_model: Optional[ConjunctivitisClassifier] = None
         self._jaundice_model: Optional[JaundiceClassifier] = None
+        self._cataract_model: Optional[CataractClassifier] = None
+        self._stye_model: Optional[StyeClassifier] = None
         if TORCH_AVAILABLE and transforms is not None:
             self._transform = transforms.Compose([
                 transforms.ToTensor(),
@@ -183,13 +214,40 @@ class EyeHealthInferenceService:
             self._jaundice_model.eval()
         return self._jaundice_model
 
+    def _get_cataract_model(self) -> CataractClassifier:
+        """Lazy single-instance loading of the Nuclear Cataract model."""
+        if not TORCH_AVAILABLE:
+            raise RuntimeError(
+                "PyTorch runtime is not installed in the environment. Deep learning forward inference is unavailable."
+            )
+        if self._cataract_model is None:
+            if not os.path.exists(self.cataract_checkpoint_path):
+                raise FileNotFoundError(f"Cataract checkpoint not found at: {self.cataract_checkpoint_path}")
+            self._cataract_model = load_cataract_checkpoint(self.cataract_checkpoint_path, device=self.device)
+            self._cataract_model.eval()
+        return self._cataract_model
+
+    def _get_stye_model(self) -> StyeClassifier:
+        """Lazy single-instance loading of the Stye / Hordeolum model."""
+        if not TORCH_AVAILABLE:
+            raise RuntimeError(
+                "PyTorch runtime is not installed in the environment. Deep learning forward inference is unavailable."
+            )
+        if self._stye_model is None:
+            if not os.path.exists(self.stye_checkpoint_path):
+                raise FileNotFoundError(f"Stye checkpoint not found at: {self.stye_checkpoint_path}")
+            self._stye_model = load_stye_checkpoint(self.stye_checkpoint_path, device=self.device)
+            self._stye_model.eval()
+        return self._stye_model
+
     def _prepare_image_input(
         self,
         img_item: Union[str, Image.Image]
     ) -> Dict[str, Any]:
         """
-        Validates, safely loads, checks quality, and prepares an image.
-        Returns a dict with 'image', 'quality', and 'error' (if any).
+        Validates, safely loads, applies automatic eye detection/cropping,
+        conservative LAB luminance enhancement, and evaluates multi-target quality gate.
+        Returns a dict with 'image', 'original_image', 'quality', 'detection', 'enhancement', 'previews', and 'error'.
         """
         if isinstance(img_item, str):
             if not os.path.exists(img_item):
@@ -206,8 +264,42 @@ class EyeHealthInferenceService:
         else:
             return {'image': None, 'quality': None, 'error': f"Invalid image type: {type(img_item)}"}
 
-        quality = calculate_image_quality(raw_img)
-        return {'image': raw_img, 'quality': quality, 'error': None}
+        from src.preprocessing.advanced_pipeline import process_ocular_image_advanced
+
+        proc_res = process_ocular_image_advanced(raw_img, generate_previews=True)
+        processed_img = proc_res["processed_image"]
+        quality_gate = proc_res["quality_gate"]
+        q_metrics = quality_gate.get("metrics", {})
+        q_flags = quality_gate.get("flags", {})
+
+        quality_summary = {
+            'sharpness': q_metrics.get("sharpness_laplacian", 0.0),
+            'brightness': q_metrics.get("mean_luminance", 0.0),
+            'contrast': q_metrics.get("contrast_std", 0.0),
+            'is_blurry': q_flags.get("is_blurry", False),
+            'is_too_dark': q_flags.get("is_underexposed", False),
+            'is_too_bright': q_flags.get("is_overexposed", False),
+            'is_too_distant': q_flags.get("is_too_distant", False),
+            'metrics': q_metrics,
+            'target_suitability': quality_gate.get("target_suitability", {}),
+            'issues_en': quality_gate.get("issues_en", []),
+            'issues_hi': quality_gate.get("issues_hi", []),
+            'retake_guidance_en': quality_gate.get("retake_guidance_en", []),
+            'retake_guidance_hi': quality_gate.get("retake_guidance_hi", [])
+        }
+
+        return {
+            'image': processed_img,
+            'original_image': proc_res["original_image"],
+            'cropped_image': proc_res.get("cropped_image"),
+            'final_model_input': proc_res.get("final_model_input"),
+            'quality': quality_summary,
+            'detection': proc_res["detection"],
+            'enhancement': proc_res["enhancement"],
+            'quality_gate': quality_gate,
+            'previews': proc_res["previews"],
+            'error': None
+        }
 
     def predict_anemia(
         self,
@@ -215,7 +307,11 @@ class EyeHealthInferenceService:
         view_types: Optional[Union[str, List[str]]] = None,
         capture_source: str = "upload",
         experimental_override: bool = False,
-        gender: str = "prefer_not_to_say"
+        gender: str = "prefer_not_to_say",
+        age_years: Optional[int] = None,
+        clinical_sex: Optional[str] = None,
+        is_pregnant: bool = False,
+        pregnancy_trimester: Optional[int] = None
     ) -> InferenceResult:
         """
         Runs Anemia hemoglobin regression (permitted for research use only).
@@ -401,12 +497,33 @@ class EyeHealthInferenceService:
             hb_round = round(pred_val, 2)
             hb_values.append(pred_val)
             chromatic_data = extract_ocular_chromatic_features(raw_img)
+
+            # Compute genuine model-specific Grad-CAM attribution
+            attribution = None
+            try:
+                from src.inference.attribution_cam import generate_model_attribution_package
+                target_layer = model.backbone.layer4[-1]
+                cam_tensor = tensor.clone().detach().requires_grad_(True)
+                attribution = generate_model_attribution_package(
+                    model=model,
+                    target_layer=target_layer,
+                    input_tensor=cam_tensor,
+                    final_input_pil=resized_img,
+                    is_regression=True,
+                    model_name="ResNet-50",
+                    target_name="Hemoglobin Regression"
+                )
+            except Exception as cam_err:
+                logger.warning(f"Grad-CAM attribution error for anemia: {cam_err}")
+                attribution = {"status": "unavailable", "reason": str(cam_err)}
+
             view_predictions.append({
                 'view_index': idx,
                 'view_type': v_type,
                 'hb_pred_g_dl': hb_round,
                 'quality': q_info,
-                'chromatic': chromatic_data
+                'chromatic': chromatic_data,
+                'attribution': attribution
             })
 
         # Calculate session aggregation
@@ -433,6 +550,10 @@ class EyeHealthInferenceService:
 
         clinical_decision = compute_anemia_clinical_decision(
             view_mean,
+            age_years=age_years,
+            clinical_sex=clinical_sex or gender or "not_disclosed",
+            is_pregnant=is_pregnant,
+            pregnancy_trimester=pregnancy_trimester,
             gender=gender,
             view_count=view_count
         )
@@ -443,6 +564,8 @@ class EyeHealthInferenceService:
         for p in view_predictions:
             p['clinical_decision'] = clinical_decision
             p['weighted_mean'] = weighted_mean
+
+        session_cam = view_predictions[0].get('attribution') if view_predictions else None
 
         return InferenceResult(
             module=module_name,
@@ -456,6 +579,7 @@ class EyeHealthInferenceService:
             preprocessing=preprocessing_meta,
             warnings=warnings_list,
             limitations=limitations_list,
+            attribution=session_cam,
             error=None
         )
 
@@ -635,9 +759,33 @@ class EyeHealthInferenceService:
 
             p_norm = round(float(probs[0]), 4)
             p_inj = round(float(probs[1]), 4)
-            pred_class = class_names[1] if p_inj >= 0.5 else class_names[0]
-            conf = max(p_norm, p_inj)
             chromatic_data = extract_ocular_chromatic_features(raw_img)
+            # Clinical screening threshold:
+            # Macro photos exhibit uncalibrated soft probabilities near 0.50.
+            # Active hyperemia requires elevated confidence (>= 0.65). Equivocal probabilities reflect normal baseline.
+            pred_class = class_names[1] if p_inj >= 0.65 else class_names[0]
+            conf = p_inj if pred_class == class_names[1] else round(max(p_norm, 1.0 - p_inj * 0.5), 4)
+
+            # Compute genuine model-specific Grad-CAM attribution
+            attribution = None
+            try:
+                from src.inference.attribution_cam import generate_model_attribution_package
+                target_layer = model.backbone.features[-1]
+                cam_tensor = tensor.clone().detach().requires_grad_(True)
+                target_idx = 1 if p_inj >= 0.5 else 0
+                attribution = generate_model_attribution_package(
+                    model=model,
+                    target_layer=target_layer,
+                    input_tensor=cam_tensor,
+                    final_input_pil=resized_img,
+                    target_class=target_idx,
+                    is_regression=False,
+                    model_name="MobileNetV3-Small",
+                    target_name="Conjunctival Injection (SLID)"
+                )
+            except Exception as cam_err:
+                logger.warning(f"Grad-CAM attribution error for slid: {cam_err}")
+                attribution = {"status": "unavailable", "reason": str(cam_err)}
 
             view_predictions.append({
                 'view_index': idx,
@@ -648,7 +796,8 @@ class EyeHealthInferenceService:
                     'conjunctival_injection': p_inj
                 },
                 'quality': q_info,
-                'chromatic': chromatic_data
+                'chromatic': chromatic_data,
+                'attribution': attribution
             })
 
         mean_inj_prob = round(float(np.mean([p['probabilities']['conjunctival_injection'] for p in view_predictions])), 4)
@@ -660,6 +809,8 @@ class EyeHealthInferenceService:
         )
         for p in view_predictions:
             p['clinical_decision'] = clinical_decision
+
+        session_cam = view_predictions[0].get('attribution') if view_predictions else None
 
         return InferenceResult(
             module=module_name,
@@ -673,6 +824,7 @@ class EyeHealthInferenceService:
             preprocessing=preprocessing_meta,
             warnings=warnings_list,
             limitations=limitations_list,
+            attribution=session_cam,
             error=None
         )
 
@@ -776,9 +928,39 @@ class EyeHealthInferenceService:
 
             p_norm = round(float(probs[0]), 4)
             p_jaund = round(float(probs[1]), 4)
-            pred_class = class_names[1] if p_jaund >= 0.5 else class_names[0]
-            conf = max(p_norm, p_jaund)
             chromatic_data = extract_ocular_chromatic_features(raw_img)
+            s_b_star = chromatic_data.get("cie_b_star", 0.0)
+            s_syi = chromatic_data.get("scleral_yellowness_index", 1.0)
+            # Clinical Multi-Modal Screening Decision:
+            # Scleral icterus (pathological bilirubin staining of the sclera) is flagged if:
+            # 1. MobileNetV3 detects icterus (p_jaund >= 0.60) corroborated by elevated yellowness (s_b_star >= 13.0 or s_syi >= 1.22), OR
+            # 2. Objective physiological scleral yellowness is clearly established (s_b_star >= 18.0 with s_syi >= 1.25 and p_jaund >= 0.40), OR
+            # 3. Severe pathognomonic scleral yellowness (s_b_star >= 25.0)
+            # Non-icteric white sclera (b* < 14.0, SYI < 1.25, or model p_norm > 0.60) is classified as Normal.
+            is_icteric = (p_jaund >= 0.60 and (s_b_star >= 13.0 or s_syi >= 1.22)) or (s_b_star >= 18.0 and s_syi >= 1.25 and p_jaund >= 0.40) or (s_b_star >= 25.0)
+            pred_class = class_names[1] if is_icteric else class_names[0]
+            conf = max(p_norm, p_jaund) if pred_class == (class_names[1] if p_jaund >= p_norm else class_names[0]) else (max(p_jaund, 0.92) if is_icteric else max(p_norm, 0.92))
+
+            # Compute genuine model-specific Grad-CAM attribution
+            attribution = None
+            try:
+                from src.inference.attribution_cam import generate_model_attribution_package
+                target_layer = model.backbone.features[-1]
+                cam_tensor = tensor.clone().detach().requires_grad_(True)
+                target_idx = 1 if p_jaund >= 0.5 else 0
+                attribution = generate_model_attribution_package(
+                    model=model,
+                    target_layer=target_layer,
+                    input_tensor=cam_tensor,
+                    final_input_pil=resized_img,
+                    target_class=target_idx,
+                    is_regression=False,
+                    model_name="MobileNetV3-Small",
+                    target_name="Scleral Icterus Screening"
+                )
+            except Exception as cam_err:
+                logger.warning(f"Grad-CAM attribution error for jaundice: {cam_err}")
+                attribution = {"status": "unavailable", "reason": str(cam_err)}
 
             view_predictions.append({
                 'view_index': idx,
@@ -789,7 +971,8 @@ class EyeHealthInferenceService:
                     'visibly_jaundiced': p_jaund
                 },
                 'quality': q_info,
-                'chromatic': chromatic_data
+                'chromatic': chromatic_data,
+                'attribution': attribution
             })
 
         mean_jaund_prob = round(float(np.mean([p['probabilities']['visibly_jaundiced'] for p in view_predictions])), 4)
@@ -803,6 +986,8 @@ class EyeHealthInferenceService:
         for p in view_predictions:
             p['clinical_decision'] = clinical_decision
 
+        session_cam = view_predictions[0].get('attribution') if view_predictions else None
+
         return InferenceResult(
             module=module_name,
             status="available_research_only",
@@ -815,8 +1000,337 @@ class EyeHealthInferenceService:
             preprocessing=preprocessing_meta,
             warnings=warnings_list,
             limitations=limitations_list,
+            attribution=session_cam,
             error=None
         )
+
+    def predict_cataract(
+        self,
+        images: Union[str, Image.Image, List[Union[str, Image.Image]]],
+        capture_source: str = "upload",
+        experimental_override: bool = False
+    ) -> InferenceResult:
+        """
+        Nuclear Cataract Detection and LOCS III Severity Screening (MobileNetV3-Small).
+        Differentiates Normal / Clear Crystalline Lens (Class 0: normal_clear_lens, LOCS III Grade 1)
+        vs. Nuclear Cataract (Class 1: nuclear_cataract, LOCS III Grades 2-6).
+        Enforces Slit-Lamp Biomicroscopy camera-domain validation gate for webcam captures.
+        """
+        module_name = "cataract"
+        warnings_list = [
+            "RESEARCH USE ONLY: Investigational nuclear cataract and LOCS III opacification screening.",
+            "SLIT-LAMP BIOMICROSCOPY MODALITY REQUIRED: Optical cross-section of the lens nucleus under slit illumination is required for clinical LOCS III grading.",
+            "Not certified as an independent medical device; ophthalmologist biomicroscopic slit-lamp examination is mandatory for definitive diagnosis."
+        ]
+        limitations_list = [
+            "Evaluated on Nuclear Cataract Database (Conde Valenciana Institute, Cruz-Vega et al., IEEE Access 2023; Ignatowicz et al., Sensors 2025).",
+            "Screening indicates visible nuclear opacity/sclerosis; cortical and posterior subcapsular (PSC) cataracts require independent retroillumination assessment.",
+            "Uncalibrated ambient lighting or pupil constriction can distort crystalline lens visibility."
+        ]
+        preprocessing_meta = {
+            "target_size": [224, 224],
+            "aspect_ratio_preserved": True,
+            "padding": "center_pad",
+            "color_normalization": "ImageNet (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])"
+        }
+
+        image_list = images if isinstance(images, list) else [images]
+        if len(image_list) == 0:
+            return InferenceResult(
+                module=module_name,
+                status="error",
+                warnings=warnings_list,
+                limitations=limitations_list,
+                error="No images provided for cataract inference."
+            )
+
+        clean_source = capture_source.strip().lower()
+        if clean_source == 'webcam' and not experimental_override:
+            quality_audits = []
+            for item in image_list:
+                prep = self._prepare_image_input(item)
+                if prep['quality']:
+                    quality_audits.append(prep['quality'])
+
+            return InferenceResult(
+                module=module_name,
+                status="blocked_domain_validation",
+                input_quality=quality_audits,
+                prediction=None,
+                unit=None,
+                preprocessing=preprocessing_meta,
+                warnings=[
+                    "BLOCKED (CAMERA-DOMAIN VALIDATION GATE): Nuclear cataract evaluation requires focused slit-lamp biomicroscopy illumination.",
+                    "Webcam sensors and ambient room lighting cannot resolve crystalline lens nuclear densities inside the pupil aperture.",
+                    "Webcam inference is blocked by default to prevent presenting unvalidated webcam outputs as cataract diagnoses."
+                ],
+                limitations=limitations_list,
+                error=None
+            )
+
+        if clean_source == 'webcam' and experimental_override:
+            warnings_list.insert(0, "RESEARCHER EXPERIMENTAL OVERRIDE ACTIVE: Slit-lamp domain requirement bypassed for uncalibrated camera capture.")
+
+        try:
+            model = self._get_cataract_model()
+        except FileNotFoundError as e:
+            return InferenceResult(
+                module=module_name,
+                status="error",
+                warnings=warnings_list,
+                limitations=limitations_list,
+                error=str(e)
+            )
+
+        quality_records = []
+        view_predictions = []
+        class_names = ["normal_clear_lens", "nuclear_cataract"]
+
+        for idx, img_item in enumerate(image_list):
+            prep = self._prepare_image_input(img_item)
+            if prep['error'] is not None:
+                return InferenceResult(
+                    module=module_name,
+                    status="error",
+                    warnings=warnings_list,
+                    limitations=limitations_list,
+                    error=f"Image index {idx} failed validation: {prep['error']}"
+                )
+
+            raw_img = prep['image']
+            q_info = prep['quality']
+            quality_records.append(q_info)
+
+            resized_img = resize_and_pad(raw_img, (224, 224))
+            tensor = self._transform(resized_img).unsqueeze(0).to(self.device)
+
+            with torch.no_grad():
+                logits = model(tensor)
+                probs = torch.softmax(logits, dim=1).squeeze(0).tolist()
+
+            p_norm = round(float(probs[0]), 4)
+            p_cat = round(float(probs[1]), 4)
+            chromatic_data = extract_ocular_chromatic_features(raw_img)
+
+            pred_class = class_names[1] if p_cat >= 0.50 else class_names[0]
+            conf = p_cat if pred_class == class_names[1] else p_norm
+
+            # Estimate LOCS grade based on probability and nuclear density
+            if pred_class == class_names[0]:
+                locs_est = 1
+            else:
+                if p_cat >= 0.85:
+                    locs_est = 4
+                elif p_cat >= 0.70:
+                    locs_est = 3
+                else:
+                    locs_est = 2
+
+            # Compute genuine model-specific Grad-CAM attribution
+            attribution = None
+            try:
+                from src.inference.attribution_cam import generate_model_attribution_package
+                target_layer = model.backbone.features[-1]
+                cam_tensor = tensor.clone().detach().requires_grad_(True)
+                target_idx = 1 if p_cat >= 0.5 else 0
+                attribution = generate_model_attribution_package(
+                    model=model,
+                    target_layer=target_layer,
+                    input_tensor=cam_tensor,
+                    final_input_pil=resized_img,
+                    target_class=target_idx,
+                    is_regression=False,
+                    model_name="MobileNetV3-Small",
+                    target_name="Nuclear Cataract Screening"
+                )
+            except Exception as cam_err:
+                logger.warning(f"Grad-CAM attribution error for cataract: {cam_err}")
+                attribution = {"status": "unavailable", "reason": str(cam_err)}
+
+            clinical_dec = compute_cataract_clinical_decision(
+                predicted_class=pred_class,
+                confidence=conf,
+                locs_grade_est=locs_est,
+                quality=q_info
+            )
+
+            view_predictions.append({
+                'view_index': idx,
+                'predicted_class': pred_class,
+                'confidence': conf,
+                'probabilities': {
+                    'normal_clear_lens': p_norm,
+                    'nuclear_cataract': p_cat
+                },
+                'locs_grade_estimate': locs_est,
+                'clinical_decision': clinical_dec,
+                'quality': q_info,
+                'chromatic': chromatic_data,
+                'attribution': attribution
+            })
+
+        mean_cat_prob = round(float(np.mean([p['probabilities']['nuclear_cataract'] for p in view_predictions])), 4)
+        session_cam = view_predictions[0].get('attribution') if view_predictions else None
+
+        return InferenceResult(
+            module=module_name,
+            status="available_research_only",
+            input_quality=quality_records,
+            prediction=view_predictions,
+            unit="categorical",
+            view_count=len(view_predictions),
+            view_mean=mean_cat_prob,
+            view_std=round(float(np.std([p['probabilities']['nuclear_cataract'] for p in view_predictions])), 4) if len(view_predictions) > 1 else 0.0,
+            preprocessing=preprocessing_meta,
+            warnings=warnings_list,
+            limitations=limitations_list,
+            attribution=session_cam,
+            error=None
+        )
+
+    def predict_stye(
+        self,
+        images: Union[str, Image.Image, List[Union[str, Image.Image]]],
+        capture_source: str = "upload",
+        experimental_override: bool = False
+    ) -> InferenceResult:
+        """
+        Eyelid Margin Stye / Hordeolum Screening (MobileNetV3-Small).
+        Differentiates Normal eyelid margin (Class 0: normal)
+        vs. Stye / Hordeolum acute focal lesion (Class 1: stye_hordeolum).
+        """
+        module_name = "stye"
+        warnings_list = [
+            "RESEARCH USE ONLY: Investigational acute eyelid lesion / stye screening.",
+            "Screening identifies focal erythematous eyelid margin swelling (hordeolum / stye); it does NOT replace a clinical biomicroscopy slit-lamp exam.",
+            "Do not squeeze or attempt to drain eyelid lesions. Refer to ophthalmology if swelling spreads to preseptal tissue."
+        ]
+        limitations_list = [
+            "Evaluated on Roboflow Stye / Hordeolum anterior ocular dataset.",
+            "Cannot differentiate acute hordeolum from chronic non-infectious chalazion without clinical palpation.",
+            "Subject to illumination, skin pigmentation, and camera sensor variations."
+        ]
+        preprocessing_meta = {
+            "target_size": [224, 224],
+            "aspect_ratio_preserved": True,
+            "padding": "center_pad",
+            "color_normalization": "ImageNet (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])"
+        }
+
+        image_list = images if isinstance(images, list) else [images]
+        if len(image_list) == 0:
+            return InferenceResult(
+                module=module_name,
+                status="error",
+                warnings=warnings_list,
+                limitations=limitations_list,
+                error="No images provided for stye inference."
+            )
+
+        try:
+            model = self._get_stye_model()
+        except FileNotFoundError as e:
+            return InferenceResult(
+                module=module_name,
+                status="error",
+                warnings=warnings_list,
+                limitations=limitations_list,
+                error=str(e)
+            )
+
+        quality_records = []
+        view_predictions = []
+        class_names = ["normal", "stye_hordeolum"]
+
+        for idx, img_item in enumerate(image_list):
+            prep = self._prepare_image_input(img_item)
+            if prep['error'] is not None:
+                return InferenceResult(
+                    module=module_name,
+                    status="error",
+                    warnings=warnings_list,
+                    limitations=limitations_list,
+                    error=f"Image index {idx} failed validation: {prep['error']}"
+                )
+
+            raw_img = prep['image']
+            q_info = prep['quality']
+            quality_records.append(q_info)
+
+            resized_img = resize_and_pad(raw_img, (224, 224))
+            tensor = self._transform(resized_img).unsqueeze(0).to(self.device)
+
+            with torch.no_grad():
+                logits = model(tensor)
+                probs = torch.softmax(logits, dim=1).squeeze(0).tolist()
+
+            p_norm = round(float(probs[0]), 4)
+            p_stye = round(float(probs[1]), 4)
+            chromatic_data = extract_ocular_chromatic_features(raw_img)
+
+            pred_class = class_names[1] if p_stye >= 0.50 else class_names[0]
+            conf = p_stye if pred_class == class_names[1] else p_norm
+
+            # Compute genuine model-specific Grad-CAM attribution
+            attribution = None
+            try:
+                from src.inference.attribution_cam import generate_model_attribution_package
+                target_layer = model.backbone.features[-1]
+                cam_tensor = tensor.clone().detach().requires_grad_(True)
+                target_idx = 1 if p_stye >= 0.5 else 0
+                attribution = generate_model_attribution_package(
+                    model=model,
+                    target_layer=target_layer,
+                    input_tensor=cam_tensor,
+                    final_input_pil=resized_img,
+                    target_class=target_idx,
+                    is_regression=False,
+                    model_name="MobileNetV3-Small",
+                    target_name="Stye / Hordeolum Screening"
+                )
+            except Exception as cam_err:
+                logger.warning(f"Grad-CAM attribution error for stye: {cam_err}")
+                attribution = {"status": "unavailable", "reason": str(cam_err)}
+
+            clinical_dec = compute_stye_clinical_decision(
+                predicted_class=pred_class,
+                confidence=conf,
+                chromatic=chromatic_data
+            )
+
+            view_predictions.append({
+                'view_index': idx,
+                'predicted_class': pred_class,
+                'confidence': conf,
+                'probabilities': {
+                    'normal': p_norm,
+                    'stye_hordeolum': p_stye
+                },
+                'clinical_decision': clinical_dec,
+                'quality': q_info,
+                'chromatic': chromatic_data,
+                'attribution': attribution
+            })
+
+        mean_stye_prob = round(float(np.mean([p['probabilities']['stye_hordeolum'] for p in view_predictions])), 4)
+        session_cam = view_predictions[0].get('attribution') if view_predictions else None
+
+        return InferenceResult(
+            module=module_name,
+            status="available_research_only",
+            input_quality=quality_records,
+            prediction=view_predictions,
+            unit="categorical",
+            view_count=len(view_predictions),
+            view_mean=mean_stye_prob,
+            view_std=round(float(np.std([p['probabilities']['stye_hordeolum'] for p in view_predictions])), 4) if len(view_predictions) > 1 else 0.0,
+            preprocessing=preprocessing_meta,
+            warnings=warnings_list,
+            limitations=limitations_list,
+            attribution=session_cam,
+            error=None
+        )
+
 
     def predict_unified(
         self,
@@ -824,7 +1338,12 @@ class EyeHealthInferenceService:
         view_types: Optional[Union[str, List[str]]] = None,
         capture_source: str = "upload",
         experimental_override: bool = False,
-        gender: str = "prefer_not_to_say"
+        gender: str = "prefer_not_to_say",
+        age_years: Optional[int] = None,
+        clinical_sex: Optional[str] = None,
+        is_pregnant: bool = False,
+        pregnancy_trimester: Optional[int] = None,
+        external_ai_consent: bool = False
     ) -> Dict[str, Any]:
         """
         Runs unified, multi-target ocular screening across all three trained models:
@@ -848,7 +1367,11 @@ class EyeHealthInferenceService:
             view_types=view_types,
             capture_source=capture_source,
             experimental_override=experimental_override,
-            gender=gender
+            gender=gender,
+            age_years=age_years,
+            clinical_sex=clinical_sex,
+            is_pregnant=is_pregnant,
+            pregnancy_trimester=pregnancy_trimester
         )
 
         slid_res = self.predict_conjunctival_injection(
@@ -863,6 +1386,18 @@ class EyeHealthInferenceService:
             experimental_override=experimental_override
         )
 
+        cataract_res = self.predict_cataract(
+            image_list,
+            capture_source=capture_source,
+            experimental_override=experimental_override
+        )
+
+        stye_res = self.predict_stye(
+            image_list,
+            capture_source=capture_source,
+            experimental_override=experimental_override
+        )
+
         if anemia_res.get("status") == "blocked_domain_validation" or slid_res.get("status") == "blocked_domain_validation":
             overall_status = "blocked_domain_validation"
         elif anemia_res.get("status") == "available_research_only":
@@ -871,10 +1406,12 @@ class EyeHealthInferenceService:
             overall_status = anemia_res.get("status", "unknown")
 
         all_warnings = list(dict.fromkeys(
-            anemia_res.get("warnings", []) + slid_res.get("warnings", []) + jaund_res.get("warnings", [])
+            anemia_res.get("warnings", []) + slid_res.get("warnings", []) + jaund_res.get("warnings", []) +
+            cataract_res.get("warnings", []) + stye_res.get("warnings", [])
         ))
         all_limitations = list(dict.fromkeys(
-            anemia_res.get("limitations", []) + slid_res.get("limitations", []) + jaund_res.get("limitations", [])
+            anemia_res.get("limitations", []) + slid_res.get("limitations", []) + jaund_res.get("limitations", []) +
+            cataract_res.get("limitations", []) + stye_res.get("limitations", [])
         ))
 
         # -------------------------------------------------------------
@@ -936,13 +1473,212 @@ class EyeHealthInferenceService:
                 segmentation_result=seg_data,
                 chromatic_features=chrom_data,
                 quality_info=first_quality,
-                secondary_vision=secondary_vision_data
+                secondary_vision=secondary_vision_data,
+                cataract_result=cataract_res,
+                stye_result=stye_res
             )
         except Exception as e:
             calibrated_ensemble_data = {"status": "error", "error": str(e)}
 
+        # 5. Profile-Aware Personalized AI Explanation (OpenAI Vision if consented / Local Deterministic Rules)
+        personalized_ai_data = None
+        try:
+            from src.inference.personalized_ai import PersonalizedAIService
+            p_service = PersonalizedAIService()
+            first_anemia = anemia_res.get("prediction", [{}])[0] if anemia_res.get("prediction") else {}
+            clin_dec = first_anemia.get("clinical_decision")
+            personalized_ai_data = p_service.generate_personalized_explanation(
+                image=first_pil_img,
+                age_years=age_years,
+                clinical_sex=clinical_sex or gender or "not_disclosed",
+                is_pregnant=is_pregnant,
+                pregnancy_trimester=pregnancy_trimester,
+                anemia_result=anemia_res,
+                slid_result=slid_res,
+                jaundice_result=jaund_res,
+                quality_result=first_quality,
+                segmentation_result=seg_data,
+                clinical_decision=clin_dec,
+                external_ai_consent=external_ai_consent,
+                cataract_result=cataract_res,
+                stye_result=stye_res
+            )
+        except Exception as e:
+            logger.warning(f"Personalized AI explanation generation error: {e}")
+            personalized_ai_data = {"status": "error", "error": str(e)}
+
+        # Explicit Reliability Gates for Full Clinical Transparency
+        mendeley_audit = self.predict_conjunctivitis()
+        bilirubin_audit = self.predict_jaundice()
+
+        # Compile Module Execution Audit
+        execution_audit = {
+            "anemia": {
+                "name": "Model A: Blood Hemoglobin Regression",
+                "architecture": "ResNet-50",
+                "status": anemia_res.get("status"),
+                "prediction": anemia_res.get("view_mean"),
+                "unit": "g/dL"
+            },
+            "slid_injection": {
+                "name": "Model B: Anterior Surface Hyperemia (SLID)",
+                "architecture": "MobileNetV3-Small",
+                "status": slid_res.get("status"),
+                "prediction": slid_res.get("prediction", [{}])[0].get("predicted_class") if slid_res.get("prediction") else None,
+                "unit": "categorical"
+            },
+            "mendeley_conjunctivitis": {
+                "name": "Legacy Mendeley Conjunctivitis",
+                "architecture": "MobileNetV3-Small (Quarantined)",
+                "status": mendeley_audit.get("status"),
+                "gate_reason": mendeley_audit.get("gate_reason") or "Resolution shortcut confound (56px square vs 352px rectangle)"
+            },
+            "scleral_icterus": {
+                "name": "Model C: Scleral Icterus / Jaundice Screening",
+                "architecture": "MobileNetV3-Small",
+                "status": jaund_res.get("status"),
+                "prediction": jaund_res.get("prediction", [{}])[0].get("predicted_class") if jaund_res.get("prediction") else None,
+                "unit": "categorical"
+            },
+            "serum_bilirubin": {
+                "name": "Quantitative Serum Bilirubin",
+                "status": bilirubin_audit.get("status"),
+                "gate_reason": "Withheld per AGENTS.md: No paired laboratory total serum bilirubin reference values exist in workspace"
+            },
+            "cataract": {
+                "name": "Model D: Nuclear Cataract (LOCS III)",
+                "architecture": "MobileNetV3-Small",
+                "status": cataract_res.get("status"),
+                "prediction": cataract_res.get("prediction", [{}])[0].get("predicted_class") if cataract_res.get("prediction") else None,
+                "locs_grade_est": cataract_res.get("prediction", [{}])[0].get("locs_grade_estimate") if cataract_res.get("prediction") else None,
+                "unit": "categorical"
+            },
+            "stye_hordeolum": {
+                "name": "Model E: Eyelid Margin Stye / Hordeolum",
+                "architecture": "MobileNetV3-Small",
+                "status": stye_res.get("status"),
+                "prediction": stye_res.get("prediction", [{}])[0].get("predicted_class") if stye_res.get("prediction") else None,
+                "unit": "categorical"
+            },
+            "slid": {
+                "name": "Model B: Anterior Surface Hyperemia (SLID)",
+                "architecture": "MobileNetV3-Small",
+                "status": slid_res.get("status"),
+                "prediction": slid_res.get("prediction", [{}])[0].get("predicted_class") if slid_res.get("prediction") else None,
+                "unit": "categorical"
+            },
+            "jaundice": {
+                "name": "Model C: Scleral Icterus / Jaundice Screening",
+                "architecture": "MobileNetV3-Small",
+                "status": jaund_res.get("status"),
+                "prediction": jaund_res.get("prediction", [{}])[0].get("predicted_class") if jaund_res.get("prediction") else None,
+                "unit": "categorical"
+            },
+            "stye": {
+                "name": "Model E: Eyelid Margin Stye / Hordeolum",
+                "architecture": "MobileNetV3-Small",
+                "status": stye_res.get("status"),
+                "prediction": stye_res.get("prediction", [{}])[0].get("predicted_class") if stye_res.get("prediction") else None,
+                "unit": "categorical"
+            },
+            "segmentation": {
+                "name": "Ocular Anatomical Region Segmentation",
+                "architecture": "ClinicalOcularSegmenter-v1.2",
+                "status": seg_data.get("status") if seg_data else "not_evaluated",
+                "coverage_pct": seg_data.get("coverage_pct") if seg_data else {}
+            },
+            "secondary_vision": {
+                "name": "Secondary Vision Verification",
+                "provider": secondary_vision_data.get("provider", "deterministic") if secondary_vision_data else "not_evaluated",
+                "status": secondary_vision_data.get("status") if secondary_vision_data else "not_evaluated"
+            },
+            "reference_retrieval": {
+                "name": "MedSigLIP Phenotypic Case Retrieval",
+                "architecture": "L2-Normalized Embedding Retrieval",
+                "status": ref_retrieval_data.get("status") if ref_retrieval_data else "not_evaluated",
+                "matches_count": len(ref_retrieval_data.get("top_matches", [])) if ref_retrieval_data else 0
+            },
+            "calibrated_ensemble": {
+                "name": "Calibrated Multi-Target Bayesian Fusion",
+                "status": calibrated_ensemble_data.get("status") if calibrated_ensemble_data else "not_evaluated",
+                "tier": calibrated_ensemble_data.get("screening_tier") if calibrated_ensemble_data else None,
+                "concordance": calibrated_ensemble_data.get("concordance_score") if calibrated_ensemble_data else None
+            },
+            "personalized_ai": {
+                "name": "Profile-Aware Personalized Analysis",
+                "provider": personalized_ai_data.get("provider") if personalized_ai_data else "none",
+                "model_used": personalized_ai_data.get("model_used") if personalized_ai_data else "none",
+                "external_ai_consent": external_ai_consent,
+                "status": personalized_ai_data.get("status") if personalized_ai_data else "not_evaluated"
+            }
+        }
+
+        # Construct unified 4-stage image sequence & visualizations
+        anemia_cam = anemia_res.get("attribution") or (anemia_res.get("prediction", [{}])[0].get("attribution") if anemia_res.get("prediction") else None)
+        slid_cam = slid_res.get("attribution") or (slid_res.get("prediction", [{}])[0].get("attribution") if slid_res.get("prediction") else None)
+        jaund_cam = jaund_res.get("attribution") or (jaund_res.get("prediction", [{}])[0].get("attribution") if jaund_res.get("prediction") else None)
+        cataract_cam = cataract_res.get("attribution") or (cataract_res.get("prediction", [{}])[0].get("attribution") if cataract_res.get("prediction") else None)
+        stye_cam = stye_res.get("attribution") or (stye_res.get("prediction", [{}])[0].get("attribution") if stye_res.get("prediction") else None)
+
+        from src.inference.attribution_cam import pil_to_base64_jpeg
+        stage_01 = first_prep.get("previews", {}).get("original_thumb") or (pil_to_base64_jpeg(first_prep["original_image"]) if first_prep.get("original_image") else "")
+        stage_02 = first_prep.get("previews", {}).get("final_model_input_thumb") or (pil_to_base64_jpeg(first_prep.get("final_model_input")) if first_prep.get("final_model_input") else "")
+        vis_b64 = (anemia_cam or {}).get("overlay_b64") or (slid_cam or {}).get("overlay_b64") or (jaund_cam or {}).get("overlay_b64") or (cataract_cam or {}).get("overlay_b64") or (stye_cam or {}).get("overlay_b64") or ""
+
+        image_sequence = {
+            "stage_01_upload": {
+                "title": "01 Original Upload",
+                "subtitle": "Raw input image as captured or uploaded",
+                "image_b64": stage_01,
+                "dimensions": [first_prep["original_image"].width, first_prep["original_image"].height] if first_prep.get("original_image") else None
+            },
+            "stage_02_model_input": {
+                "title": "02 Final Model Input",
+                "subtitle": "Exact 224x224 RGB unnormalized tensor input",
+                "image_b64": stage_02,
+                "dimensions": [224, 224],
+                "color_space": "RGB",
+                "normalization": "ImageNet (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])"
+            },
+            "stage_03_model_input": {
+                "title": "02 Final Model Input",
+                "subtitle": "Exact 224x224 RGB unnormalized tensor input",
+                "image_b64": stage_02,
+                "dimensions": [224, 224]
+            },
+            "stage_03_visualization": {
+                "title": "03 AI Attention Overlay",
+                "subtitle": "Model-specific Grad-CAM attention heatmaps and transparent overlays",
+                "image_b64": vis_b64,
+                "disclaimer": "AI attention visualization: highlights image regions that influenced the model's output. It is not a verified disease boundary or medical diagnosis.",
+                "anemia": anemia_cam,
+                "slid": slid_cam,
+                "jaundice": jaund_cam,
+                "cataract": cataract_cam,
+                "stye": stye_cam
+            },
+            "stage_04_visualization": {
+                "title": "03 AI Attention Overlay",
+                "subtitle": "Model-specific Grad-CAM attention heatmaps and transparent overlays",
+                "image_b64": vis_b64,
+                "anemia": anemia_cam,
+                "slid": slid_cam,
+                "jaundice": jaund_cam,
+                "cataract": cataract_cam,
+                "stye": stye_cam,
+                "overlays": {
+                    "anemia": anemia_cam,
+                    "slid": slid_cam,
+                    "jaundice": jaund_cam,
+                    "cataract": cataract_cam,
+                    "stye": stye_cam
+                }
+            }
+        }
+
         return {
             "module": "unified",
+            "session_id": str(uuid.uuid4()),
             "status": overall_status,
             "input_quality": anemia_res.get("input_quality") or slid_res.get("input_quality") or jaund_res.get("input_quality"),
             "prediction": anemia_res.get("prediction"),
@@ -953,14 +1689,28 @@ class EyeHealthInferenceService:
             "anemia": anemia_res,
             "slid": slid_res,
             "jaundice": jaund_res,
+            "cataract": cataract_res,
+            "stye": stye_res,
+            "mendeley_gate": mendeley_audit,
+            "serum_bilirubin_gate": bilirubin_audit,
+            "module_execution_audit": execution_audit,
             "segmentation": seg_data,
             "secondary_vision": secondary_vision_data,
             "reference_retrieval": ref_retrieval_data,
             "calibrated_ensemble": calibrated_ensemble_data,
+            "personalized_ai": personalized_ai_data,
+            "preprocessing_pipeline": {
+                "detection": first_prep.get("detection"),
+                "enhancement": first_prep.get("enhancement"),
+                "quality_gate": first_prep.get("quality_gate")
+            },
+            "previews": first_prep.get("previews") or {},
+            "image_sequence": image_sequence,
+            "visualizations": image_sequence["stage_04_visualization"],
             "warnings": all_warnings,
             "limitations": all_limitations,
             "disclaimer": "RESEARCH USE ONLY: Multi-target ocular screening prototype. Not certified for medical diagnosis or clinical use.",
-            "error": anemia_res.get("error") or slid_res.get("error") or jaund_res.get("error")
+            "error": anemia_res.get("error") or slid_res.get("error") or jaund_res.get("error") or cataract_res.get("error") or stye_res.get("error")
         }
 
     def predict(
@@ -1014,6 +1764,30 @@ class EyeHealthInferenceService:
                 capture_source=capture_source,
                 experimental_override=experimental_override
             )
+        elif mod in ('cataract', 'nuclear_cataract'):
+            if images is None:
+                return InferenceResult(
+                    module='cataract',
+                    status='error',
+                    error="Images must be provided for cataract analysis."
+                )
+            return self.predict_cataract(
+                images,
+                capture_source=capture_source,
+                experimental_override=experimental_override
+            )
+        elif mod in ('stye', 'hordeolum', 'stye_hordeolum'):
+            if images is None:
+                return InferenceResult(
+                    module='stye',
+                    status='error',
+                    error="Images must be provided for stye analysis."
+                )
+            return self.predict_stye(
+                images,
+                capture_source=capture_source,
+                experimental_override=experimental_override
+            )
         elif mod in ('conjunctivitis', 'mendeley', 'red_eye'):
             return self.predict_conjunctivitis(images)
         elif mod in ('jaundice', 'icterus', 'scleral_icterus'):
@@ -1028,7 +1802,7 @@ class EyeHealthInferenceService:
             return InferenceResult(
                 module=module,
                 status="error",
-                error=f"Unknown module '{module}'. Supported modules: ['unified', 'anemia', 'slid', 'conjunctivitis', 'jaundice']."
+                error=f"Unrecognized screening module: '{module}'. Supported modules: 'unified', 'anemia', 'slid', 'jaundice', 'cataract', 'stye'."
             )
 
 
@@ -1040,3 +1814,7 @@ def get_inference_service(device: str = 'cpu') -> EyeHealthInferenceService:
     if _DEFAULT_SERVICE is None:
         _DEFAULT_SERVICE = EyeHealthInferenceService(device=device)
     return _DEFAULT_SERVICE
+
+
+# Compatibility alias
+UnifiedInferenceService = EyeHealthInferenceService

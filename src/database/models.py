@@ -50,8 +50,13 @@ class UserProfile(Base):
     full_name = Column(String(128), nullable=False)
     phone = Column(String(32), nullable=False)
     email = Column(String(128), nullable=False, index=True)
-    date_of_birth = Column(String(16), nullable=False)  # Format: YYYY-MM-DD
-    gender = Column(String(32), nullable=True, default="prefer_not_to_say")
+    age_years = Column(Integer, nullable=True, index=True)  # Mandatory for new screening, range 0-120
+    date_of_birth = Column(String(16), nullable=True)  # Deprecated in favor of age_years
+    gender = Column(String(32), nullable=True, default="prefer_not_to_say")  # Gender identity
+    clinical_sex = Column(String(32), nullable=False, default="not_disclosed")  # Biological clinical reference variable (male, female, not_disclosed)
+    is_pregnant = Column(Boolean, nullable=False, default=False)
+    pregnancy_trimester = Column(Integer, nullable=True)  # 1, 2, or 3
+    external_ai_consent = Column(Boolean, nullable=False, default=False)
     demographic_consent = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
@@ -61,13 +66,22 @@ class UserProfile(Base):
     sessions = relationship("ScreeningSession", back_populates="user", cascade="all, delete-orphan")
 
     def to_dict(self) -> Dict[str, Any]:
+        has_research = any(c.research_screening_consent for c in self.consents) if self.consents else True
+        has_storage = any(c.data_storage_consent for c in self.consents) if self.consents else True
         return {
             "id": self.id,
             "full_name": self.full_name,
             "phone": self.phone,
             "email": self.email,
-            "date_of_birth": self.date_of_birth,
+            "age_years": self.age_years,
+            "date_of_birth": self.date_of_birth if self.date_of_birth else None,
             "gender": self.gender,
+            "clinical_sex": self.clinical_sex,
+            "is_pregnant": self.is_pregnant,
+            "pregnancy_trimester": self.pregnancy_trimester,
+            "research_consent": has_research,
+            "data_storage_consent": has_storage,
+            "external_ai_consent": self.external_ai_consent,
             "demographic_consent": self.demographic_consent,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
@@ -86,7 +100,8 @@ class ConsentRecord(Base):
     research_screening_consent = Column(Boolean, nullable=False, default=True)
     data_storage_consent = Column(Boolean, nullable=False, default=True)
     demographic_consent = Column(Boolean, nullable=False, default=False)
-    consent_version = Column(String(16), nullable=False, default="1.0")
+    external_ai_consent = Column(Boolean, nullable=False, default=False)
+    consent_version = Column(String(16), nullable=False, default="2.0")
     timestamp = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
 
     # Relationship
@@ -100,6 +115,7 @@ class ConsentRecord(Base):
             "research_screening_consent": self.research_screening_consent,
             "data_storage_consent": self.data_storage_consent,
             "demographic_consent": self.demographic_consent,
+            "external_ai_consent": self.external_ai_consent,
             "consent_version": self.consent_version,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }
@@ -118,8 +134,11 @@ class ScreeningSession(Base):
     language = Column(String(8), nullable=False, default="en")
     selected_module = Column(String(32), nullable=False)
     capture_source = Column(String(16), nullable=False, default="upload")  # "upload" or "webcam"
+    patient_age_years = Column(Integer, nullable=True)  # Snapshot of patient age at screening time
+    patient_clinical_sex = Column(String(32), nullable=True)  # Snapshot of clinical sex reference
     view_types = Column(JSON, nullable=True)  # List of view names (e.g. ['palpebral', 'forniceal'])
     quality_summary = Column(JSON, nullable=True)  # Aggregated quality flags
+    ai_explanation = Column(JSON, nullable=True)  # Dedicated OpenAI personalized explanation (if consented)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     # Relationships
@@ -129,6 +148,7 @@ class ScreeningSession(Base):
 
     def to_dict(self) -> Dict[str, Any]:
         ts = self.session_date.isoformat() if self.session_date else (self.created_at.isoformat() if self.created_at else None)
+        q_sum = self.quality_summary or {}
         return {
             "id": self.id,
             "session_id": self.id,
@@ -138,8 +158,14 @@ class ScreeningSession(Base):
             "language": self.language,
             "selected_module": self.selected_module,
             "capture_source": self.capture_source,
+            "patient_age_years": self.patient_age_years,
+            "patient_clinical_sex": self.patient_clinical_sex,
             "view_types": self.view_types or [],
-            "quality_summary": self.quality_summary or {},
+            "quality_summary": q_sum,
+            "ai_explanation": self.ai_explanation,
+            "image_sequence": q_sum.get("image_sequence"),
+            "visualizations": q_sum.get("visualizations"),
+            "previews": q_sum.get("previews"),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "results": [r.to_dict() for r in (self.model_results or [])],
         }

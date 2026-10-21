@@ -11,12 +11,15 @@ Phase 8 End-to-End Test Suite for Complete Autonomous Prototype:
 """
 
 import os
+import sys
 import io
 import pytest
 from fastapi.testclient import TestClient
 import pypdf
 
 WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if WORKSPACE_ROOT not in sys.path:
+    sys.path.insert(0, WORKSPACE_ROOT)
 
 from app import app
 from src.database import (
@@ -323,10 +326,8 @@ def test_multi_step_wizard_html_elements_present(client):
     assert 'id="langBtnEn"' in html
     assert 'id="langBtnHi"' in html
 
-    # Results Actions
-    assert 'id="btnDownloadPdfReport"' in html
-    assert 'id="btnDownloadPdfHi"' in html
-    assert 'id="btnOpenPrintScorecard"' in html
+    # Results Container (downloads integrated into Your Reports)
+    assert 'id="fullResultsContainer"' in html
 
     # History Table
     assert 'id="historyTableBody"' in html

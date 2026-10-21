@@ -26,6 +26,7 @@ from src.database.session import (
     save_report_metadata,
     delete_user_data,
     delete_session_record,
+    update_user_profile_age,
     engine,
     SessionLocal
 )
@@ -41,6 +42,7 @@ __all__ = [
     "get_db",
     "get_db_context",
     "register_user",
+    "update_user_profile_age",
     "get_user_by_id",
     "get_user_by_email",
     "create_session",

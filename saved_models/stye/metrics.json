@@ -1,0 +1,61 @@
+{
+  "disease": "Stye / Hordeolum",
+  "architecture": "MobileNetV3-Small",
+  "dataset": "Roboflow Stye/Hordeolum paired with Normal Ocular Controls",
+  "modality": "Anterior Eyelid / Ocular Photography",
+  "total_images": 2335,
+  "unique_subjects": 1145,
+  "subject_isolated_split": {
+    "train_subjects": 801,
+    "val_subjects": 171,
+    "test_subjects": 173,
+    "train_images": 1621,
+    "val_images": 352,
+    "test_images": 362
+  },
+  "validation_metrics": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall_sensitivity": 1.0,
+    "specificity": 1.0,
+    "f1_score": 1.0,
+    "roc_auc": 1.0,
+    "confusion_matrix": [
+      [
+        97,
+        0
+      ],
+      [
+        0,
+        255
+      ]
+    ],
+    "true_negatives": 97,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "true_positives": 255
+  },
+  "test_metrics": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall_sensitivity": 1.0,
+    "specificity": 1.0,
+    "f1_score": 1.0,
+    "roc_auc": 1.0,
+    "confusion_matrix": [
+      [
+        98,
+        0
+      ],
+      [
+        0,
+        264
+      ]
+    ],
+    "true_negatives": 98,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "true_positives": 264
+  },
+  "training_duration_seconds": 1948.59
+}
