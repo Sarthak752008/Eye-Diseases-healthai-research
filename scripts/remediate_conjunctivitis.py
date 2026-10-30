@@ -11,7 +11,6 @@ Conjunctivitis Model B validation and remediation:
 5. Retrain on clean splits and evaluate on an untouched leakage-audited test set.
 6. Save the new checkpoint separately; do not overwrite the original.
 """
-
 import os
 import sys
 import json
@@ -68,10 +67,8 @@ def dhash_from_path(filepath, hash_size=8):
     except Exception:
         return None
 
-
 def build_clean_manifest():
-    """
-    1. Load original manifest.
+    """1. Load original manifest.
     2. Compute dHash for every image.
     3. Group near-duplicates.
     4. For each collision group, keep the non-aug_ copy; drop aug_ copies.
