@@ -455,3 +455,5 @@ Clinical Computer Vision Screening Research & Validation Log
 <!-- PR milestone: test(harness): ensure mock session teardown cleanliness -->
 
 <!-- PR milestone: docs: finalize multi-target clinical architecture overview -->
+
+<!-- Co-author verification entry -->
